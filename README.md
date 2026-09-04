@@ -1,24 +1,41 @@
-# DecideAI
+DecideAI 🧠
 
-DecideAI - Plataforma inteligente para ajudar pessoas a tomar melhores decisões.
+Uma plataforma inteligente criada para ajudar pessoas a tomar melhores decisões.
 
-This project was built with [Lovable](https://lovable.dev).
+🚀 Sobre o projeto
 
-## Build with Lovable
+O DecideAI permite que usuários registrem decisões, comparem opções e recebam análises inteligentes para ajudá-los a escolher o melhor caminho.
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/e8454a2a-58e4-417a-93b0-7693f1eeb6bf).
+✨ Funcionalidades
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+- 🔐 Cadastro e login de usuários
+- 👤 Perfil personalizado
+- 🧠 Registro de decisões
+- 📊 Comparação de opções
+- 🤖 Análises com inteligência artificial
+- 📜 Histórico de decisões
+- ⭐ Planos Free, Premium e Pro
 
-## Development
+🛠️ Tecnologias
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+- React
+- TypeScript
+- Supabase
+- PostgreSQL
+- GitHub
 
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
-```
+📂 Estrutura do projeto
+
+O projeto está sendo desenvolvido de forma independente, com código hospedado no GitHub e infraestrutura própria no Supabase.
+
+🔒 Segurança
+
+Os dados dos usuários são protegidos utilizando autenticação e políticas de segurança RLS do Supabase.
+
+🎯 Objetivo
+
+Criar uma plataforma que ajude pessoas a tomar decisões melhores e aprender com suas escolhas ao longo do tempo.
+
+---
+
+🚧 Projeto em desenvolvimento.
