@@ -23,7 +23,7 @@ function Index() {
           </div>
 
           <span className="text-xl font-bold">
-            Decide<span className="text-violet-400">AI</span>
+            Decidly<span className="text-violet-400">AI</span>
           </span>
         </div>
 
@@ -56,7 +56,7 @@ function Index() {
         </h1>
 
         <p className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-slate-400 md:text-xl">
-          O DecideAI ajuda você a analisar opções, comparar caminhos e aprender
+          O DecidlyIA ajuda você a analisar opções, comparar caminhos e aprender
           com as decisões que tomou ao longo da sua vida.
         </p>
 
