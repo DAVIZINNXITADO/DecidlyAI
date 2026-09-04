@@ -16,7 +16,6 @@ import {
   Mail,
   Sparkles,
   User,
-  Languages,
 } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
@@ -26,15 +25,27 @@ export const Route = createFileRoute("/login")({
 type Language = "pt" | "en";
 type Mode = "login" | "signup";
 
+/*
+  O idioma continua preparado aqui.
+
+  No futuro, o valor de "language" pode vir das
+  configurações do usuário dentro do aplicativo.
+
+  Exemplo futuro:
+  const language = userSettings.language;
+*/
+
 const translations = {
   pt: {
     back: "Voltar",
 
-    welcome: "Bem-vindo de volta",
-    loginSubtitle: "Entre na sua conta para continuar.",
+    welcome: "Entrar",
+    loginSubtitle:
+      "Bem-vindo de volta! Acesse sua conta para continuar.",
 
-    createAccount: "Crie sua conta",
-    signupSubtitle: "Comece a tomar decisões com mais clareza.",
+    createAccount: "Criar conta",
+    signupSubtitle:
+      "Crie sua conta e comece a tomar decisões com mais clareza.",
 
     google: "Continuar com Google",
     or: "OU CONTINUE COM EMAIL",
@@ -42,93 +53,143 @@ const translations = {
     name: "Nome",
     namePlaceholder: "Como podemos te chamar?",
 
-    email: "Email",
-    emailPlaceholder: "voce@email.com",
+    email: "E-mail",
+    emailPlaceholder: "seuemail@exemplo.com",
+    emailHint:
+      "Use um e-mail ao qual você tenha acesso.",
 
     password: "Senha",
     passwordPlaceholder: "Digite sua senha",
+    passwordHint:
+      "Digite a senha usada na sua conta.",
 
     confirmPassword: "Confirmar senha",
-    confirmPasswordPlaceholder: "Digite sua senha novamente",
+    confirmPasswordPlaceholder:
+      "Digite sua senha novamente",
 
     forgotPassword: "Esqueci minha senha",
 
-    signIn: "Entrar",
-    signUp: "Criar conta",
+    signIn: "Entrar na minha conta",
+    signUp: "Criar minha conta",
 
-    noAccount: "Ainda não tem uma conta?",
-    alreadyAccount: "Já tem uma conta?",
+    noAccount:
+      "Ainda não possui uma conta?",
+
+    alreadyAccount:
+      "Já possui uma conta?",
 
     signupLink: "Criar conta",
     signinLink: "Entrar",
 
     loading: "Aguarde...",
 
-    passwordsDontMatch: "As senhas não coincidem.",
+    passwordsDontMatch:
+      "As senhas não coincidem.",
+
+    loginError:
+      "Não foi possível fazer login. Verifique seus dados.",
 
     connectionError:
       "Não foi possível conectar ao servidor. Tente novamente.",
 
     signupSuccess:
-      "Conta criada com sucesso! Verifique seu email para confirmar sua conta.",
+      "Conta criada com sucesso! Verifique seu e-mail para confirmar sua conta.",
 
     forgotPasswordMessage:
-      "Digite seu email e enviaremos instruções para redefinir sua senha.",
+      "Digite seu e-mail primeiro para receber as instruções de recuperação.",
 
     resetSent:
-      "Enviamos um email com instruções para redefinir sua senha.",
+      "Enviamos um e-mail com instruções para redefinir sua senha.",
 
     terms:
       "Ao continuar, você concorda com os Termos de Uso e a Política de Privacidade.",
 
-    brandText: "Menos dúvidas. Melhores decisões.",
+    brandTag:
+      "AI DECISION INTELLIGENCE",
+
+    brandText:
+      "Menos dúvidas. Melhores decisões.",
 
     brandDescription:
       "Organize possibilidades, analise consequências e tome decisões com mais clareza.",
 
-    feature1: "Organize seus pensamentos",
-    feature2: "Compare diferentes possibilidades",
-    feature3: "Decida com mais clareza",
+    feature1:
+      "Organize seus pensamentos",
+
+    feature2:
+      "Compare diferentes possibilidades",
+
+    feature3:
+      "Decida com mais clareza",
   },
 
   en: {
     back: "Back",
 
-    welcome: "Welcome back",
-    loginSubtitle: "Sign in to your account to continue.",
+    welcome: "Sign in",
+    loginSubtitle:
+      "Welcome back! Access your account to continue.",
 
-    createAccount: "Create your account",
-    signupSubtitle: "Start making clearer decisions.",
+    createAccount: "Create account",
+    signupSubtitle:
+      "Create your account and start making clearer decisions.",
 
     google: "Continue with Google",
     or: "OR CONTINUE WITH EMAIL",
 
     name: "Name",
-    namePlaceholder: "What should we call you?",
+    namePlaceholder:
+      "What should we call you?",
 
     email: "Email",
-    emailPlaceholder: "you@email.com",
+    emailPlaceholder:
+      "you@example.com",
+
+    emailHint:
+      "Use an email address you have access to.",
 
     password: "Password",
-    passwordPlaceholder: "Enter your password",
+    passwordPlaceholder:
+      "Enter your password",
 
-    confirmPassword: "Confirm password",
-    confirmPasswordPlaceholder: "Enter your password again",
+    passwordHint:
+      "Enter the password used for your account.",
 
-    forgotPassword: "Forgot password?",
+    confirmPassword:
+      "Confirm password",
 
-    signIn: "Sign in",
-    signUp: "Create account",
+    confirmPasswordPlaceholder:
+      "Enter your password again",
 
-    noAccount: "Don't have an account?",
-    alreadyAccount: "Already have an account?",
+    forgotPassword:
+      "Forgot password?",
 
-    signupLink: "Sign up",
-    signinLink: "Sign in",
+    signIn:
+      "Sign in to my account",
 
-    loading: "Please wait...",
+    signUp:
+      "Create my account",
 
-    passwordsDontMatch: "Passwords do not match.",
+    noAccount:
+      "Don't have an account?",
+
+    alreadyAccount:
+      "Already have an account?",
+
+    signupLink:
+      "Create account",
+
+    signinLink:
+      "Sign in",
+
+    loading:
+      "Please wait...",
+
+    passwordsDontMatch:
+      "Passwords do not match.",
+
+    loginError:
+      "Unable to sign in. Please check your details.",
 
     connectionError:
       "Unable to connect to the server. Please try again.",
@@ -137,7 +198,7 @@ const translations = {
       "Account created successfully! Please check your email to confirm your account.",
 
     forgotPasswordMessage:
-      "Enter your email and we'll send you instructions to reset your password.",
+      "Enter your email first to receive password recovery instructions.",
 
     resetSent:
       "We sent you an email with instructions to reset your password.",
@@ -145,64 +206,105 @@ const translations = {
     terms:
       "By continuing, you agree to our Terms of Service and Privacy Policy.",
 
-    brandText: "Less doubt. Better decisions.",
+    brandTag:
+      "AI DECISION INTELLIGENCE",
+
+    brandText:
+      "Less doubt. Better decisions.",
 
     brandDescription:
       "Organize possibilities, analyze consequences and make clearer decisions.",
 
-    feature1: "Organize your thoughts",
-    feature2: "Compare different possibilities",
-    feature3: "Make clearer decisions",
+    feature1:
+      "Organize your thoughts",
+
+    feature2:
+      "Compare different possibilities",
+
+    feature3:
+      "Make clearer decisions",
   },
 };
 
 function LoginPage() {
   const navigate = useNavigate();
 
-  const [language, setLanguage] = useState<Language>("pt");
-  const [mode, setMode] = useState<Mode>("login");
+  /*
+    Preparado para o futuro.
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+    Depois esse idioma pode vir das configurações
+    globais do usuário.
+  */
+  const [language] =
+    useState<Language>("pt");
 
-  const [showPassword, setShowPassword] = useState(false);
+  const [mode, setMode] =
+    useState<Mode>("login");
+
+  const [name, setName] =
+    useState("");
+
+  const [email, setEmail] =
+    useState("");
+
+  const [password, setPassword] =
+    useState("");
+
+  const [
+    confirmPassword,
+    setConfirmPassword,
+  ] = useState("");
+
+  const [
+    showPassword,
+    setShowPassword,
+  ] = useState(false);
 
   const [
     showConfirmPassword,
     setShowConfirmPassword,
   ] = useState(false);
 
-  const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] =
-    useState(false);
+  const [
+    loading,
+    setLoading,
+  ] = useState(false);
 
-  const [message, setMessage] = useState("");
-  const [errorMessage, setErrorMessage] =
-    useState("");
+  const [
+    googleLoading,
+    setGoogleLoading,
+  ] = useState(false);
 
-  const isSignup = mode === "signup";
-  const t = translations[language];
+  const [
+    message,
+    setMessage,
+  ] = useState("");
+
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState("");
+
+  const isSignup =
+    mode === "signup";
+
+  const t =
+    translations[language];
 
   function clearMessages() {
     setMessage("");
     setErrorMessage("");
   }
 
-  function changeMode(newMode: Mode) {
+  function changeMode(
+    newMode: Mode
+  ) {
     setMode(newMode);
 
     clearMessages();
 
     setPassword("");
     setConfirmPassword("");
-  }
-
-  function changeLanguage() {
-    setLanguage((current) =>
-      current === "pt" ? "en" : "pt"
-    );
   }
 
   async function handleSubmit(
@@ -212,7 +314,10 @@ function LoginPage() {
 
     clearMessages();
 
-    if (isSignup && password !== confirmPassword) {
+    if (
+      isSignup &&
+      password !== confirmPassword
+    ) {
       setErrorMessage(
         t.passwordsDontMatch
       );
@@ -228,7 +333,6 @@ function LoginPage() {
           await supabase.auth.signUp({
             email,
             password,
-
             options: {
               data: {
                 name,
@@ -237,11 +341,19 @@ function LoginPage() {
           });
 
         if (error) {
-          setErrorMessage(error.message);
+          setErrorMessage(
+            error.message
+          );
+
           return;
         }
 
-        setMessage(t.signupSuccess);
+        setMessage(
+          t.signupSuccess
+        );
+
+        setPassword("");
+        setConfirmPassword("");
       } else {
         const { error } =
           await supabase.auth.signInWithPassword({
@@ -250,7 +362,11 @@ function LoginPage() {
           });
 
         if (error) {
-          setErrorMessage(error.message);
+          setErrorMessage(
+            error.message ||
+              t.loginError
+          );
+
           return;
         }
 
@@ -276,7 +392,6 @@ function LoginPage() {
       const { error } =
         await supabase.auth.signInWithOAuth({
           provider: "google",
-
           options: {
             redirectTo:
               window.location.origin,
@@ -284,7 +399,10 @@ function LoginPage() {
         });
 
       if (error) {
-        setErrorMessage(error.message);
+        setErrorMessage(
+          error.message
+        );
+
         setGoogleLoading(false);
       }
     } catch {
@@ -299,7 +417,7 @@ function LoginPage() {
   async function handleForgotPassword() {
     clearMessages();
 
-    if (!email.trim()) {
+    if (!email) {
       setMessage(
         t.forgotPasswordMessage
       );
@@ -312,7 +430,7 @@ function LoginPage() {
     try {
       const { error } =
         await supabase.auth.resetPasswordForEmail(
-          email.trim(),
+          email,
           {
             redirectTo:
               `${window.location.origin}/reset-password`,
@@ -320,11 +438,14 @@ function LoginPage() {
         );
 
       if (error) {
-        setErrorMessage(error.message);
-        return;
+        setErrorMessage(
+          error.message
+        );
+      } else {
+        setMessage(
+          t.resetSent
+        );
       }
-
-      setMessage(t.resetSent);
     } catch {
       setErrorMessage(
         t.connectionError
@@ -341,17 +462,21 @@ function LoginPage() {
 
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
 
-        <div className="absolute -left-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute -left-48 -top-48 h-[34rem] w-[34rem] rounded-full bg-primary/10 blur-3xl" />
 
-        <div className="absolute -bottom-40 -right-40 h-[32rem] w-[32rem] rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute -bottom-48 -right-48 h-[34rem] w-[34rem] rounded-full bg-primary/10 blur-3xl" />
+
+        <div className="absolute left-1/2 top-1/2 h-[28rem] w-[28rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-3xl" />
 
       </div>
 
       <div className="relative mx-auto flex min-h-screen max-w-7xl">
 
-        {/* LEFT SIDE */}
+        {/* DESKTOP BRAND PANEL */}
 
-        <section className="hidden w-1/2 flex-col justify-between border-r p-12 lg:flex">
+        <section className="hidden w-1/2 flex-col justify-between border-r border-border/60 px-12 py-10 lg:flex xl:px-16">
+
+          {/* BACK */}
 
           <Link
             to="/"
@@ -362,17 +487,21 @@ function LoginPage() {
             {t.back}
           </Link>
 
-          <div className="max-w-lg">
+          {/* BRAND CONTENT */}
 
-            <div className="mb-10 flex items-center gap-3">
+          <div className="max-w-xl">
 
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg">
+            {/* LOGO */}
 
-                <BrainCircuit className="h-6 w-6" />
+            <div className="mb-12 flex items-center gap-4">
+
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
+
+                <BrainCircuit className="h-7 w-7" />
 
               </div>
 
-              <span className="text-2xl font-bold tracking-tight">
+              <span className="text-3xl font-bold tracking-tight">
 
                 Decidly
                 <span className="text-primary">
@@ -383,27 +512,35 @@ function LoginPage() {
 
             </div>
 
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-card px-4 py-2 text-sm text-muted-foreground">
+            {/* TAG */}
 
-              <Sparkles className="h-4 w-4 text-primary" />
+            <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-2 text-xs font-semibold tracking-wider text-primary">
 
-              AI Decision Intelligence
+              <Sparkles className="h-4 w-4" />
+
+              {t.brandTag}
 
             </div>
 
-            <h1 className="text-5xl font-bold leading-tight tracking-tight">
+            {/* TITLE */}
+
+            <h1 className="max-w-lg text-5xl font-bold leading-[1.1] tracking-tight xl:text-6xl">
 
               {t.brandText}
 
             </h1>
 
-            <p className="mt-6 text-lg leading-relaxed text-muted-foreground">
+            {/* DESCRIPTION */}
+
+            <p className="mt-7 max-w-lg text-lg leading-relaxed text-muted-foreground">
 
               {t.brandDescription}
 
             </p>
 
-            <div className="mt-10 space-y-4">
+            {/* FEATURES */}
+
+            <div className="mt-12 space-y-5">
 
               {[
                 t.feature1,
@@ -413,16 +550,18 @@ function LoginPage() {
 
                 <div
                   key={feature}
-                  className="flex items-center gap-3"
+                  className="flex items-center gap-4"
                 >
 
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
 
-                    ✓
+                    <span className="text-sm font-bold">
+                      ✓
+                    </span>
 
                   </div>
 
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-base text-muted-foreground">
 
                     {feature}
 
@@ -436,6 +575,8 @@ function LoginPage() {
 
           </div>
 
+          {/* FOOTER */}
+
           <p className="text-sm text-muted-foreground">
 
             © 2026 DecidlyIA
@@ -444,19 +585,19 @@ function LoginPage() {
 
         </section>
 
-        {/* RIGHT SIDE */}
+        {/* AUTH SIDE */}
 
-        <section className="flex flex-1 items-center justify-center p-6 sm:p-10">
+        <section className="flex min-h-screen flex-1 items-center justify-center px-5 py-10 sm:px-8 sm:py-12 lg:px-12">
 
           <div className="w-full max-w-md">
 
-            {/* TOP BAR */}
+            {/* MOBILE HEADER */}
 
-            <div className="mb-10 flex items-center justify-between">
+            <div className="mb-10 flex items-center justify-between lg:hidden">
 
               <Link
                 to="/"
-                className="inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground lg:hidden"
+                className="inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground"
               >
 
                 <ArrowLeft className="h-4 w-4" />
@@ -465,15 +606,15 @@ function LoginPage() {
 
               </Link>
 
-              <div className="flex items-center gap-3 lg:hidden">
+              <div className="flex items-center gap-3">
 
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
 
                   <BrainCircuit className="h-5 w-5" />
 
                 </div>
 
-                <span className="font-bold">
+                <span className="text-lg font-bold tracking-tight">
 
                   Decidly
                   <span className="text-primary">
@@ -484,294 +625,251 @@ function LoginPage() {
 
               </div>
 
-              {/* LANGUAGE */}
+            </div>
+
+            {/* AUTH CARD */}
+
+            <div className="rounded-3xl border border-border/70 bg-card/80 p-6 shadow-2xl backdrop-blur-xl sm:p-9">
+
+              {/* HEADER */}
+
+              <div>
+
+                <p className="text-xs font-bold tracking-[0.22em] text-primary">
+
+                  DECIDLYIA
+
+                </p>
+
+                <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+
+                  {isSignup
+                    ? t.createAccount
+                    : t.welcome}
+
+                </h1>
+
+                <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+
+                  {isSignup
+                    ? t.signupSubtitle
+                    : t.loginSubtitle}
+
+                </p>
+
+              </div>
+
+              {/* GOOGLE */}
 
               <button
                 type="button"
-                onClick={changeLanguage}
-                className="ml-auto flex items-center gap-2 rounded-xl border bg-card px-3 py-2 text-sm font-medium transition hover:bg-muted"
+                onClick={handleGoogleLogin}
+                disabled={
+                  googleLoading ||
+                  loading
+                }
+                className="mt-8 flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl border border-border bg-background px-5 py-4 font-semibold transition hover:bg-muted/70 disabled:cursor-not-allowed disabled:opacity-60"
               >
 
-                <Languages className="h-4 w-4" />
+                {googleLoading ? (
 
-                {language === "pt"
-                  ? "EN"
-                  : "PT"}
+                  <Loader2 className="h-5 w-5 animate-spin" />
 
-              </button>
+                ) : (
 
-            </div>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-sm font-bold text-black">
 
-            {/* TITLE */}
+                    G
 
-            <div>
+                  </span>
 
-              <p className="text-xs font-bold tracking-[0.2em] text-primary">
+                )}
 
-                DECIDLYIA
+                <span>
 
-              </p>
-
-              <h2 className="mt-3 text-3xl font-bold tracking-tight">
-
-                {isSignup
-                  ? t.createAccount
-                  : t.welcome}
-
-              </h2>
-
-              <p className="mt-3 text-muted-foreground">
-
-                {isSignup
-                  ? t.signupSubtitle
-                  : t.loginSubtitle}
-
-              </p>
-
-            </div>
-
-            {/* GOOGLE */}
-
-            <button
-              type="button"
-              onClick={handleGoogleLogin}
-              disabled={googleLoading}
-              className="mt-8 flex w-full items-center justify-center gap-3 rounded-xl border bg-card px-4 py-3.5 font-semibold transition hover:bg-muted disabled:opacity-60"
-            >
-
-              {googleLoading ? (
-
-                <Loader2 className="h-5 w-5 animate-spin" />
-
-              ) : (
-
-                <span className="flex h-6 w-6 items-center justify-center rounded-full border text-sm font-bold">
-
-                  G
+                  {t.google}
 
                 </span>
 
-              )}
+              </button>
 
-              {t.google}
+              {/* DIVIDER */}
 
-            </button>
+              <div className="my-8 flex items-center gap-4">
 
-            {/* DIVIDER */}
+                <div className="h-px flex-1 bg-border" />
 
-            <div className="my-8 flex items-center gap-4">
+                <span className="whitespace-nowrap text-[10px] font-bold tracking-[0.14em] text-muted-foreground">
 
-              <div className="h-px flex-1 bg-border" />
+                  {t.or}
 
-              <span className="text-xs font-semibold tracking-wider text-muted-foreground">
+                </span>
 
-                {t.or}
+                <div className="h-px flex-1 bg-border" />
 
-              </span>
+              </div>
 
-              <div className="h-px flex-1 bg-border" />
+              {/* FORM */}
 
-            </div>
+              <form
+                onSubmit={handleSubmit}
+                className="space-y-6"
+              >
 
-            {/* FORM */}
+                {/* NAME */}
 
-            <form
-              onSubmit={handleSubmit}
-              className="space-y-5"
-            >
+                {isSignup && (
 
-              {/* NAME */}
+                  <div>
 
-              {isSignup && (
+                    <label className="mb-3 block text-sm font-semibold">
+
+                      {t.name}
+
+                    </label>
+
+                    <div className="relative">
+
+                      <User className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+
+                      <input
+                        type="text"
+                        required
+                        value={name}
+                        onChange={(e) =>
+                          setName(
+                            e.target.value
+                          )
+                        }
+                        placeholder={
+                          t.namePlaceholder
+                        }
+                        className="min-h-14 w-full rounded-2xl border border-border bg-background px-5 py-4 pl-13 text-base outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-4 focus:ring-primary/10"
+                      />
+
+                    </div>
+
+                  </div>
+
+                )}
+
+                {/* EMAIL */}
 
                 <div>
 
-                  <label className="mb-2 block text-sm font-medium">
+                  <label className="mb-3 block text-sm font-semibold">
 
-                    {t.name}
+                    {t.email}
 
                   </label>
 
                   <div className="relative">
 
-                    <User className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                    <Mail className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
 
                     <input
-                      type="text"
+                      type="email"
                       required
-                      value={name}
+                      autoComplete="email"
+                      value={email}
                       onChange={(e) =>
-                        setName(e.target.value)
+                        setEmail(
+                          e.target.value
+                        )
                       }
                       placeholder={
-                        t.namePlaceholder
+                        t.emailPlaceholder
                       }
-                      className="w-full rounded-xl border bg-background py-3.5 pl-12 pr-4 outline-none transition focus:ring-2 focus:ring-primary"
+                      className="min-h-14 w-full rounded-2xl border border-border bg-background px-5 py-4 pl-13 text-base outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-4 focus:ring-primary/10"
                     />
 
                   </div>
 
-                </div>
+                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
 
-              )}
+                    {t.emailHint}
 
-              {/* EMAIL */}
-
-              <div>
-
-                <label className="mb-2 block text-sm font-medium">
-
-                  {t.email}
-
-                </label>
-
-                <div className="relative">
-
-                  <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) =>
-                      setEmail(e.target.value)
-                    }
-                    placeholder={
-                      t.emailPlaceholder
-                    }
-                    className="w-full rounded-xl border bg-background py-3.5 pl-12 pr-4 outline-none transition focus:ring-2 focus:ring-primary"
-                  />
+                  </p>
 
                 </div>
 
-              </div>
-
-              {/* PASSWORD */}
-
-              <div>
-
-                <div className="mb-2 flex items-center justify-between">
-
-                  <label className="text-sm font-medium">
-
-                    {t.password}
-
-                  </label>
-
-                  {!isSignup && (
-
-                    <button
-                      type="button"
-                      onClick={
-                        handleForgotPassword
-                      }
-                      disabled={loading}
-                      className="text-sm font-semibold text-primary transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-
-                      {t.forgotPassword}
-
-                    </button>
-
-                  )}
-
-                </div>
-
-                <div className="relative">
-
-                  <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-
-                  <input
-                    type={
-                      showPassword
-                        ? "text"
-                        : "password"
-                    }
-                    required
-                    minLength={6}
-                    value={password}
-                    onChange={(e) =>
-                      setPassword(
-                        e.target.value
-                      )
-                    }
-                    placeholder={
-                      t.passwordPlaceholder
-                    }
-                    className="w-full rounded-xl border bg-background py-3.5 pl-12 pr-12 outline-none transition focus:ring-2 focus:ring-primary"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setShowPassword(
-                        !showPassword
-                      )
-                    }
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
-                  >
-
-                    {showPassword ? (
-
-                      <EyeOff className="h-5 w-5" />
-
-                    ) : (
-
-                      <Eye className="h-5 w-5" />
-
-                    )}
-
-                  </button>
-
-                </div>
-
-              </div>
-
-              {/* CONFIRM PASSWORD */}
-
-              {isSignup && (
+                {/* PASSWORD */}
 
                 <div>
 
-                  <label className="mb-2 block text-sm font-medium">
+                  <div className="mb-3 flex items-center justify-between gap-4">
 
-                    {t.confirmPassword}
+                    <label className="text-sm font-semibold">
 
-                  </label>
+                      {t.password}
+
+                    </label>
+
+                    {!isSignup && (
+
+                      <button
+                        type="button"
+                        onClick={
+                          handleForgotPassword
+                        }
+                        disabled={loading}
+                        className="shrink-0 text-sm font-semibold text-primary transition hover:opacity-80 disabled:opacity-60"
+                      >
+
+                        {t.forgotPassword}
+
+                      </button>
+
+                    )}
+
+                  </div>
 
                   <div className="relative">
 
+                    <KeyRound className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+
                     <input
                       type={
-                        showConfirmPassword
+                        showPassword
                           ? "text"
                           : "password"
                       }
                       required
                       minLength={6}
-                      value={confirmPassword}
+                      autoComplete={
+                        isSignup
+                          ? "new-password"
+                          : "current-password"
+                      }
+                      value={password}
                       onChange={(e) =>
-                        setConfirmPassword(
+                        setPassword(
                           e.target.value
                         )
                       }
                       placeholder={
-                        t.confirmPasswordPlaceholder
+                        t.passwordPlaceholder
                       }
-                      className="w-full rounded-xl border bg-background px-4 py-3.5 pr-12 outline-none transition focus:ring-2 focus:ring-primary"
+                      className="min-h-14 w-full rounded-2xl border border-border bg-background px-5 py-4 pl-13 pr-14 text-base outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-4 focus:ring-primary/10"
                     />
 
                     <button
                       type="button"
                       onClick={() =>
-                        setShowConfirmPassword(
-                          !showConfirmPassword
+                        setShowPassword(
+                          (current) =>
+                            !current
                         )
                       }
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+                      className="absolute right-5 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+                      aria-label={
+                        showPassword
+                          ? "Ocultar senha"
+                          : "Mostrar senha"
+                      }
                     >
 
-                      {showConfirmPassword ? (
+                      {showPassword ? (
 
                         <EyeOff className="h-5 w-5" />
 
@@ -785,49 +883,173 @@ function LoginPage() {
 
                   </div>
 
-                </div>
+                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
 
-              )}
+                    {t.passwordHint}
 
-              {/* ERROR */}
-
-              {errorMessage && (
-
-                <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-
-                  {errorMessage}
+                  </p>
 
                 </div>
 
-              )}
+                {/* CONFIRM PASSWORD */}
 
-              {/* SUCCESS */}
+                {isSignup && (
 
-              {message && (
+                  <div>
 
-                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm">
+                    <label className="mb-3 block text-sm font-semibold">
 
-                  {message}
+                      {t.confirmPassword}
 
-                </div>
+                    </label>
 
-              )}
+                    <div className="relative">
 
-              {/* SUBMIT */}
+                      <KeyRound className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3.5 font-semibold text-primary-foreground shadow-lg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-              >
+                      <input
+                        type={
+                          showConfirmPassword
+                            ? "text"
+                            : "password"
+                        }
+                        required
+                        minLength={6}
+                        autoComplete="new-password"
+                        value={
+                          confirmPassword
+                        }
+                        onChange={(e) =>
+                          setConfirmPassword(
+                            e.target.value
+                          )
+                        }
+                        placeholder={
+                          t.confirmPasswordPlaceholder
+                        }
+                        className="min-h-14 w-full rounded-2xl border border-border bg-background px-5 py-4 pl-13 pr-14 text-base outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-4 focus:ring-primary/10"
+                      />
 
-                {loading ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowConfirmPassword(
+                            (current) =>
+                              !current
+                          )
+                        }
+                        className="absolute right-5 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+                        aria-label={
+                          showConfirmPassword
+                            ? "Ocultar senha"
+                            : "Mostrar senha"
+                        }
+                      >
+
+                        {showConfirmPassword ? (
+
+                          <EyeOff className="h-5 w-5" />
+
+                        ) : (
+
+                          <Eye className="h-5 w-5" />
+
+                        )}
+
+                      </button>
+
+                    </div>
+
+                  </div>
+
+                )}
+
+                {/* ERROR MESSAGE */}
+
+                {errorMessage && (
+
+                  <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-5 py-4 text-sm leading-relaxed text-destructive">
+
+                    {errorMessage}
+
+                  </div>
+
+                )}
+
+                {/* SUCCESS MESSAGE */}
+
+                {message && (
+
+                  <div className="rounded-2xl border border-primary/20 bg-primary/10 px-5 py-4 text-sm leading-relaxed text-foreground">
+
+                    {message}
+
+                  </div>
+
+                )}
+
+                {/* SUBMIT */}
+
+                <button
+                  type="submit"
+                  disabled={
+                    loading ||
+                    googleLoading
+                  }
+                  className="flex min-h-15 w-full items-center justify-center gap-3 rounded-2xl bg-primary px-6 py-4 text-base font-semibold text-primary-foreground shadow-xl shadow-primary/20 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+
+                  {loading ? (
+
+                    <>
+
+                      <Loader2 className="h-5 w-5 animate-spin" />
+
+                      {t.loading}
+
+                    </>
+
+                  ) : (
+
+                    <>
+
+                      {isSignup
+                        ? t.signUp
+                        : t.signIn}
+
+                      <ArrowRight className="h-5 w-5" />
+
+                    </>
+
+                  )}
+
+                </button>
+
+              </form>
+
+              {/* MODE SWITCH */}
+
+              <div className="mt-8 border-t border-border/60 pt-7 text-center text-base text-muted-foreground">
+
+                {isSignup ? (
 
                   <>
 
-                    <Loader2 className="h-5 w-5 animate-spin" />
+                    {t.alreadyAccount}{" "}
 
-                    {t.loading}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        changeMode(
+                          "login"
+                        )
+                      }
+                      className="font-semibold text-primary transition hover:opacity-80"
+                    >
+
+                      {t.signinLink}
+
+                    </button>
 
                   </>
 
@@ -835,71 +1057,33 @@ function LoginPage() {
 
                   <>
 
-                    {isSignup
-                      ? t.signUp
-                      : t.signIn}
+                    {t.noAccount}{" "}
 
-                    <ArrowRight className="h-5 w-5" />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        changeMode(
+                          "signup"
+                        )
+                      }
+                      className="font-semibold text-primary transition hover:opacity-80"
+                    >
+
+                      {t.signupLink}
+
+                    </button>
 
                   </>
 
                 )}
 
-              </button>
-
-            </form>
-
-            {/* SIGNUP / LOGIN SWITCH */}
-
-            <div className="mt-7 text-center text-sm text-muted-foreground">
-
-              {isSignup ? (
-
-                <>
-
-                  {t.alreadyAccount}{" "}
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      changeMode("login")
-                    }
-                    className="font-semibold text-primary transition hover:opacity-80"
-                  >
-
-                    {t.signinLink}
-
-                  </button>
-
-                </>
-
-              ) : (
-
-                <>
-
-                  {t.noAccount}{" "}
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      changeMode("signup")
-                    }
-                    className="font-semibold text-primary transition hover:opacity-80"
-                  >
-
-                    {t.signupLink}
-
-                  </button>
-
-                </>
-
-              )}
+              </div>
 
             </div>
 
             {/* TERMS */}
 
-            <p className="mt-8 text-center text-xs leading-relaxed text-muted-foreground">
+            <p className="mx-auto mt-7 max-w-sm text-center text-xs leading-relaxed text-muted-foreground">
 
               {t.terms}
 
