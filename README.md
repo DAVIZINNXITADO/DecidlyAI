@@ -1,6 +1,6 @@
-# Blank Canvas
+# DecideAI
 
-Nada, apenas um projeto em branco
+DecideAI - Plataforma inteligente para ajudar pessoas a tomar melhores decisões.
 
 This project was built with [Lovable](https://lovable.dev).
 
