@@ -219,7 +219,3 @@ function Feature({
     </div>
   );
 }
-
-#lovable-badge {
-  display: none !important;
-}
