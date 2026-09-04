@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   createFileRoute,
   Link,
@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-router";
 import { supabase } from "../lib/supabase";
 import {
+  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   BrainCircuit,
@@ -15,8 +16,11 @@ import {
   KeyRound,
   Languages,
   Loader2,
+  Mail,
+  ShieldAlert,
   ShieldCheck,
   Sparkles,
+  XCircle,
 } from "lucide-react";
 
 export const Route = createFileRoute("/reset-password")({
@@ -68,6 +72,24 @@ const translations = {
 
     connectionError:
       "Não foi possível atualizar sua senha. Tente novamente.",
+
+    checkingTitle:
+      "Verificando acesso...",
+
+    checkingMessage:
+      "Estamos verificando a autorização para redefinir sua senha.",
+
+    invalidTokenTitle:
+      "Token de Autenticação Não Informado",
+
+    invalidTokenMessage:
+      "Por Favor Feche Essa Página Imediatamente",
+
+    invalidTokenDescription:
+      "Esta página de recuperação só pode ser acessada através de um link válido enviado para o seu email.",
+
+    goBackToLogin:
+      "Voltar para o login",
 
     brandText:
       "Sua segurança também importa.",
@@ -129,6 +151,24 @@ const translations = {
     connectionError:
       "Unable to update your password. Please try again.",
 
+    checkingTitle:
+      "Verifying access...",
+
+    checkingMessage:
+      "We're verifying your authorization to reset your password.",
+
+    invalidTokenTitle:
+      "Authentication Token Not Provided",
+
+    invalidTokenMessage:
+      "Please Close This Page Immediately",
+
+    invalidTokenDescription:
+      "This recovery page can only be accessed through a valid link sent to your email.",
+
+    goBackToLogin:
+      "Back to login",
+
     brandText:
       "Your security matters too.",
 
@@ -185,6 +225,16 @@ function ResetPasswordPage() {
     setErrorMessage,
   ] = useState("");
 
+  const [
+    checkingRecovery,
+    setCheckingRecovery,
+  ] = useState(true);
+
+  const [
+    recoveryValid,
+    setRecoveryValid,
+  ] = useState(false);
+
   const t = translations[language];
 
   function changeLanguage() {
@@ -193,12 +243,91 @@ function ResetPasswordPage() {
     );
   }
 
+  useEffect(() => {
+    let mounted = true;
+
+    async function checkRecoverySession() {
+      try {
+        /*
+          O Supabase processa o link de recuperação
+          e cria uma sessão temporária quando o token é válido.
+        */
+
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!mounted) {
+          return;
+        }
+
+        if (session) {
+          setRecoveryValid(true);
+        } else {
+          setRecoveryValid(false);
+        }
+      } catch {
+        if (mounted) {
+          setRecoveryValid(false);
+        }
+      } finally {
+        if (mounted) {
+          setCheckingRecovery(false);
+        }
+      }
+    }
+
+    checkRecoverySession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (!mounted) {
+          return;
+        }
+
+        /*
+          PASSWORD_RECOVERY acontece quando o usuário
+          chega através de um link válido de recuperação.
+        */
+
+        if (
+          event === "PASSWORD_RECOVERY" &&
+          session
+        ) {
+          setRecoveryValid(true);
+          setCheckingRecovery(false);
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
   async function handleSubmit(
     e: React.FormEvent
   ) {
     e.preventDefault();
 
     setErrorMessage("");
+
+    /*
+      Camada extra de proteção.
+      Mesmo que alguém tente manipular a interface,
+      não permitimos chamar updateUser sem sessão válida.
+    */
+
+    if (!recoveryValid) {
+      setErrorMessage(
+        t.invalidTokenDescription
+      );
+
+      return;
+    }
 
     if (password.length < 6) {
       setErrorMessage(
@@ -219,6 +348,23 @@ function ResetPasswordPage() {
     setLoading(true);
 
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      /*
+        Verificação novamente antes de alterar.
+      */
+
+      if (!session) {
+        setRecoveryValid(false);
+        setErrorMessage(
+          t.invalidTokenDescription
+        );
+
+        return;
+      }
+
       const { error } =
         await supabase.auth.updateUser({
           password,
@@ -242,11 +388,173 @@ function ResetPasswordPage() {
     }
   }
 
-  if (success) {
+  /*
+    ESTADO: VERIFICANDO TOKEN
+  */
+
+  if (checkingRecovery) {
+    return (
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-6 text-foreground">
+
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+
+          <div className="absolute -left-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-primary/10 blur-3xl" />
+
+          <div className="absolute -bottom-40 -right-40 h-[32rem] w-[32rem] rounded-full bg-primary/10 blur-3xl" />
+
+        </div>
+
+        <div className="relative w-full max-w-md rounded-3xl border bg-card p-8 text-center shadow-xl sm:p-10">
+
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+
+            <Loader2 className="h-9 w-9 animate-spin" />
+
+          </div>
+
+          <p className="mt-6 text-xs font-bold tracking-[0.2em] text-primary">
+
+            DECIDLYIA
+
+          </p>
+
+          <h1 className="mt-3 text-2xl font-bold tracking-tight">
+
+            {t.checkingTitle}
+
+          </h1>
+
+          <p className="mt-4 leading-relaxed text-muted-foreground">
+
+            {t.checkingMessage}
+
+          </p>
+
+        </div>
+
+      </main>
+    );
+  }
+
+  /*
+    ESTADO: TOKEN INVÁLIDO OU NÃO INFORMADO
+  */
+
+  if (!recoveryValid) {
     return (
       <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-6 text-foreground">
 
         {/* BACKGROUND */}
+
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+
+          <div className="absolute -left-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-destructive/10 blur-3xl" />
+
+          <div className="absolute -bottom-40 -right-40 h-[32rem] w-[32rem] rounded-full bg-destructive/10 blur-3xl" />
+
+        </div>
+
+        <div className="relative w-full max-w-md overflow-hidden rounded-3xl border bg-card shadow-2xl">
+
+          {/* TOP ACCENT */}
+
+          <div className="h-1.5 w-full bg-destructive" />
+
+          <div className="p-8 text-center sm:p-10">
+
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl border border-destructive/20 bg-destructive/10 text-destructive shadow-sm">
+
+              <ShieldAlert className="h-10 w-10" />
+
+            </div>
+
+            <div className="mt-7 flex justify-center">
+
+              <div className="inline-flex items-center gap-2 rounded-full border border-destructive/20 bg-destructive/5 px-4 py-2 text-xs font-bold tracking-wider text-destructive">
+
+                <AlertTriangle className="h-4 w-4" />
+
+                SECURITY WARNING
+
+              </div>
+
+            </div>
+
+            <h1 className="mt-6 text-2xl font-bold tracking-tight sm:text-3xl">
+
+              ⚠️ {t.invalidTokenTitle} ⚠️
+
+            </h1>
+
+            <p className="mt-4 text-lg font-semibold text-destructive">
+
+              {t.invalidTokenMessage}
+
+            </p>
+
+            <p className="mt-5 leading-relaxed text-muted-foreground">
+
+              {t.invalidTokenDescription}
+
+            </p>
+
+            <div className="my-8 h-px bg-border" />
+
+            <div className="flex items-start gap-3 rounded-2xl border bg-muted/40 p-4 text-left">
+
+              <Mail className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+
+              <p className="text-sm leading-relaxed text-muted-foreground">
+
+                Para redefinir sua senha, solicite um
+                novo link através da página de login e
+                abra o link recebido no seu email.
+
+              </p>
+
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                navigate({
+                  to: "/login",
+                })
+              }
+              className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl border bg-card px-4 py-3.5 font-semibold transition hover:bg-muted"
+            >
+
+              <ArrowLeft className="h-5 w-5" />
+
+              {t.goBackToLogin}
+
+            </button>
+
+          </div>
+
+          <div className="border-t px-6 py-4 text-center">
+
+            <p className="text-xs text-muted-foreground">
+
+              © 2026 DecidlyIA · Security protected
+
+            </p>
+
+          </div>
+
+        </div>
+
+      </main>
+    );
+  }
+
+  /*
+    ESTADO: SENHA ALTERADA COM SUCESSO
+  */
+
+  if (success) {
+    return (
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-6 text-foreground">
 
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
 
@@ -303,6 +611,10 @@ function ResetPasswordPage() {
       </main>
     );
   }
+
+  /*
+    ESTADO: TOKEN VÁLIDO
+  */
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-background text-foreground">
@@ -468,8 +780,6 @@ function ResetPasswordPage() {
 
               </div>
 
-              {/* LANGUAGE */}
-
               <button
                 type="button"
                 onClick={changeLanguage}
@@ -507,6 +817,34 @@ function ResetPasswordPage() {
                 {t.subtitle}
 
               </p>
+
+            </div>
+
+            {/* SECURITY BADGE */}
+
+            <div className="mt-6 flex items-center gap-3 rounded-2xl border bg-primary/5 p-4">
+
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+
+                <ShieldCheck className="h-5 w-5" />
+
+              </div>
+
+              <div>
+
+                <p className="text-sm font-semibold">
+
+                  Secure password recovery
+
+                </p>
+
+                <p className="mt-1 text-xs text-muted-foreground">
+
+                  Your recovery session has been verified.
+
+                </p>
+
+              </div>
 
             </div>
 
