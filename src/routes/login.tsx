@@ -1,19 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import {
-  Eye,
-  EyeOff,
-  KeyRound,
-  Mail,
-  User,
-  AtSign,
-  Loader2,
-} from "lucide-react";
+import { Eye, EyeOff, KeyRound, Mail, User } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
-
 import { supabase } from "@/integrations/supabase/client";
-import { SiteIcon } from "@/components/SiteIcon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,7 +23,7 @@ export const Route = createFileRoute("/login")({
       {
         name: "description",
         content:
-          "Entre ou crie sua conta no DecidlyIA.",
+          "Entre ou crie sua conta no DecidlyIA para tomar decisões com mais clareza.",
       },
     ],
   }),
@@ -47,19 +37,13 @@ const signUpSchema = z
       .string()
       .trim()
       .min(2, "Informe seu nome")
-      .max(24, "O nome pode ter no máximo 24 caracteres"),
+      .max(50, "O nome pode ter no máximo 50 caracteres"),
 
     username: z
       .string()
       .trim()
-      .min(
-        3,
-        "O nome de usuário precisa ter pelo menos 3 caracteres",
-      )
-      .max(
-        24,
-        "O nome de usuário pode ter no máximo 24 caracteres",
-      )
+      .min(3, "O nome de usuário precisa ter pelo menos 3 caracteres")
+      .max(24, "O nome de usuário pode ter no máximo 24 caracteres")
       .regex(
         /^[a-zA-Z0-9._-]+$/,
         "Use apenas letras, números, ponto, hífen ou underline",
@@ -68,87 +52,55 @@ const signUpSchema = z
     email: z
       .string()
       .trim()
-      .email("E-mail inválido")
-      .max(
-        160,
-        "O e-mail pode ter no máximo 160 caracteres",
-      ),
+      .email("Informe um e-mail válido")
+      .max(160, "O e-mail pode ter no máximo 160 caracteres"),
 
     password: z
       .string()
-      .min(
-        6,
-        "A senha precisa ter pelo menos 6 caracteres",
-      )
-      .max(
-        1000,
-        "A senha pode ter no máximo 1.000 caracteres",
-      ),
+      .min(6, "A senha precisa ter pelo menos 6 caracteres")
+      .max(1000, "A senha pode ter no máximo 1.000 caracteres"),
 
     confirm: z
       .string()
-      .max(
-        1000,
-        "A confirmação pode ter no máximo 1.000 caracteres",
-      ),
+      .max(1000, "A confirmação pode ter no máximo 1.000 caracteres"),
   })
-  .refine(
-    (value) => value.password === value.confirm,
-    {
-      message: "As senhas não são iguais",
-      path: ["confirm"],
-    },
-  );
+  .refine((data) => data.password === data.confirm, {
+    message: "As senhas não são iguais",
+    path: ["confirm"],
+  });
 
 function LoginPage() {
   const { modo } = Route.useSearch();
 
   const navigate = useNavigate();
 
-  const isSignUp =
-    modo === "cadastro";
+  const isSignUp = modo === "cadastro";
 
-  const [loading, setLoading] =
+  const [loading, setLoading] = useState(false);
+
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [showConfirmPassword, setShowConfirmPassword] =
     useState(false);
 
-  const [
-    googleLoading,
-    setGoogleLoading,
-  ] = useState(false);
+  const [showRecovery, setShowRecovery] =
+    useState(false);
 
-  const [
-    showPassword,
-    setShowPassword,
-  ] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] =
+    useState("");
 
-  const [
-    showConfirmPassword,
-    setShowConfirmPassword,
-  ] = useState(false);
+  const [recoveryLoading, setRecoveryLoading] =
+    useState(false);
 
-  const [
-    showRecovery,
-    setShowRecovery,
-  ] = useState(false);
-
-  const [
-    recoveryEmail,
-    setRecoveryEmail,
-  ] = useState("");
-
-  const [
-    recoveryLoading,
-    setRecoveryLoading,
-  ] = useState(false);
-
-  const [form, setForm] =
-    useState({
-      name: "",
-      username: "",
-      email: "",
-      password: "",
-      confirm: "",
-    });
+  const [form, setForm] = useState({
+    name: "",
+    username: "",
+    email: "",
+    password: "",
+    confirm: "",
+  });
 
   function update(
     key: keyof typeof form,
@@ -160,40 +112,6 @@ function LoginPage() {
     }));
   }
 
-  async function handleGoogleLogin() {
-    setGoogleLoading(true);
-
-    try {
-      const { error } =
-        await supabase.auth.signInWithOAuth({
-          provider: "google",
-
-          options: {
-            redirectTo:
-              window.location.origin,
-          },
-        });
-
-      if (error) {
-        console.error(error);
-
-        toast.error(
-          "Não foi possível iniciar o login com Google.",
-        );
-
-        setGoogleLoading(false);
-      }
-    } catch (error) {
-      console.error(error);
-
-      toast.error(
-        "Ocorreu um erro ao conectar com o Google.",
-      );
-
-      setGoogleLoading(false);
-    }
-  }
-
   async function handleSignUp() {
     const parsed =
       signUpSchema.safeParse(form);
@@ -201,7 +119,7 @@ function LoginPage() {
     if (!parsed.success) {
       toast.error(
         parsed.error.issues[0]?.message ??
-          "Verifique os dados informados.",
+          "Verifique os dados informados",
       );
 
       return;
@@ -213,14 +131,11 @@ function LoginPage() {
       const { data, error } =
         await supabase.auth.signUp({
           email: parsed.data.email,
-          password:
-            parsed.data.password,
+          password: parsed.data.password,
 
           options: {
             data: {
-              name:
-                parsed.data.name,
-
+              name: parsed.data.name,
               username:
                 parsed.data.username.toLowerCase(),
             },
@@ -240,22 +155,16 @@ function LoginPage() {
       }
 
       if (data.user) {
-        const {
-          error: profileError,
-        } =
+        const { error: profileError } =
           await supabase
             .from("profiles")
             .upsert(
               {
                 id: data.user.id,
-
-                name:
-                  parsed.data.name,
-
+                name: parsed.data.name,
                 username:
                   parsed.data.username.toLowerCase(),
               },
-
               {
                 onConflict: "id",
               },
@@ -263,17 +172,44 @@ function LoginPage() {
 
         if (profileError) {
           console.error(
+            "Erro ao criar perfil:",
             profileError,
           );
         }
       }
 
+      /*
+        Se o Supabase estiver configurado para
+        NÃO exigir confirmação de e-mail,
+        data.session existirá imediatamente.
+      */
+
+      if (data.session) {
+        toast.success(
+          "Conta criada com sucesso!",
+        );
+
+        navigate({
+          to: "/",
+        });
+
+        return;
+      }
+
+      /*
+        Caso a confirmação de e-mail esteja ativada
+        no Supabase.
+      */
+
       toast.success(
-        "Conta criada com sucesso!",
+        "Conta criada com sucesso! Agora você pode entrar.",
       );
 
       navigate({
-        to: "/",
+        to: "/login",
+        search: {
+          modo: "entrar",
+        },
       });
     } catch (error) {
       console.error(error);
@@ -287,9 +223,12 @@ function LoginPage() {
   }
 
   async function handleSignIn() {
-    if (!form.email.trim()) {
+    const email =
+      form.email.trim().toLowerCase();
+
+    if (!email) {
       toast.error(
-        "Informe seu e-mail.",
+        "Informe seu e-mail",
       );
 
       return;
@@ -297,18 +236,7 @@ function LoginPage() {
 
     if (!form.password) {
       toast.error(
-        "Informe sua senha.",
-      );
-
-      return;
-    }
-
-    if (
-      form.password.length >
-      1000
-    ) {
-      toast.error(
-        "A senha pode ter no máximo 1.000 caracteres.",
+        "Informe sua senha",
       );
 
       return;
@@ -319,22 +247,21 @@ function LoginPage() {
     try {
       const { error } =
         await supabase.auth.signInWithPassword({
-          email:
-            form.email
-              .trim()
-              .toLowerCase(),
-
-          password:
-            form.password,
+          email,
+          password: form.password,
         });
 
       if (error) {
         toast.error(
-          "E-mail ou senha incorretos.",
+          "E-mail ou senha incorretos",
         );
 
         return;
       }
+
+      toast.success(
+        "Login realizado com sucesso!",
+      );
 
       navigate({
         to: "/",
@@ -343,10 +270,38 @@ function LoginPage() {
       console.error(error);
 
       toast.error(
-        "Não foi possível entrar.",
+        "Não foi possível entrar na sua conta.",
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleGoogleLogin() {
+    setGoogleLoading(true);
+
+    try {
+      const { error } =
+        await supabase.auth.signInWithOAuth({
+          provider: "google",
+
+          options: {
+            redirectTo:
+              window.location.origin,
+          },
+        });
+
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      console.error(error);
+
+      toast.error(
+        "Não foi possível continuar com o Google.",
+      );
+
+      setGoogleLoading(false);
     }
   }
 
@@ -358,7 +313,7 @@ function LoginPage() {
 
     if (!email) {
       toast.error(
-        "Informe seu e-mail.",
+        "Informe o e-mail da sua conta.",
       );
 
       return;
@@ -388,6 +343,11 @@ function LoginPage() {
         throw error;
       }
 
+      /*
+        Mensagem genérica para não revelar
+        se um e-mail possui conta.
+      */
+
       toast.success(
         "Se existir uma conta com este e-mail, enviaremos um link para redefinir sua senha.",
       );
@@ -408,55 +368,76 @@ function LoginPage() {
 
   if (showRecovery) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-[#0b0618] via-[#120722] to-[#090411] px-5 py-10 text-white">
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#12071f] px-5 py-10 text-white">
 
-        <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center">
+        {/* BACKGROUND */}
+
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+
+          <div className="absolute left-[-15rem] top-[-15rem] h-[35rem] w-[35rem] rounded-full bg-purple-700/20 blur-[120px]" />
+
+          <div className="absolute bottom-[-20rem] right-[-15rem] h-[40rem] w-[40rem] rounded-full bg-violet-600/15 blur-[140px]" />
+
+        </div>
+
+        <div className="relative w-full max-w-md">
 
           {/* LOGO */}
 
           <Link
             to="/"
-            className="mb-10 flex items-center justify-center gap-3"
+            className="mb-10 flex items-center justify-center gap-3 transition-opacity hover:opacity-80"
           >
-            <SiteIcon className="size-11 rounded-xl object-contain" />
+
+            <img
+              src="/favicon.ico"
+              alt="DecidlyIA"
+              className="size-11 rounded-xl object-contain"
+            />
 
             <span className="text-2xl font-semibold tracking-tight">
+
               Decidly
-              <span className="text-violet-400">
+              <span className="text-purple-400">
                 IA
               </span>
+
             </span>
+
           </Link>
 
           {/* CARD */}
 
-          <div className="rounded-3xl border border-white/10 bg-[#130b22]/90 p-7 shadow-2xl backdrop-blur-xl sm:p-8">
+          <div className="rounded-3xl border border-white/10 bg-[#1b0d2b]/90 p-7 shadow-2xl backdrop-blur-xl sm:p-9">
 
-            <div className="mb-7">
+            <div className="flex items-start gap-4">
 
-              <div className="mb-5 flex size-12 items-center justify-center rounded-2xl bg-violet-500/15 text-violet-400">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-purple-500/15">
 
-                <KeyRound className="size-6" />
+                <KeyRound className="size-5 text-purple-400" />
 
               </div>
 
-              <h1 className="text-2xl font-semibold">
+              <div>
 
-                Recuperar senha
+                <h1 className="text-2xl font-semibold tracking-tight">
 
-              </h1>
+                  Recuperar senha
 
-              <p className="mt-2 text-sm leading-relaxed text-white/55">
+                </h1>
 
-                Digite o e-mail da sua conta e enviaremos
-                um link seguro para criar uma nova senha.
+                <p className="mt-2 text-sm leading-relaxed text-white/55">
 
-              </p>
+                  Informe o e-mail da sua conta e enviaremos um link seguro para criar uma nova senha.
+
+                </p>
+
+              </div>
 
             </div>
 
             <form
-              className="space-y-5"
+              className="mt-8 space-y-5"
               onSubmit={(event) => {
                 event.preventDefault();
 
@@ -468,7 +449,7 @@ function LoginPage() {
 
                 <Label
                   htmlFor="recovery-email"
-                  className="text-sm text-white/80"
+                  className="text-white/80"
                 >
 
                   E-mail da conta
@@ -491,7 +472,7 @@ function LoginPage() {
                     placeholder="seuemail@exemplo.com"
                     autoComplete="email"
                     maxLength={160}
-                    className="h-12 border-white/10 bg-white/5 pl-11 text-white placeholder:text-white/30 focus-visible:ring-violet-500"
+                    className="h-12 border-white/10 bg-white/[0.04] pl-11 text-white placeholder:text-white/30 focus-visible:ring-purple-500"
                   />
 
                 </div>
@@ -500,33 +481,13 @@ function LoginPage() {
 
               <Button
                 type="submit"
-                disabled={
-                  recoveryLoading
-                }
-                className="h-12 w-full bg-violet-600 text-white hover:bg-violet-500"
+                disabled={recoveryLoading}
+                className="h-12 w-full rounded-xl bg-purple-600 font-medium text-white hover:bg-purple-500"
               >
 
-                {recoveryLoading ? (
-
-                  <>
-
-                    <Loader2 className="size-4 animate-spin" />
-
-                    Enviando...
-
-                  </>
-
-                ) : (
-
-                  <>
-
-                    <Mail className="size-4" />
-
-                    Enviar link de recuperação
-
-                  </>
-
-                )}
+                {recoveryLoading
+                  ? "Enviando..."
+                  : "Enviar link de recuperação"}
 
               </Button>
 
@@ -536,10 +497,10 @@ function LoginPage() {
 
           <button
             type="button"
-            onClick={() => {
-              setShowRecovery(false);
-            }}
-            className="mt-7 text-center text-sm font-medium text-violet-400 transition hover:text-violet-300"
+            onClick={() =>
+              setShowRecovery(false)
+            }
+            className="mx-auto mt-7 block text-sm font-medium text-purple-300 transition hover:text-purple-200"
           >
 
             ← Voltar para entrar
@@ -553,23 +514,39 @@ function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#090411] via-[#120722] to-[#0b0618] px-5 py-10 text-white">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#12071f] px-5 py-10 text-white">
 
-      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center">
+      {/* BACKGROUND */}
 
-        {/* LOGO */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+
+        <div className="absolute left-[-15rem] top-[-15rem] h-[35rem] w-[35rem] rounded-full bg-purple-700/20 blur-[120px]" />
+
+        <div className="absolute bottom-[-20rem] right-[-15rem] h-[40rem] w-[40rem] rounded-full bg-violet-600/15 blur-[140px]" />
+
+        <div className="absolute left-1/2 top-1/2 h-[30rem] w-[30rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-purple-500/[0.03] blur-[100px]" />
+
+      </div>
+
+      <div className="relative w-full max-w-md">
+
+        {/* LOGO COM FAVICON */}
 
         <Link
           to="/"
-          className="mb-10 flex items-center justify-center gap-3"
+          className="mb-10 flex items-center justify-center gap-3 transition-opacity hover:opacity-80"
         >
 
-          <SiteIcon className="size-11 rounded-xl object-contain" />
+          <img
+            src="/favicon.ico"
+            alt="DecidlyIA"
+            className="size-11 rounded-xl object-contain"
+          />
 
           <span className="text-2xl font-semibold tracking-tight">
 
             Decidly
-            <span className="text-violet-400">
+            <span className="text-purple-400">
               IA
             </span>
 
@@ -579,96 +556,87 @@ function LoginPage() {
 
         {/* AUTH CARD */}
 
-        <div className="rounded-3xl border border-white/10 bg-[#130b22]/90 p-7 shadow-2xl backdrop-blur-xl sm:p-8">
+        <div className="rounded-3xl border border-white/10 bg-[#1b0d2b]/90 p-7 shadow-2xl backdrop-blur-xl sm:p-9">
 
-          <h1 className="text-2xl font-semibold tracking-tight">
+          {/* HEADER */}
 
-            {isSignUp
-              ? "Criar conta"
-              : "Entrar"}
+          <div>
 
-          </h1>
+            <h1 className="text-3xl font-semibold tracking-tight">
 
-          <p className="mt-2 text-sm leading-relaxed text-white/55">
+              {isSignUp
+                ? "Criar sua conta"
+                : "Bem-vindo de volta"}
 
-            {isSignUp
-              ? "Crie sua conta e comece a tomar decisões com mais clareza."
-              : "Bem-vindo de volta. Entre para continuar."}
+            </h1>
 
-          </p>
+            <p className="mt-3 text-sm leading-relaxed text-white/55">
+
+              {isSignUp
+                ? "Crie sua conta para começar a tomar decisões com mais clareza."
+                : "Entre na sua conta para continuar usando o DecidlyIA."}
+
+            </p>
+
+          </div>
 
           {/* GOOGLE */}
 
           <button
             type="button"
-            onClick={() => {
-              void handleGoogleLogin();
-            }}
+            onClick={() =>
+              void handleGoogleLogin()
+            }
             disabled={googleLoading}
-            className="mt-7 flex h-12 w-full items-center justify-center gap-3 rounded-full border border-white/15 bg-white text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-8 flex h-12 w-full items-center justify-center gap-3 rounded-full border border-white/15 bg-white px-4 text-sm font-medium text-[#3c4043] shadow-sm transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
 
-            {googleLoading ? (
+            {/* GOOGLE G LOGO */}
 
-              <>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
 
-                <Loader2 className="size-4 animate-spin" />
+              <path
+                fill="#4285F4"
+                d="M21.35 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h5.23a4.47 4.47 0 0 1-1.94 2.94v2.78h3.14c1.84-1.69 2.92-4.18 2.92-7.75Z"
+              />
 
-                Conectando...
+              <path
+                fill="#34A853"
+                d="M12 21.75c2.62 0 4.82-.87 6.43-2.36l-3.14-2.78c-.87.58-1.99.92-3.29.92-2.53 0-4.67-1.71-5.44-4.01H3.32v2.87A9.72 9.72 0 0 0 12 21.75Z"
+              />
 
-              </>
+              <path
+                fill="#FBBC05"
+                d="M6.56 13.52A5.85 5.85 0 0 1 6.25 12c0-.53.09-1.04.31-1.52V7.61H3.32A9.75 9.75 0 0 0 2.25 12c0 1.57.38 3.05 1.07 4.39l3.24-2.87Z"
+              />
 
-            ) : (
+              <path
+                fill="#EA4335"
+                d="M12 6.47c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.81 3.54 14.61 2.25 12 2.25a9.72 9.72 0 0 0-8.68 5.36l3.24 2.87C7.33 8.18 9.47 6.47 12 6.47Z"
+              />
 
-              <>
+            </svg>
 
-                {/* GOOGLE LOGO */}
-
-                <svg
-                  className="size-5"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-
-                  <path
-                    fill="#4285F4"
-                    d="M21.35 12.27c0-.79-.07-1.55-.22-2.27H12v4.3h5.22a4.46 4.46 0 0 1-1.94 2.93v2.78h3.14c1.84-1.7 2.93-4.2 2.93-7.74Z"
-                  />
-
-                  <path
-                    fill="#34A853"
-                    d="M12 21.75c2.61 0 4.8-.86 6.4-2.34l-3.14-2.78c-.87.58-1.99.93-3.26.93-2.51 0-4.64-1.69-5.4-3.97H3.36v2.87A9.75 9.75 0 0 0 12 21.75Z"
-                  />
-
-                  <path
-                    fill="#FBBC05"
-                    d="M6.6 13.59A5.86 5.86 0 0 1 6.3 12c0-.55.1-1.08.3-1.59V7.54H3.36A9.75 9.75 0 0 0 2.25 12c0 1.6.38 3.12 1.11 4.46l3.24-2.87Z"
-                  />
-
-                  <path
-                    fill="#EA4335"
-                    d="M12 6.44c1.42 0 2.7.49 3.7 1.45l2.77-2.77C16.79 3.55 14.61 2.25 12 2.25a9.75 9.75 0 0 0-8.64 5.29L6.6 10.41C7.36 8.13 9.49 6.44 12 6.44Z"
-                  />
-
-                </svg>
-
-                Continuar com o Google
-
-              </>
-
-            )}
+            {googleLoading
+              ? "Conectando..."
+              : "Continuar com o Google"}
 
           </button>
 
           {/* DIVIDER */}
 
-          <div className="my-7 flex items-center gap-4">
+          <div className="my-8 flex items-center gap-4">
 
             <div className="h-px flex-1 bg-white/10" />
 
-            <span className="text-[10px] font-medium tracking-[0.18em] text-white/35">
+            <span className="text-[11px] font-medium tracking-[0.15em] text-white/35">
 
-              OU CONTINUE COM E-MAIL
+              OU
 
             </span>
 
@@ -681,7 +649,6 @@ function LoginPage() {
           <form
             className="space-y-5"
             onSubmit={(event) => {
-
               event.preventDefault();
 
               void (
@@ -689,76 +656,67 @@ function LoginPage() {
                   ? handleSignUp()
                   : handleSignIn()
               );
-
             }}
           >
 
-            {isSignUp && (
+            {/* SIGNUP FIELDS */}
 
+            {isSignUp && (
               <>
 
                 <Field
                   id="name"
                   label="Nome"
-                  icon={<User className="size-4" />}
                   value={form.name}
                   onChange={(value) =>
-                    update(
-                      "name",
-                      value,
-                    )
+                    update("name", value)
                   }
-                  placeholder="Como podemos te chamar?"
+                  placeholder="Como devemos chamar você?"
                   autoComplete="given-name"
-                  maxLength={24}
+                  maxLength={50}
+                  icon={User}
                 />
 
                 <Field
                   id="username"
                   label="Nome de usuário"
-                  icon={<AtSign className="size-4" />}
                   value={form.username}
                   onChange={(value) =>
-                    update(
-                      "username",
-                      value,
-                    )
+                    update("username", value)
                   }
-                  placeholder="Escolha seu usuário"
+                  placeholder="Escolha seu nome de usuário"
                   autoComplete="username"
                   maxLength={24}
+                  icon={User}
                 />
 
               </>
-
             )}
+
+            {/* EMAIL */}
 
             <Field
               id="email"
               label="E-mail"
               type="email"
-              icon={<Mail className="size-4" />}
               value={form.email}
               onChange={(value) =>
-                update(
-                  "email",
-                  value,
-                )
+                update("email", value)
               }
               placeholder="seuemail@exemplo.com"
               autoComplete="email"
               maxLength={160}
+              icon={Mail}
             />
+
+            {/* PASSWORD */}
 
             <PasswordField
               id="password"
               label="Senha"
               value={form.password}
               onChange={(value) =>
-                update(
-                  "password",
-                  value,
-                )
+                update("password", value)
               }
               placeholder="Digite sua senha"
               autoComplete={
@@ -769,32 +727,26 @@ function LoginPage() {
               showPassword={showPassword}
               onToggleVisibility={() =>
                 setShowPassword(
-                  (previous) =>
-                    !previous,
+                  (previous) => !previous,
                 )
               }
             />
 
-            {/* ESQUECI MINHA SENHA */}
+            {/* FORGOT PASSWORD - ABAIXO DA SENHA */}
 
             {!isSignUp && (
-
-              <div className="flex justify-start">
+              <div className="-mt-1 flex justify-end">
 
                 <button
                   type="button"
                   onClick={() => {
-
                     setRecoveryEmail(
                       form.email,
                     );
 
-                    setShowRecovery(
-                      true,
-                    );
-
+                    setShowRecovery(true);
                   }}
-                  className="text-sm font-medium text-violet-400 transition hover:text-violet-300"
+                  className="text-sm font-medium text-purple-300 transition hover:text-purple-200 hover:underline"
                 >
 
                   Esqueci minha senha
@@ -802,59 +754,44 @@ function LoginPage() {
                 </button>
 
               </div>
-
             )}
 
-            {isSignUp && (
+            {/* CONFIRM PASSWORD */}
 
+            {isSignUp && (
               <PasswordField
                 id="confirm"
                 label="Confirmar senha"
                 value={form.confirm}
                 onChange={(value) =>
-                  update(
-                    "confirm",
-                    value,
-                  )
+                  update("confirm", value)
                 }
-                placeholder="Digite novamente sua senha"
+                placeholder="Digite sua senha novamente"
                 autoComplete="new-password"
                 showPassword={
                   showConfirmPassword
                 }
                 onToggleVisibility={() =>
                   setShowConfirmPassword(
-                    (previous) =>
-                      !previous,
+                    (previous) => !previous,
                   )
                 }
               />
-
             )}
+
+            {/* SUBMIT */}
 
             <Button
               type="submit"
               disabled={loading}
-              className="h-12 w-full bg-violet-600 text-white hover:bg-violet-500"
+              className="mt-2 h-12 w-full rounded-xl bg-purple-600 font-medium text-white shadow-lg shadow-purple-900/30 transition hover:bg-purple-500"
             >
 
-              {loading ? (
-
-                <>
-
-                  <Loader2 className="size-4 animate-spin" />
-
-                  Aguarde...
-
-                </>
-
-              ) : (
-
-                isSignUp
+              {loading
+                ? "Aguarde..."
+                : isSignUp
                   ? "Criar minha conta"
-                  : "Entrar na minha conta"
-
-              )}
+                  : "Entrar na minha conta"}
 
             </Button>
 
@@ -862,7 +799,7 @@ function LoginPage() {
 
           {/* SWITCH */}
 
-          <p className="mt-7 text-center text-sm text-white/50">
+          <div className="mt-8 border-t border-white/10 pt-7 text-center text-sm text-white/50">
 
             {isSignUp
               ? "Já possui uma conta? "
@@ -875,7 +812,7 @@ function LoginPage() {
                   ? "entrar"
                   : "cadastro",
               }}
-              className="font-medium text-violet-400 transition hover:text-violet-300"
+              className="font-medium text-purple-300 transition hover:text-purple-200 hover:underline"
             >
 
               {isSignUp
@@ -884,15 +821,25 @@ function LoginPage() {
 
             </Link>
 
-          </p>
+          </div>
 
         </div>
+
+        {/* FOOTER */}
+
+        <p className="mt-8 text-center text-xs text-white/25">
+
+          © 2026 DecidlyIA
+
+        </p>
 
       </div>
 
     </main>
   );
 }
+
+/* PASSWORD FIELD */
 
 function PasswordField({
   id,
@@ -905,14 +852,21 @@ function PasswordField({
   onToggleVisibility,
 }: {
   id: string;
+
   label: string;
+
   value: string;
+
   onChange: (
     value: string,
   ) => void;
+
   placeholder?: string;
+
   autoComplete?: string;
+
   showPassword: boolean;
+
   onToggleVisibility: () => void;
 }) {
   return (
@@ -920,7 +874,7 @@ function PasswordField({
 
       <Label
         htmlFor={id}
-        className="text-sm text-white/80"
+        className="text-sm font-medium text-white/80"
       >
 
         {label}
@@ -947,7 +901,7 @@ function PasswordField({
               event.target.value,
             )
           }
-          className="h-12 border-white/10 bg-white/5 pl-11 pr-12 text-white placeholder:text-white/30 focus-visible:ring-violet-500"
+          className="h-12 border-white/10 bg-white/[0.04] pl-11 pr-12 text-white placeholder:text-white/30 focus-visible:ring-purple-500"
         />
 
         <button
@@ -955,22 +909,18 @@ function PasswordField({
           onClick={
             onToggleVisibility
           }
-          className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-white/40 transition hover:text-white"
           aria-label={
             showPassword
               ? "Ocultar senha"
               : "Mostrar senha"
           }
+          className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-white/40 transition hover:text-white"
         >
 
           {showPassword ? (
-
             <EyeOff className="size-4" />
-
           ) : (
-
             <Eye className="size-4" />
-
           )}
 
         </button>
@@ -981,6 +931,8 @@ function PasswordField({
   );
 }
 
+/* NORMAL FIELD */
+
 function Field({
   id,
   label,
@@ -990,26 +942,34 @@ function Field({
   placeholder,
   autoComplete,
   maxLength,
-  icon,
+  icon: Icon,
 }: {
   id: string;
+
   label: string;
+
   value: string;
+
   onChange: (
     value: string,
   ) => void;
+
   type?: string;
+
   placeholder?: string;
+
   autoComplete?: string;
+
   maxLength?: number;
-  icon?: React.ReactNode;
+
+  icon?: React.ElementType;
 }) {
   return (
     <div className="space-y-2">
 
       <Label
         htmlFor={id}
-        className="text-sm text-white/80"
+        className="text-sm font-medium text-white/80"
       >
 
         {label}
@@ -1018,14 +978,8 @@ function Field({
 
       <div className="relative">
 
-        {icon && (
-
-          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/40">
-
-            {icon}
-
-          </span>
-
+        {Icon && (
+          <Icon className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-white/40" />
         )}
 
         <Input
@@ -1040,11 +994,11 @@ function Field({
               event.target.value,
             )
           }
-          className={
-            icon
-              ? "h-12 border-white/10 bg-white/5 pl-11 text-white placeholder:text-white/30 focus-visible:ring-violet-500"
-              : "h-12 border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:ring-violet-500"
-          }
+          className={`h-12 border-white/10 bg-white/[0.04] text-white placeholder:text-white/30 focus-visible:ring-purple-500 ${
+            Icon
+              ? "pl-11"
+              : ""
+          }`}
         />
 
       </div>
