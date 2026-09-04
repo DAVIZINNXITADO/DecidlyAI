@@ -34,7 +34,7 @@ function Index() {
         </div>
 
         <Link
-          to="/"
+          to="/login"
           className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium transition hover:border-violet-500"
         >
           Entrar
