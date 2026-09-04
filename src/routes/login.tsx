@@ -65,7 +65,7 @@ const translations = {
     loading: "Aguarde...",
 
     passwordsDontMatch: "As senhas não coincidem.",
-    loginError: "Não foi possível fazer login. Verifique seus dados.",
+
     connectionError:
       "Não foi possível conectar ao servidor. Tente novamente.",
 
@@ -82,6 +82,7 @@ const translations = {
       "Ao continuar, você concorda com os Termos de Uso e a Política de Privacidade.",
 
     brandText: "Menos dúvidas. Melhores decisões.",
+
     brandDescription:
       "Organize possibilidades, analise consequências e tome decisões com mais clareza.",
 
@@ -128,7 +129,7 @@ const translations = {
     loading: "Please wait...",
 
     passwordsDontMatch: "Passwords do not match.",
-    loginError: "Unable to sign in. Please check your details.",
+
     connectionError:
       "Unable to connect to the server. Please try again.",
 
@@ -145,6 +146,7 @@ const translations = {
       "By continuing, you agree to our Terms of Service and Privacy Policy.",
 
     brandText: "Less doubt. Better decisions.",
+
     brandDescription:
       "Organize possibilities, analyze consequences and make clearer decisions.",
 
@@ -166,14 +168,19 @@ function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] =
-    useState(false);
+
+  const [
+    showConfirmPassword,
+    setShowConfirmPassword,
+  ] = useState(false);
 
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] =
+    useState(false);
 
   const [message, setMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [errorMessage, setErrorMessage] =
+    useState("");
 
   const isSignup = mode === "signup";
   const t = translations[language];
@@ -185,7 +192,9 @@ function LoginPage() {
 
   function changeMode(newMode: Mode) {
     setMode(newMode);
+
     clearMessages();
+
     setPassword("");
     setConfirmPassword("");
   }
@@ -196,13 +205,18 @@ function LoginPage() {
     );
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(
+    e: React.FormEvent
+  ) {
     e.preventDefault();
 
     clearMessages();
 
     if (isSignup && password !== confirmPassword) {
-      setErrorMessage(t.passwordsDontMatch);
+      setErrorMessage(
+        t.passwordsDontMatch
+      );
+
       return;
     }
 
@@ -210,15 +224,17 @@ function LoginPage() {
 
     try {
       if (isSignup) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              name,
+        const { error } =
+          await supabase.auth.signUp({
+            email,
+            password,
+
+            options: {
+              data: {
+                name,
+              },
             },
-          },
-        });
+          });
 
         if (error) {
           setErrorMessage(error.message);
@@ -238,10 +254,14 @@ function LoginPage() {
           return;
         }
 
-        navigate({ to: "/" });
+        navigate({
+          to: "/",
+        });
       }
     } catch {
-      setErrorMessage(t.connectionError);
+      setErrorMessage(
+        t.connectionError
+      );
     } finally {
       setLoading(false);
     }
@@ -252,16 +272,26 @@ function LoginPage() {
 
     setGoogleLoading(true);
 
-    const { error } =
-      await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: window.location.origin,
-        },
-      });
+    try {
+      const { error } =
+        await supabase.auth.signInWithOAuth({
+          provider: "google",
 
-    if (error) {
-      setErrorMessage(error.message);
+          options: {
+            redirectTo:
+              window.location.origin,
+          },
+        });
+
+      if (error) {
+        setErrorMessage(error.message);
+        setGoogleLoading(false);
+      }
+    } catch {
+      setErrorMessage(
+        t.connectionError
+      );
+
       setGoogleLoading(false);
     }
   }
@@ -269,34 +299,46 @@ function LoginPage() {
   async function handleForgotPassword() {
     clearMessages();
 
-    if (!email) {
-      setMessage(t.forgotPasswordMessage);
+    if (!email.trim()) {
+      setMessage(
+        t.forgotPasswordMessage
+      );
+
       return;
     }
 
     setLoading(true);
 
-    const { error } =
-      await supabase.auth.resetPasswordForEmail(
-        email,
-        {
-          redirectTo: window.location.origin,
-        }
-      );
+    try {
+      const { error } =
+        await supabase.auth.resetPasswordForEmail(
+          email.trim(),
+          {
+            redirectTo:
+              `${window.location.origin}/reset-password`,
+          }
+        );
 
-    if (error) {
-      setErrorMessage(error.message);
-    } else {
+      if (error) {
+        setErrorMessage(error.message);
+        return;
+      }
+
       setMessage(t.resetSent);
+    } catch {
+      setErrorMessage(
+        t.connectionError
+      );
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-background text-foreground">
 
       {/* BACKGROUND */}
+
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
 
         <div className="absolute -left-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-primary/10 blur-3xl" />
@@ -332,7 +374,10 @@ function LoginPage() {
 
               <span className="text-2xl font-bold tracking-tight">
 
-                Decidly<span className="text-primary">IA</span>
+                Decidly
+                <span className="text-primary">
+                  IA
+                </span>
 
               </span>
 
@@ -430,7 +475,10 @@ function LoginPage() {
 
                 <span className="font-bold">
 
-                  Decidly<span className="text-primary">IA</span>
+                  Decidly
+                  <span className="text-primary">
+                    IA
+                  </span>
 
                 </span>
 
@@ -446,7 +494,9 @@ function LoginPage() {
 
                 <Languages className="h-4 w-4" />
 
-                {language === "pt" ? "EN" : "PT"}
+                {language === "pt"
+                  ? "EN"
+                  : "PT"}
 
               </button>
 
@@ -458,9 +508,7 @@ function LoginPage() {
 
               <p className="text-xs font-bold tracking-[0.2em] text-primary">
 
-                {isSignup
-                  ? "DECIDLYIA"
-                  : "DECIDLYIA"}
+                DECIDLYIA
 
               </p>
 
@@ -555,7 +603,9 @@ function LoginPage() {
                       onChange={(e) =>
                         setName(e.target.value)
                       }
-                      placeholder={t.namePlaceholder}
+                      placeholder={
+                        t.namePlaceholder
+                      }
                       className="w-full rounded-xl border bg-background py-3.5 pl-12 pr-4 outline-none transition focus:ring-2 focus:ring-primary"
                     />
 
@@ -586,7 +636,9 @@ function LoginPage() {
                     onChange={(e) =>
                       setEmail(e.target.value)
                     }
-                    placeholder={t.emailPlaceholder}
+                    placeholder={
+                      t.emailPlaceholder
+                    }
                     className="w-full rounded-xl border bg-background py-3.5 pl-12 pr-4 outline-none transition focus:ring-2 focus:ring-primary"
                   />
 
@@ -610,8 +662,11 @@ function LoginPage() {
 
                     <button
                       type="button"
-                      onClick={handleForgotPassword}
-                      className="text-sm font-semibold text-primary transition hover:opacity-80"
+                      onClick={
+                        handleForgotPassword
+                      }
+                      disabled={loading}
+                      className="text-sm font-semibold text-primary transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-60"
                     >
 
                       {t.forgotPassword}
@@ -636,9 +691,13 @@ function LoginPage() {
                     minLength={6}
                     value={password}
                     onChange={(e) =>
-                      setPassword(e.target.value)
+                      setPassword(
+                        e.target.value
+                      )
                     }
-                    placeholder={t.passwordPlaceholder}
+                    placeholder={
+                      t.passwordPlaceholder
+                    }
                     className="w-full rounded-xl border bg-background py-3.5 pl-12 pr-12 outline-none transition focus:ring-2 focus:ring-primary"
                   />
 
