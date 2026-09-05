@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
+import { Footer } from "../components/Footer";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -89,7 +90,7 @@ function Index() {
               </a>
             </div>
 
-            {/* ACTIONS DESKTOP */}
+            {/* BOTÕES DESKTOP */}
 
             <div className="hidden items-center gap-3 md:flex">
               <Link
@@ -490,42 +491,9 @@ function Index() {
           </div>
         </section>
 
-        {/* FOOTER */}
+        {/* FOOTER GLOBAL */}
 
-        <footer className="border-t border-slate-800">
-          <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 px-6 py-8 text-center text-sm text-slate-500 md:flex-row md:text-left">
-            {/* LOGO COM CÉREBRO */}
-
-            <Link
-              to="/"
-              className="flex items-center gap-2 transition-opacity hover:opacity-80"
-            >
-              <img
-                src="/favicon.ico"
-                alt="DecidlyAI"
-                className="h-8 w-8 shrink-0 object-contain"
-              />
-
-              <span className="flex items-center text-lg font-bold leading-none tracking-tight">
-                <span className="text-slate-300">
-                  Decidly
-                </span>
-
-                <span className="text-violet-400">
-                  AI
-                </span>
-              </span>
-            </Link>
-
-            <span>
-              © 2026 DecidlyAI
-            </span>
-
-            <span>
-              Decida com mais clareza.
-            </span>
-          </div>
-        </footer>
+        <Footer />
       </div>
     </main>
   );
