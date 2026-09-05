@@ -495,7 +495,7 @@ function LoginPage() {
 
           {/* TEXTO ENCOSTADO E CENTRALIZADO */}
 
-          <span className="-ml-[2px] flex items-center text-3xl font-bold leading-none tracking-tight">
+          <span className="-ml-[3px] flex items-center text-3xl font-bold leading-none tracking-tight">
             <span className="text-white">
               ecidly
             </span>
