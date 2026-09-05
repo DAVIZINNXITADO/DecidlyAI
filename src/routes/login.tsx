@@ -420,16 +420,20 @@ function LoginPage() {
 
         <Link
           to="/"
-          className="mb-8 flex items-center justify-center gap-2 transition-opacity hover:opacity-80"
+          className="mb-8 flex items-center justify-center gap-0 transition-opacity hover:opacity-80"
         >
+          {/* ÍCONE = LETRA D */}
+
           <img
             src="/favicon.ico"
-            alt="DecidlyIA"
+            alt="D"
             className="h-11 w-11 shrink-0 object-contain"
           />
 
+          {/* RESTANTE DO NOME */}
+
           <span className="text-2xl font-bold leading-none tracking-tight">
-            Decidly
+            ecidly
             <span className="text-violet-400">IA</span>
           </span>
         </Link>
@@ -444,8 +448,7 @@ function LoginPage() {
               </h1>
 
               <p className="mt-3 text-base leading-relaxed text-slate-400">
-                Digite seu e-mail e enviaremos um link para você criar uma
-                nova senha.
+                Digite seu e-mail e enviaremos um link para você criar uma nova senha.
               </p>
 
               {feedback ? (
@@ -835,6 +838,8 @@ function LoginPage() {
                   )}
                 </button>
               </form>
+
+              {/* TROCAR LOGIN / CADASTRO */}
 
               <p className="mt-7 text-center text-sm text-slate-400">
                 {isSignUp
