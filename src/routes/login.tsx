@@ -416,7 +416,6 @@ function LoginPage() {
       </div>
 
       <div className="relative mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-md flex-col items-center justify-center">
-
         {/* LOGO */}
 
         <Link
@@ -438,7 +437,6 @@ function LoginPage() {
         {/* CARD */}
 
         <section className="w-full rounded-[2rem] border border-slate-800 bg-slate-900/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
-
           {isVerify ? (
             <div>
               <h1 className="text-3xl font-bold tracking-tight">
@@ -446,7 +444,8 @@ function LoginPage() {
               </h1>
 
               <p className="mt-3 text-base leading-relaxed text-slate-400">
-                Digite seu e-mail e enviaremos um link para você criar uma nova senha.
+                Digite seu e-mail e enviaremos um link para você criar uma
+                nova senha.
               </p>
 
               {feedback ? (
@@ -848,4 +847,54 @@ function LoginPage() {
                     changeMode(
                       isSignUp
                         ? "login"
-                        : "signup
+                        : "signup",
+                    )
+                  }
+                  className="font-semibold text-violet-400 transition hover:text-violet-300"
+                >
+                  {isSignUp
+                    ? "Entrar"
+                    : "Criar conta"}
+                </button>
+              </p>
+            </>
+          )}
+        </section>
+
+        <p className="mt-7 text-center text-xs text-slate-600">
+          © 2026 DecidlyIA
+        </p>
+      </div>
+    </main>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg
+      className="h-5 w-5"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        fill="#4285F4"
+        d="M21.35 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h5.23a4.47 4.47 0 0 1-1.94 2.94v2.79h3.14c1.84-1.69 2.92-4.18 2.92-7.76Z"
+      />
+
+      <path
+        fill="#34A853"
+        d="M12 21.75c2.62 0 4.82-.87 6.43-2.36l-3.14-2.79c-.87.58-1.99.92-3.29.92-2.53 0-4.68-1.71-5.45-4.01H3.31v2.88A9.72 9.72 0 0 0 12 21.75Z"
+      />
+
+      <path
+        fill="#FBBC05"
+        d="M6.55 13.51A5.86 5.86 0 0 1 6.25 12c0-.52.09-1.03.3-1.51V7.61H3.31A9.75 9.75 0 0 0 2.25 12c0 1.57.38 3.06 1.06 4.39l3.24-2.88Z"
+      />
+
+      <path
+        fill="#EA4335"
+        d="M12 6.48c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.81 3.55 14.61 2.25 12 2.25a9.72 9.72 0 0 0-8.69 5.36l3.24 2.88C7.32 8.19 9.47 6.48 12 6.48Z"
+      />
+    </svg>
+  );
+}
