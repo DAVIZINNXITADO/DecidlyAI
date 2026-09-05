@@ -1,7 +1,7 @@
 {
-  "name": "DecidlyIA",
-  "short_name": "DecidlyIA",
-  "description": "Uma plataforma para ajudar você a tomar decisões com mais clareza.",
+  "name": "DecidlyAI",
+"short_name": "DecidlyAI",
+"description": "DecidlyAI é uma plataforma para ajudar você a organizar pensamentos, analisar possibilidades e tomar decisões com mais clareza."
   "lang": "pt-BR",
   "dir": "ltr",
   "start_url": "/",
