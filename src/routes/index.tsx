@@ -47,11 +47,15 @@ function Index() {
               className="flex items-center transition-opacity hover:opacity-80"
               onClick={closeMobileMenu}
             >
+              {/* D CUSTOMIZADO */}
+
               <img
                 src="/DIcon.ico"
-                alt="DecidlyAI"
+                alt="D"
                 className="h-11 w-11 shrink-0 object-contain"
               />
+
+              {/* ECIDLYAI */}
 
               <span className="-ml-[5.1px] flex items-center text-2xl font-bold leading-none tracking-tight">
                 <span className="text-white">
@@ -107,7 +111,7 @@ function Index() {
               </Link>
             </div>
 
-            {/* MOBILE BUTTON */}
+            {/* BOTÃO MOBILE */}
 
             <button
               type="button"
@@ -131,7 +135,7 @@ function Index() {
             </button>
           </div>
 
-          {/* MOBILE MENU */}
+          {/* MENU MOBILE */}
 
           {mobileMenuOpen ? (
             <div className="border-t border-slate-800 bg-slate-950 px-6 py-5 md:hidden">
@@ -302,6 +306,7 @@ function Index() {
 
               <h2 className="mt-4 text-4xl font-bold tracking-tight md:text-5xl">
                 Menos confusão.
+
                 <span className="block text-violet-400">
                   Mais clareza.
                 </span>
@@ -469,6 +474,7 @@ function Index() {
             <div className="relative">
               <h2 className="text-4xl font-bold tracking-tight md:text-5xl">
                 Sua próxima decisão
+
                 <span className="block text-violet-400">
                   começa agora.
                 </span>
@@ -495,15 +501,24 @@ function Index() {
 
         <footer className="border-t border-slate-800">
           <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 px-6 py-8 text-center text-sm text-slate-500 md:flex-row md:text-left">
-            <div className="flex items-center">
+            {/* LOGO FOOTER */}
+
+            <Link
+              to="/"
+              className="flex items-center transition-opacity hover:opacity-80"
+            >
+              {/* D CUSTOMIZADO */}
+
               <img
                 src="/DIcon.ico"
-                alt="DecidlyAI"
+                alt="D"
                 className="h-8 w-8 shrink-0 object-contain"
               />
 
-              <span className="-ml-[3.7px] text-lg font-bold tracking-tight text-slate-300">
-                <span>
+              {/* ECIDLYAI */}
+
+              <span className="-ml-[3.7px] flex items-center text-lg font-bold leading-none tracking-tight">
+                <span className="text-slate-300">
                   ecidly
                 </span>
 
@@ -511,7 +526,7 @@ function Index() {
                   AI
                 </span>
               </span>
-            </div>
+            </Link>
 
             <span>
               © 2026 DecidlyAI
