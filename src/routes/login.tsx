@@ -488,7 +488,7 @@ function LoginPage() {
           {/* ÍCONE D */}
 
           <img
-            src="/DIcon.png"
+            src="/DIcon.ico"
             alt="DecidlyIA"
             className="h-11 w-11 shrink-0 object-contain"
           />
