@@ -268,7 +268,7 @@ function LoginPage() {
 
       if (!data.session) {
         showSuccess(
-          "Conta criada com sucesso! Verifique seu e-mail e confirme sua conta antes de entrar.",
+          "Conta criada com sucesso!",
         );
 
         setPassword("");
@@ -432,7 +432,7 @@ function LoginPage() {
 
           {/* TEXTO COM ESPAÇAMENTO DE 10PX */}
 
-          <span className="ml-[10px] text-2xl font-bold leading-none tracking-tight">
+          <span className="ml-[1px] text-2xl font-bold leading-none tracking-tight">
             ecidly
             <span className="text-violet-400">IA</span>
           </span>
