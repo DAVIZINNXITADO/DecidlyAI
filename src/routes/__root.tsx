@@ -223,6 +223,11 @@ export const Route =
         },
 
         {
+          rel: "canonical",
+          href: "https://decidlyia.lovable.app/",
+        },
+
+        {
           rel: "manifest",
           href: "/manifest.webmanifest",
         },
