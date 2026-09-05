@@ -417,61 +417,6 @@ function LoginPage() {
     }
   }
 
-  async function handlePasswordRecovery() {
-    clearFeedback();
-
-    const cleanEmail = email.trim().toLowerCase();
-
-    if (!cleanEmail) {
-      showError(
-        "Digite seu e-mail primeiro para recuperar sua senha.",
-      );
-      return;
-    }
-
-    if (!cleanEmail.includes("@")) {
-      showError("Informe um e-mail válido.");
-      return;
-    }
-
-    setRecoveryLoading(true);
-
-    try {
-      const { error } =
-        await supabase.auth.resetPasswordForEmail(
-          cleanEmail,
-          {
-            redirectTo: `${window.location.origin}/reset-password`,
-          },
-        );
-
-      if (error) {
-        const errorMessage = error.message.toLowerCase();
-
-        if (
-          errorMessage.includes("error sending recovery email")
-        ) {
-          showError(
-            "O Supabase não conseguiu enviar o e-mail de recuperação. Verifique as configurações de e-mail e SMTP do projeto.",
-          );
-          return;
-        }
-
-        showError(error.message);
-        return;
-      }
-
-      showSuccess(
-        "Se existir uma conta com este e-mail, enviaremos um link para redefinir sua senha.",
-      );
-    } catch {
-      showError(
-        "Não foi possível solicitar a recuperação de senha.",
-      );
-    } finally {
-      setRecoveryLoading(false);
-    }
-  }
 
   function handleSubmit(
     event: React.FormEvent<HTMLFormElement>,
