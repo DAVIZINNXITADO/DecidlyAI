@@ -35,7 +35,8 @@ function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] =
+    useState(false);
 
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -43,7 +44,8 @@ function LoginPage() {
   const [verifyEmail, setVerifyEmail] = useState("");
   const [verifyLoading, setVerifyLoading] = useState(false);
 
-  const [feedback, setFeedback] = useState<Feedback>(null);
+  const [feedback, setFeedback] =
+    useState<Feedback>(null);
 
   const isSignUp = mode === "signup";
   const isVerify = mode === "recover";
@@ -54,13 +56,19 @@ function LoginPage() {
 
   function changeMode(newMode: Mode) {
     setMode(newMode);
+
     clearFeedback();
+
     setPassword("");
     setConfirmPassword("");
   }
 
   function updateUsername(value: string) {
-    const sanitized = value.replace(/[^a-zA-Z0-9._-]/g, "");
+    const sanitized = value.replace(
+      /[^a-zA-Z0-9._-]/g,
+      "",
+    );
+
     setUsername(sanitized);
   }
 
@@ -81,7 +89,9 @@ function LoginPage() {
   async function handleSignIn() {
     clearFeedback();
 
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanEmail = email
+      .trim()
+      .toLowerCase();
 
     if (!cleanEmail) {
       showError("Informe seu e-mail.");
@@ -99,32 +109,46 @@ function LoginPage() {
     }
 
     if (password.length > 1000) {
-      showError("A senha pode ter no máximo 1.000 caracteres.");
+      showError(
+        "A senha pode ter no máximo 1.000 caracteres.",
+      );
       return;
     }
 
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password,
-      });
+      const { error } =
+        await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        });
 
       if (error) {
-        const errorMessage = error.message.toLowerCase();
+        const errorMessage =
+          error.message.toLowerCase();
 
         if (
-          errorMessage.includes("invalid login credentials") ||
-          errorMessage.includes("invalid credentials")
+          errorMessage.includes(
+            "invalid login credentials",
+          ) ||
+          errorMessage.includes(
+            "invalid credentials",
+          )
         ) {
-          showError("E-mail ou senha incorretos.");
+          showError(
+            "E-mail ou senha incorretos.",
+          );
           return;
         }
 
         if (
-          errorMessage.includes("email not confirmed") ||
-          errorMessage.includes("email_not_confirmed")
+          errorMessage.includes(
+            "email not confirmed",
+          ) ||
+          errorMessage.includes(
+            "email_not_confirmed",
+          )
         ) {
           showError(
             "Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada antes de entrar.",
@@ -152,8 +176,14 @@ function LoginPage() {
     clearFeedback();
 
     const cleanName = name.trim();
-    const cleanUsername = username.trim().toLowerCase();
-    const cleanEmail = email.trim().toLowerCase();
+
+    const cleanUsername = username
+      .trim()
+      .toLowerCase();
+
+    const cleanEmail = email
+      .trim()
+      .toLowerCase();
 
     if (cleanName.length < 2) {
       showError("Informe seu nome.");
@@ -161,7 +191,9 @@ function LoginPage() {
     }
 
     if (cleanName.length > 24) {
-      showError("O nome pode ter no máximo 24 caracteres.");
+      showError(
+        "O nome pode ter no máximo 24 caracteres.",
+      );
       return;
     }
 
@@ -179,7 +211,11 @@ function LoginPage() {
       return;
     }
 
-    if (!/^[a-zA-Z0-9._-]+$/.test(cleanUsername)) {
+    if (
+      !/^[a-zA-Z0-9._-]+$/.test(
+        cleanUsername,
+      )
+    ) {
       showError(
         "O nome de usuário pode usar apenas letras, números, ponto, hífen ou underline.",
       );
@@ -218,24 +254,30 @@ function LoginPage() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: cleanEmail,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/login`,
-          data: {
-            name: cleanName,
-            username: cleanUsername,
+      const { data, error } =
+        await supabase.auth.signUp({
+          email: cleanEmail,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/login`,
+            data: {
+              name: cleanName,
+              username: cleanUsername,
+            },
           },
-        },
-      });
+        });
 
       if (error) {
-        const errorMessage = error.message.toLowerCase();
+        const errorMessage =
+          error.message.toLowerCase();
 
         if (
-          errorMessage.includes("already registered") ||
-          errorMessage.includes("already been registered")
+          errorMessage.includes(
+            "already registered",
+          ) ||
+          errorMessage.includes(
+            "already been registered",
+          )
         ) {
           showError(
             "Este e-mail já possui uma conta. Tente entrar.",
@@ -244,7 +286,9 @@ function LoginPage() {
         }
 
         if (
-          errorMessage.includes("error sending confirmation email")
+          errorMessage.includes(
+            "error sending confirmation email",
+          )
         ) {
           showError(
             "A conta não pôde ser criada porque o Supabase não conseguiu enviar o e-mail de confirmação.",
@@ -270,12 +314,15 @@ function LoginPage() {
 
         setPassword("");
         setConfirmPassword("");
+
         setMode("login");
 
         return;
       }
 
-      showSuccess("Conta criada com sucesso!");
+      showSuccess(
+        "Conta criada com sucesso!",
+      );
 
       navigate({
         to: "/",
@@ -294,25 +341,30 @@ function LoginPage() {
 
     setGoogleLoading(true);
 
-    const insideIframe = window.top !== window.self;
+    const insideIframe =
+      window.top !== window.self;
 
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/`,
-          skipBrowserRedirect: insideIframe,
-          queryParams: {
-            prompt: "select_account",
+      const { data, error } =
+        await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: `${window.location.origin}/`,
+            skipBrowserRedirect:
+              insideIframe,
+            queryParams: {
+              prompt: "select_account",
+            },
           },
-        },
-      });
+        });
 
       if (error) {
         if (
           error.message
             .toLowerCase()
-            .includes("provider is not enabled")
+            .includes(
+              "provider is not enabled",
+            )
         ) {
           showError(
             "O login com o Google ainda não está ativado no Supabase.",
@@ -321,24 +373,25 @@ function LoginPage() {
           showError(error.message);
         }
 
-        setGoogleLoading(false);
         return;
       }
 
       if (insideIframe && data?.url) {
-        window.open(data.url, "_blank", "noopener,noreferrer");
+        window.open(
+          data.url,
+          "_blank",
+          "noopener,noreferrer",
+        );
 
         showSuccess(
           "Abrimos o login do Google em uma nova aba. Conclua por lá e volte para cá.",
         );
-
-        setGoogleLoading(false);
       }
     } catch {
       showError(
         "Não foi possível iniciar o login com o Google.",
       );
-
+    } finally {
       setGoogleLoading(false);
     }
   }
@@ -346,10 +399,17 @@ function LoginPage() {
   async function handleRecoverySubmit() {
     clearFeedback();
 
-    const cleanEmail = verifyEmail.trim().toLowerCase();
+    const cleanEmail = verifyEmail
+      .trim()
+      .toLowerCase();
 
-    if (!cleanEmail || !cleanEmail.includes("@")) {
-      showError("Informe um e-mail válido.");
+    if (
+      !cleanEmail ||
+      !cleanEmail.includes("@")
+    ) {
+      showError(
+        "Informe um e-mail válido.",
+      );
       return;
     }
 
@@ -357,14 +417,22 @@ function LoginPage() {
 
     try {
       const { error } =
-        await supabase.auth.resetPasswordForEmail(cleanEmail, {
-          redirectTo: `${window.location.origin}/reset-password`,
-        });
+        await supabase.auth.resetPasswordForEmail(
+          cleanEmail,
+          {
+            redirectTo: `${window.location.origin}/reset-password`,
+          },
+        );
 
       if (error) {
-        const errorMessage = error.message.toLowerCase();
+        const errorMessage =
+          error.message.toLowerCase();
 
-        if (errorMessage.includes("rate limit")) {
+        if (
+          errorMessage.includes(
+            "rate limit",
+          )
+        ) {
           showError(
             "Muitas tentativas seguidas. Aguarde alguns minutos e tente novamente.",
           );
@@ -394,15 +462,14 @@ function LoginPage() {
 
     if (isSignUp) {
       void handleSignUp();
-    } else {
-      void handleSignIn();
+      return;
     }
+
+    void handleSignIn();
   }
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-950 px-5 py-10 text-white">
-      {/* BACKGROUND */}
-
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-violet-600/10 blur-[140px]" />
 
@@ -416,21 +483,28 @@ function LoginPage() {
 
         <Link
           to="/"
-          className="mb-8 flex items-center justify-center gap-[0.0000001px] transition-opacity hover:opacity-80"
+          className="mb-8 flex items-center justify-center transition-opacity hover:opacity-80"
         >
+          {/* ÍCONE D */}
+
           <img
             src="/favicon.ico"
-            alt="D"
-            className="h-11 w-11 shrink-0 object-contain"
+            alt="DecidlyIA"
+            className="h-9 w-9 shrink-0 object-contain"
           />
 
-          <span className="text-2xl font-bold leading-none tracking-tight">
-            ecidly
-            <span className="text-violet-400">IA</span>
+          {/* TEXTO ENCOSTADO E CENTRALIZADO */}
+
+          <span className="-ml-[2px] flex items-center text-3xl font-bold leading-none tracking-tight">
+            <span className="text-white">
+              ecidly
+            </span>
+
+            <span className="text-violet-400">
+              IA
+            </span>
           </span>
         </Link>
-
-        {/* CARD */}
 
         <section className="w-full rounded-[2rem] border border-slate-800 bg-slate-900/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
           {isVerify ? (
@@ -440,7 +514,9 @@ function LoginPage() {
               </h1>
 
               <p className="mt-3 text-base leading-relaxed text-slate-400">
-                Digite seu e-mail e enviaremos um link para você criar uma nova senha.
+                Digite seu e-mail e enviaremos
+                um link para você criar uma nova
+                senha.
               </p>
 
               {feedback ? (
@@ -478,7 +554,9 @@ function LoginPage() {
                       type="email"
                       value={verifyEmail}
                       onChange={(event) =>
-                        setVerifyEmail(event.target.value)
+                        setVerifyEmail(
+                          event.target.value,
+                        )
                       }
                       placeholder="seuemail@exemplo.com"
                       autoComplete="email"
@@ -509,7 +587,9 @@ function LoginPage() {
 
               <button
                 type="button"
-                onClick={() => changeMode("login")}
+                onClick={() =>
+                  changeMode("login")
+                }
                 className="mt-6 w-full text-center text-sm font-medium text-violet-400 transition hover:text-violet-300"
               >
                 Voltar para o login
@@ -517,11 +597,11 @@ function LoginPage() {
             </div>
           ) : (
             <>
-              {/* HEADER */}
-
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">
-                  {isSignUp ? "Criar conta" : "Entrar"}
+                  {isSignUp
+                    ? "Criar conta"
+                    : "Entrar"}
                 </h1>
 
                 <p className="mt-3 text-base leading-relaxed text-slate-400">
@@ -531,14 +611,14 @@ function LoginPage() {
                 </p>
               </div>
 
-              {/* GOOGLE */}
-
               <button
                 type="button"
                 onClick={() => {
                   void handleGoogleLogin();
                 }}
-                disabled={googleLoading || loading}
+                disabled={
+                  googleLoading || loading
+                }
                 className="mt-8 flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-slate-700 bg-white px-4 font-medium text-slate-800 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {googleLoading ? (
@@ -554,8 +634,6 @@ function LoginPage() {
                 </span>
               </button>
 
-              {/* DIVIDER */}
-
               <div className="my-7 flex items-center gap-4">
                 <div className="h-px flex-1 bg-slate-800" />
 
@@ -565,8 +643,6 @@ function LoginPage() {
 
                 <div className="h-px flex-1 bg-slate-800" />
               </div>
-
-              {/* FEEDBACK */}
 
               {feedback ? (
                 <div
@@ -579,8 +655,6 @@ function LoginPage() {
                   {feedback.message}
                 </div>
               ) : null}
-
-              {/* FORM */}
 
               <form
                 className="space-y-5"
@@ -603,7 +677,9 @@ function LoginPage() {
                         type="text"
                         value={name}
                         onChange={(event) =>
-                          setName(event.target.value)
+                          setName(
+                            event.target.value,
+                          )
                         }
                         placeholder="Como podemos te chamar?"
                         autoComplete="given-name"
@@ -613,7 +689,8 @@ function LoginPage() {
                     </div>
 
                     <p className="mt-2 text-xs text-slate-500">
-                      Como você gostaria de ser chamado?
+                      Como você gostaria de ser
+                      chamado?
                     </p>
                   </div>
                 ) : null}
@@ -635,7 +712,9 @@ function LoginPage() {
                         type="text"
                         value={username}
                         onChange={(event) =>
-                          updateUsername(event.target.value)
+                          updateUsername(
+                            event.target.value,
+                          )
                         }
                         placeholder="Escolha seu nome de usuário"
                         autoComplete="username"
@@ -645,7 +724,8 @@ function LoginPage() {
                     </div>
 
                     <p className="mt-2 text-xs text-slate-500">
-                      Use letras, números, ponto, hífen ou underline.
+                      Use letras, números, ponto,
+                      hífen ou underline.
                     </p>
                   </div>
                 ) : null}
@@ -666,7 +746,9 @@ function LoginPage() {
                       type="email"
                       value={email}
                       onChange={(event) =>
-                        setEmail(event.target.value)
+                        setEmail(
+                          event.target.value,
+                        )
                       }
                       placeholder="seuemail@exemplo.com"
                       autoComplete="email"
@@ -676,7 +758,8 @@ function LoginPage() {
                   </div>
 
                   <p className="mt-2 text-xs text-slate-500">
-                    Use um e-mail que você tenha acesso.
+                    Use um e-mail que você tenha
+                    acesso.
                   </p>
                 </div>
 
@@ -693,10 +776,16 @@ function LoginPage() {
 
                     <input
                       id="password"
-                      type={showPassword ? "text" : "password"}
+                      type={
+                        showPassword
+                          ? "text"
+                          : "password"
+                      }
                       value={password}
                       onChange={(event) =>
-                        setPassword(event.target.value)
+                        setPassword(
+                          event.target.value,
+                        )
                       }
                       placeholder="Digite sua senha"
                       autoComplete={
@@ -712,7 +801,8 @@ function LoginPage() {
                       type="button"
                       onClick={() =>
                         setShowPassword(
-                          (current) => !current,
+                          (current) =>
+                            !current,
                         )
                       }
                       aria-label={
@@ -741,7 +831,9 @@ function LoginPage() {
                       type="button"
                       onClick={() => {
                         setVerifyEmail(email);
-                        changeMode("recover");
+                        changeMode(
+                          "recover",
+                        );
                       }}
                       className="mt-4 text-sm font-medium text-violet-400 transition hover:text-violet-300"
                     >
@@ -769,7 +861,9 @@ function LoginPage() {
                             ? "text"
                             : "password"
                         }
-                        value={confirmPassword}
+                        value={
+                          confirmPassword
+                        }
                         onChange={(event) =>
                           setConfirmPassword(
                             event.target.value,
@@ -785,7 +879,8 @@ function LoginPage() {
                         type="button"
                         onClick={() =>
                           setShowConfirmPassword(
-                            (current) => !current,
+                            (current) =>
+                              !current,
                           )
                         }
                         aria-label={
@@ -804,14 +899,17 @@ function LoginPage() {
                     </div>
 
                     <p className="mt-2 text-xs text-slate-500">
-                      Digite novamente a mesma senha.
+                      Digite novamente a mesma
+                      senha.
                     </p>
                   </div>
                 ) : null}
 
                 <button
                   type="submit"
-                  disabled={loading || googleLoading}
+                  disabled={
+                    loading || googleLoading
+                  }
                   className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {loading ? (
