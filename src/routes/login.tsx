@@ -39,7 +39,6 @@ function LoginPage() {
 
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  
 
   const [verifyEmail, setVerifyEmail] = useState("");
   const [verifyLoading, setVerifyLoading] = useState(false);
@@ -251,7 +250,7 @@ function LoginPage() {
           errorMessage.includes("error sending confirmation email")
         ) {
           showError(
-            "A conta não pôde ser criada porque o Supabase não conseguiu enviar o e-mail de confirmação. Verifique as configurações de autenticação e SMTP no Supabase.",
+            "A conta não pôde ser criada porque o Supabase não conseguiu enviar o e-mail de confirmação.",
           );
           return;
         }
@@ -260,18 +259,6 @@ function LoginPage() {
         return;
       }
 
-      /*
-       * IMPORTANTE:
-       *
-       * Não fazemos insert/upsert obrigatório em "profiles".
-       *
-       * O nome e username já foram salvos em user_metadata
-       * durante o signUp.
-       *
-       * Isso evita que uma tabela inexistente ou mal configurada
-       * faça o cadastro parecer que falhou.
-       */
-
       if (!data.user) {
         showError(
           "Não foi possível concluir a criação da conta. Tente novamente.",
@@ -279,10 +266,6 @@ function LoginPage() {
         return;
       }
 
-      /*
-       * Quando a confirmação de e-mail está ativada no Supabase,
-       * data.session pode ser null.
-       */
       if (!data.session) {
         showSuccess(
           "Conta criada com sucesso! Verifique seu e-mail e confirme sua conta antes de entrar.",
@@ -296,10 +279,6 @@ function LoginPage() {
         return;
       }
 
-      /*
-       * Caso a confirmação de e-mail esteja desativada,
-       * o Supabase já retorna uma sessão.
-       */
       showSuccess("Conta criada com sucesso!");
 
       navigate({
@@ -319,10 +298,6 @@ function LoginPage() {
 
     setGoogleLoading(true);
 
-    /*
-     * Dentro do preview (iframe) o Google bloqueia o redirect,
-     * então abrimos o fluxo em uma nova aba.
-     */
     const insideIframe = window.top !== window.self;
 
     try {
@@ -344,7 +319,7 @@ function LoginPage() {
             .includes("provider is not enabled")
         ) {
           showError(
-            "O login com o Google ainda não está ativado no seu projeto Supabase. Ative o provedor Google em Authentication > Sign In / Providers, salve o Client ID e o Client Secret, e tente de novo.",
+            "O login com o Google ainda não está ativado no Supabase.",
           );
         } else {
           showError(error.message);
@@ -363,11 +338,6 @@ function LoginPage() {
 
         setGoogleLoading(false);
       }
-
-      /*
-       * Fora do iframe, o navegador é redirecionado
-       * automaticamente para o Google.
-       */
     } catch {
       showError(
         "Não foi possível iniciar o login com o Google.",
@@ -400,14 +370,7 @@ function LoginPage() {
 
         if (errorMessage.includes("rate limit")) {
           showError(
-            "Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.",
-          );
-          return;
-        }
-
-        if (errorMessage.includes("error sending recovery email")) {
-          showError(
-            "O Supabase não conseguiu enviar o e-mail. Verifique as configurações de e-mail e SMTP do projeto.",
+            "Muitas tentativas seguidas. Aguarde alguns minutos e tente novamente.",
           );
           return;
         }
@@ -417,7 +380,7 @@ function LoginPage() {
       }
 
       showSuccess(
-        "Pronto! Se existir uma conta com este e-mail, enviamos um link para criar uma nova senha.",
+        "Pronto! Se existir uma conta com este e-mail, enviaremos um link para criar uma nova senha.",
       );
     } catch {
       showError(
@@ -427,7 +390,6 @@ function LoginPage() {
       setVerifyLoading(false);
     }
   }
-
 
   function handleSubmit(
     event: React.FormEvent<HTMLFormElement>,
@@ -454,31 +416,29 @@ function LoginPage() {
       </div>
 
       <div className="relative mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-md flex-col items-center justify-center">
+
         {/* LOGO */}
 
         <Link
           to="/"
-          className="mb-8 flex items-center gap-3 transition-opacity hover:opacity-80"
+          className="mb-8 flex items-center justify-center gap-2 transition-opacity hover:opacity-80"
         >
-          <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-lg">
-            <img
-              src="/favicon.ico"
-              alt="DecidlyIA"
-              className="h-full w-full object-contain"
-            />
-          </div>
+          <img
+            src="/favicon.ico"
+            alt="DecidlyIA"
+            className="h-11 w-11 shrink-0 object-contain"
+          />
 
-          <span className="text-2xl font-bold tracking-tight">
+          <span className="text-2xl font-bold leading-none tracking-tight">
             Decidly
-            <span className="text-violet-400">
-              IA
-            </span>
+            <span className="text-violet-400">IA</span>
           </span>
         </Link>
 
         {/* CARD */}
 
         <section className="w-full rounded-[2rem] border border-slate-800 bg-slate-900/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
+
           {isVerify ? (
             <div>
               <h1 className="text-3xl font-bold tracking-tight">
@@ -486,8 +446,7 @@ function LoginPage() {
               </h1>
 
               <p className="mt-3 text-base leading-relaxed text-slate-400">
-                Digite seu e-mail e enviaremos um link para você
-                criar uma nova senha.
+                Digite seu e-mail e enviaremos um link para você criar uma nova senha.
               </p>
 
               {feedback ? (
@@ -547,7 +506,7 @@ function LoginPage() {
                     </>
                   ) : (
                     <>
-                      Enviar código
+                      Enviar link
                       <ArrowRight className="h-5 w-5" />
                     </>
                   )}
@@ -564,409 +523,329 @@ function LoginPage() {
             </div>
           ) : (
             <>
-          {/* HEADER */}
+              {/* HEADER */}
 
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              {isSignUp
-                ? "Criar conta"
-                : "Entrar"}
-            </h1>
-
-            <p className="mt-3 text-base leading-relaxed text-slate-400">
-              {isSignUp
-                ? "Crie sua conta e comece a tomar decisões com mais clareza."
-                : "Bem-vindo de volta! Acesse sua conta para continuar."}
-            </p>
-          </div>
-
-          {/* GOOGLE */}
-
-          <button
-            type="button"
-            onClick={() => {
-              void handleGoogleLogin();
-            }}
-            disabled={googleLoading || loading}
-            className="mt-8 flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-slate-700 bg-white px-4 font-medium text-slate-800 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {googleLoading ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <GoogleIcon />
-            )}
-
-            <span>
-              {googleLoading
-                ? "Conectando..."
-                : "Continuar com o Google"}
-            </span>
-          </button>
-
-          {/* DIVIDER */}
-
-          <div className="my-7 flex items-center gap-4">
-            <div className="h-px flex-1 bg-slate-800" />
-
-            <span className="text-[11px] font-medium tracking-wider text-slate-500">
-              OU CONTINUE COM E-MAIL
-            </span>
-
-            <div className="h-px flex-1 bg-slate-800" />
-          </div>
-
-          {/* FEEDBACK */}
-
-          {feedback ? (
-            <div
-              className={`mb-6 rounded-xl border p-4 text-sm leading-relaxed ${
-                feedback.type === "error"
-                  ? "border-red-500/30 bg-red-500/10 text-red-300"
-                  : "border-violet-500/30 bg-violet-500/10 text-violet-200"
-              }`}
-            >
-              {feedback.message}
-            </div>
-          ) : null}
-
-          {/* FORM */}
-
-          <form
-            className="space-y-5"
-            onSubmit={handleSubmit}
-          >
-            {/* NAME */}
-
-            {isSignUp ? (
               <div>
-                <label
-                  htmlFor="name"
-                  className="mb-2 block text-sm font-medium text-slate-200"
-                >
-                  Nome
-                </label>
+                <h1 className="text-3xl font-bold tracking-tight">
+                  {isSignUp ? "Criar conta" : "Entrar"}
+                </h1>
 
-                <div className="relative">
-                  <User className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
-
-                  <input
-                    id="name"
-                    type="text"
-                    value={name}
-                    onChange={(event) =>
-                      setName(event.target.value)
-                    }
-                    placeholder="Como podemos te chamar?"
-                    autoComplete="given-name"
-                    maxLength={24}
-                    className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
-                  />
-                </div>
-
-                <p className="mt-2 text-xs text-slate-500">
-                  Como você gostaria de ser chamado?
+                <p className="mt-3 text-base leading-relaxed text-slate-400">
+                  {isSignUp
+                    ? "Crie sua conta e comece a tomar decisões com mais clareza."
+                    : "Bem-vindo de volta! Acesse sua conta para continuar."}
                 </p>
               </div>
-            ) : null}
 
-            {/* USERNAME */}
+              {/* GOOGLE */}
 
-            {isSignUp ? (
-              <div>
-                <label
-                  htmlFor="username"
-                  className="mb-2 block text-sm font-medium text-slate-200"
+              <button
+                type="button"
+                onClick={() => {
+                  void handleGoogleLogin();
+                }}
+                disabled={googleLoading || loading}
+                className="mt-8 flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-slate-700 bg-white px-4 font-medium text-slate-800 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {googleLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <GoogleIcon />
+                )}
+
+                <span>
+                  {googleLoading
+                    ? "Conectando..."
+                    : "Continuar com o Google"}
+                </span>
+              </button>
+
+              {/* DIVIDER */}
+
+              <div className="my-7 flex items-center gap-4">
+                <div className="h-px flex-1 bg-slate-800" />
+
+                <span className="text-[11px] font-medium tracking-wider text-slate-500">
+                  OU CONTINUE COM E-MAIL
+                </span>
+
+                <div className="h-px flex-1 bg-slate-800" />
+              </div>
+
+              {/* FEEDBACK */}
+
+              {feedback ? (
+                <div
+                  className={`mb-6 rounded-xl border p-4 text-sm leading-relaxed ${
+                    feedback.type === "error"
+                      ? "border-red-500/30 bg-red-500/10 text-red-300"
+                      : "border-violet-500/30 bg-violet-500/10 text-violet-200"
+                  }`}
                 >
-                  Nome de usuário
-                </label>
+                  {feedback.message}
+                </div>
+              ) : null}
 
-                <div className="relative">
-                  <User className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+              {/* FORM */}
 
-                  <input
-                    id="username"
-                    type="text"
-                    value={username}
-                    onChange={(event) =>
-                      updateUsername(event.target.value)
-                    }
-                    placeholder="Escolha seu nome de usuário"
-                    autoComplete="username"
-                    maxLength={24}
-                    className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
-                  />
+              <form
+                className="space-y-5"
+                onSubmit={handleSubmit}
+              >
+                {isSignUp ? (
+                  <div>
+                    <label
+                      htmlFor="name"
+                      className="mb-2 block text-sm font-medium text-slate-200"
+                    >
+                      Nome
+                    </label>
+
+                    <div className="relative">
+                      <User className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+
+                      <input
+                        id="name"
+                        type="text"
+                        value={name}
+                        onChange={(event) =>
+                          setName(event.target.value)
+                        }
+                        placeholder="Como podemos te chamar?"
+                        autoComplete="given-name"
+                        maxLength={24}
+                        className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+                      />
+                    </div>
+
+                    <p className="mt-2 text-xs text-slate-500">
+                      Como você gostaria de ser chamado?
+                    </p>
+                  </div>
+                ) : null}
+
+                {isSignUp ? (
+                  <div>
+                    <label
+                      htmlFor="username"
+                      className="mb-2 block text-sm font-medium text-slate-200"
+                    >
+                      Nome de usuário
+                    </label>
+
+                    <div className="relative">
+                      <User className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+
+                      <input
+                        id="username"
+                        type="text"
+                        value={username}
+                        onChange={(event) =>
+                          updateUsername(event.target.value)
+                        }
+                        placeholder="Escolha seu nome de usuário"
+                        autoComplete="username"
+                        maxLength={24}
+                        className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+                      />
+                    </div>
+
+                    <p className="mt-2 text-xs text-slate-500">
+                      Use letras, números, ponto, hífen ou underline.
+                    </p>
+                  </div>
+                ) : null}
+
+                <div>
+                  <label
+                    htmlFor="email"
+                    className="mb-2 block text-sm font-medium text-slate-200"
+                  >
+                    E-mail
+                  </label>
+
+                  <div className="relative">
+                    <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+
+                    <input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(event) =>
+                        setEmail(event.target.value)
+                      }
+                      placeholder="seuemail@exemplo.com"
+                      autoComplete="email"
+                      maxLength={160}
+                      className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+                    />
+                  </div>
+
+                  <p className="mt-2 text-xs text-slate-500">
+                    Use um e-mail que você tenha acesso.
+                  </p>
                 </div>
 
-                <p className="mt-2 text-xs text-slate-500">
-                  Use letras, números, ponto, hífen ou underline.
-                </p>
-              </div>
-            ) : null}
+                <div>
+                  <label
+                    htmlFor="password"
+                    className="mb-2 block text-sm font-medium text-slate-200"
+                  >
+                    Senha
+                  </label>
 
-            {/* EMAIL */}
+                  <div className="relative">
+                    <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
 
-            <div>
-              <label
-                htmlFor="email"
-                className="mb-2 block text-sm font-medium text-slate-200"
-              >
-                E-mail
-              </label>
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(event) =>
+                        setPassword(event.target.value)
+                      }
+                      placeholder="Digite sua senha"
+                      autoComplete={
+                        isSignUp
+                          ? "new-password"
+                          : "current-password"
+                      }
+                      maxLength={1000}
+                      className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 pr-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+                    />
 
-              <div className="relative">
-                <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowPassword(
+                          (current) => !current,
+                        )
+                      }
+                      aria-label={
+                        showPassword
+                          ? "Ocultar senha"
+                          : "Mostrar senha"
+                      }
+                      className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-slate-500 transition hover:text-white"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-5 w-5" />
+                      ) : (
+                        <Eye className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
 
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(event) =>
-                    setEmail(event.target.value)
-                  }
-                  placeholder="seuemail@exemplo.com"
-                  autoComplete="email"
-                  maxLength={160}
-                  className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
-                />
-              </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    {isSignUp
+                      ? "Sua senha deve ter pelo menos 6 caracteres."
+                      : "Digite a senha usada na sua conta."}
+                  </p>
 
-              <p className="mt-2 text-xs text-slate-500">
-                Use um e-mail que você tenha acesso.
-              </p>
-            </div>
+                  {!isSignUp ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVerifyEmail(email);
+                        changeMode("recover");
+                      }}
+                      className="mt-4 text-sm font-medium text-violet-400 transition hover:text-violet-300"
+                    >
+                      Esqueci minha senha
+                    </button>
+                  ) : null}
+                </div>
 
-            {/* PASSWORD */}
+                {isSignUp ? (
+                  <div>
+                    <label
+                      htmlFor="confirm-password"
+                      className="mb-2 block text-sm font-medium text-slate-200"
+                    >
+                      Confirmar senha
+                    </label>
 
-            <div>
-              <label
-                htmlFor="password"
-                className="mb-2 block text-sm font-medium text-slate-200"
-              >
-                Senha
-              </label>
+                    <div className="relative">
+                      <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
 
-              <div className="relative">
-                <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+                      <input
+                        id="confirm-password"
+                        type={
+                          showConfirmPassword
+                            ? "text"
+                            : "password"
+                        }
+                        value={confirmPassword}
+                        onChange={(event) =>
+                          setConfirmPassword(
+                            event.target.value,
+                          )
+                        }
+                        placeholder="Repita sua senha"
+                        autoComplete="new-password"
+                        maxLength={1000}
+                        className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 pr-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+                      />
 
-                <input
-                  id="password"
-                  type={
-                    showPassword
-                      ? "text"
-                      : "password"
-                  }
-                  value={password}
-                  onChange={(event) =>
-                    setPassword(event.target.value)
-                  }
-                  placeholder="Digite sua senha"
-                  autoComplete={
-                    isSignUp
-                      ? "new-password"
-                      : "current-password"
-                  }
-                  maxLength={1000}
-                  className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 pr-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
-                />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowConfirmPassword(
+                            (current) => !current,
+                          )
+                        }
+                        aria-label={
+                          showConfirmPassword
+                            ? "Ocultar senha"
+                            : "Mostrar senha"
+                        }
+                        className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-slate-500 transition hover:text-white"
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-5 w-5" />
+                        ) : (
+                          <Eye className="h-5 w-5" />
+                        )}
+                      </button>
+                    </div>
+
+                    <p className="mt-2 text-xs text-slate-500">
+                      Digite novamente a mesma senha.
+                    </p>
+                  </div>
+                ) : null}
+
+                <button
+                  type="submit"
+                  disabled={loading || googleLoading}
+                  className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Aguarde...
+                    </>
+                  ) : (
+                    <>
+                      {isSignUp
+                        ? "Criar minha conta"
+                        : "Entrar na minha conta"}
+
+                      <ArrowRight className="h-5 w-5" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <p className="mt-7 text-center text-sm text-slate-400">
+                {isSignUp
+                  ? "Já possui uma conta? "
+                  : "Ainda não possui uma conta? "}
 
                 <button
                   type="button"
                   onClick={() =>
-                    setShowPassword(
-                      (current) => !current,
-                    )
-                  }
-                  aria-label={
-                    showPassword
-                      ? "Ocultar senha"
-                      : "Mostrar senha"
-                  }
-                  className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-slate-500 transition hover:text-white"
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
-                </button>
-              </div>
-
-              <p className="mt-2 text-xs text-slate-500">
-                {isSignUp
-                  ? "Sua senha deve ter pelo menos 6 caracteres."
-                  : "Digite a senha usada na sua conta."}
-              </p>
-
-              {/* FORGOT PASSWORD - ABAIXO DA SENHA */}
-
-              {!isSignUp ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setVerifyEmail(email);
-                    changeMode("recover");
-                  }}
-                  className="mt-4 text-sm font-medium text-violet-400 transition hover:text-violet-300"
-                >
-                  Esqueci minha senha
-                </button>
-              ) : null}
-            </div>
-
-            {/* CONFIRM PASSWORD */}
-
-            {isSignUp ? (
-              <div>
-                <label
-                  htmlFor="confirm-password"
-                  className="mb-2 block text-sm font-medium text-slate-200"
-                >
-                  Confirmar senha
-                </label>
-
-                <div className="relative">
-                  <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
-
-                  <input
-                    id="confirm-password"
-                    type={
-                      showConfirmPassword
-                        ? "text"
-                        : "password"
-                    }
-                    value={confirmPassword}
-                    onChange={(event) =>
-                      setConfirmPassword(
-                        event.target.value,
-                      )
-                    }
-                    placeholder="Repita sua senha"
-                    autoComplete="new-password"
-                    maxLength={1000}
-                    className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 pr-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setShowConfirmPassword(
-                        (current) => !current,
-                      )
-                    }
-                    aria-label={
-                      showConfirmPassword
-                        ? "Ocultar senha"
-                        : "Mostrar senha"
-                    }
-                    className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-slate-500 transition hover:text-white"
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
-                  </button>
-                </div>
-
-                <p className="mt-2 text-xs text-slate-500">
-                  Digite novamente a mesma senha.
-                </p>
-              </div>
-            ) : null}
-
-            {/* SUBMIT */}
-
-            <button
-              type="submit"
-              disabled={loading || googleLoading}
-              className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
-
-                  Aguarde...
-                </>
-              ) : (
-                <>
-                  {isSignUp
-                    ? "Criar minha conta"
-                    : "Entrar na minha conta"}
-
-                  <ArrowRight className="h-5 w-5" />
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* MODE SWITCH */}
-
-          <p className="mt-7 text-center text-sm text-slate-400">
-            {isSignUp
-              ? "Já possui uma conta? "
-              : "Ainda não possui uma conta? "}
-
-            <button
-              type="button"
-              onClick={() =>
-                changeMode(
-                  isSignUp
-                    ? "login"
-                    : "signup",
-                )
-              }
-              className="font-semibold text-violet-400 transition hover:text-violet-300"
-            >
-              {isSignUp
-                ? "Entrar"
-                : "Criar conta"}
-            </button>
-          </p>
-
-            </>
-          )}
-        </section>
-
-        <p className="mt-7 text-center text-xs text-slate-600">
-          © 2026 DecidlyIA
-        </p>
-      </div>
-    </main>
-  );
-}
-
-/*
- * Ícone oficial multicolorido do Google.
- *
- * O login continua sendo feito pelo OAuth do Supabase,
- * que é o fluxo correto para o Google no seu projeto.
- */
-function GoogleIcon() {
-  return (
-    <svg
-      className="h-5 w-5"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path
-        fill="#4285F4"
-        d="M21.35 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h5.23a4.47 4.47 0 0 1-1.94 2.94v2.79h3.14c1.84-1.69 2.92-4.18 2.92-7.76Z"
-      />
-
-      <path
-        fill="#34A853"
-        d="M12 21.75c2.62 0 4.82-.87 6.43-2.36l-3.14-2.79c-.87.58-1.99.92-3.29.92-2.53 0-4.68-1.71-5.45-4.01H3.31v2.88A9.72 9.72 0 0 0 12 21.75Z"
-      />
-
-      <path
-        fill="#FBBC05"
-        d="M6.55 13.51A5.86 5.86 0 0 1 6.25 12c0-.52.09-1.03.3-1.51V7.61H3.31A9.75 9.75 0 0 0 2.25 12c0 1.57.38 3.06 1.06 4.39l3.24-2.88Z"
-      />
-
-      <path
-        fill="#EA4335"
-        d="M12 6.48c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.81 3.55 14.61 2.25 12 2.25a9.72 9.72 0 0 0-8.69 5.36l3.24 2.88C7.32 8.19 9.47 6.48 12 6.48Z"
-      />
-    </svg>
-  );
-}
+                    changeMode(
+                      isSignUp
+                        ? "login"
+                        : "signup
