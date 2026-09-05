@@ -318,22 +318,43 @@ function LoginPage() {
 
     setGoogleLoading(true);
 
+    /*
+     * Dentro do preview (iframe) o Google bloqueia o redirect,
+     * então abrimos o fluxo em uma nova aba.
+     */
+    const insideIframe = window.top !== window.self;
+
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/`,
+          skipBrowserRedirect: insideIframe,
+          queryParams: {
+            prompt: "select_account",
+          },
         },
       });
 
       if (error) {
         showError(error.message);
         setGoogleLoading(false);
+        return;
+      }
+
+      if (insideIframe && data?.url) {
+        window.open(data.url, "_blank", "noopener,noreferrer");
+
+        showSuccess(
+          "Abrimos o login do Google em uma nova aba. Conclua por lá e volte para cá.",
+        );
+
+        setGoogleLoading(false);
       }
 
       /*
-       * Se não houver erro, o navegador será redirecionado
-       * para o Google pelo Supabase.
+       * Fora do iframe, o navegador é redirecionado
+       * automaticamente para o Google.
        */
     } catch {
       showError(
@@ -341,6 +362,60 @@ function LoginPage() {
       );
 
       setGoogleLoading(false);
+    }
+  }
+
+  async function handleResendVerification() {
+    clearFeedback();
+
+    const cleanEmail = verifyEmail.trim().toLowerCase();
+
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      showError("Informe um e-mail válido.");
+      return;
+    }
+
+    setVerifyLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: cleanEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/login`,
+        },
+      });
+
+      if (error) {
+        const errorMessage = error.message.toLowerCase();
+
+        if (errorMessage.includes("already confirmed")) {
+          showError(
+            "Este e-mail já foi confirmado. Você já pode entrar normalmente.",
+          );
+          return;
+        }
+
+        if (errorMessage.includes("rate limit")) {
+          showError(
+            "Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.",
+          );
+          return;
+        }
+
+        showError(error.message);
+        return;
+      }
+
+      showSuccess(
+        "Pronto! Se existir uma conta pendente com este e-mail, enviamos um novo link de verificação.",
+      );
+    } catch {
+      showError(
+        "Não foi possível enviar o e-mail de verificação.",
+      );
+    } finally {
+      setVerifyLoading(false);
     }
   }
 
