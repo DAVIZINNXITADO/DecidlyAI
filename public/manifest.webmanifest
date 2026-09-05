@@ -3,12 +3,18 @@
   "short_name": "DecidlyIA",
   "description": "Uma plataforma para ajudar você a tomar decisões com mais clareza.",
   "lang": "pt-BR",
+  "dir": "ltr",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#020617",
   "theme_color": "#020617",
+  "categories": [
+    "productivity",
+    "utilities",
+    "education"
+  ],
   "icons": [
     {
       "src": "/appicon-192.png",
