@@ -846,15 +846,13 @@ function LoginPage() {
               {!isSignUp ? (
                 <button
                   type="button"
-                  disabled={recoveryLoading}
                   onClick={() => {
-                    void handlePasswordRecovery();
+                    setVerifyEmail(email);
+                    changeMode("recover");
                   }}
-                  className="mt-4 text-sm font-medium text-violet-400 transition hover:text-violet-300 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-4 text-sm font-medium text-violet-400 transition hover:text-violet-300"
                 >
-                  {recoveryLoading
-                    ? "Enviando link..."
-                    : "Esqueci minha senha"}
+                  Esqueci minha senha
                 </button>
               ) : null}
             </div>
