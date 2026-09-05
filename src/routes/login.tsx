@@ -15,7 +15,7 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-type Mode = "login" | "signup" | "verify";
+type Mode = "login" | "signup" | "recover";
 
 type Feedback = {
   type: "success" | "error";
@@ -39,7 +39,7 @@ function LoginPage() {
 
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [recoveryLoading, setRecoveryLoading] = useState(false);
+  
 
   const [verifyEmail, setVerifyEmail] = useState("");
   const [verifyLoading, setVerifyLoading] = useState(false);
@@ -47,7 +47,7 @@ function LoginPage() {
   const [feedback, setFeedback] = useState<Feedback>(null);
 
   const isSignUp = mode === "signup";
-  const isVerify = mode === "verify";
+  const isVerify = mode === "recover";
 
   function clearFeedback() {
     setFeedback(null);
@@ -338,7 +338,18 @@ function LoginPage() {
       });
 
       if (error) {
-        showError(error.message);
+        if (
+          error.message
+            .toLowerCase()
+            .includes("provider is not enabled")
+        ) {
+          showError(
+            "O login com o Google ainda não está ativado no seu projeto Supabase. Ative o provedor Google em Authentication > Sign In / Providers, salve o Client ID e o Client Secret, e tente de novo.",
+          );
+        } else {
+          showError(error.message);
+        }
+
         setGoogleLoading(false);
         return;
       }
@@ -366,7 +377,7 @@ function LoginPage() {
     }
   }
 
-  async function handleResendVerification() {
+  async function handleRecoverySubmit() {
     clearFeedback();
 
     const cleanEmail = verifyEmail.trim().toLowerCase();
@@ -379,23 +390,13 @@ function LoginPage() {
     setVerifyLoading(true);
 
     try {
-      const { error } = await supabase.auth.resend({
-        type: "signup",
-        email: cleanEmail,
-        options: {
-          emailRedirectTo: `${window.location.origin}/login`,
-        },
-      });
+      const { error } =
+        await supabase.auth.resetPasswordForEmail(cleanEmail, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
 
       if (error) {
         const errorMessage = error.message.toLowerCase();
-
-        if (errorMessage.includes("already confirmed")) {
-          showError(
-            "Este e-mail já foi confirmado. Você já pode entrar normalmente.",
-          );
-          return;
-        }
 
         if (errorMessage.includes("rate limit")) {
           showError(
@@ -404,58 +405,9 @@ function LoginPage() {
           return;
         }
 
-        showError(error.message);
-        return;
-      }
-
-      showSuccess(
-        "Pronto! Se existir uma conta pendente com este e-mail, enviamos um novo link de verificação.",
-      );
-    } catch {
-      showError(
-        "Não foi possível enviar o e-mail de verificação.",
-      );
-    } finally {
-      setVerifyLoading(false);
-    }
-  }
-
-  async function handlePasswordRecovery() {
-    clearFeedback();
-
-    const cleanEmail = email.trim().toLowerCase();
-
-    if (!cleanEmail) {
-      showError(
-        "Digite seu e-mail primeiro para recuperar sua senha.",
-      );
-      return;
-    }
-
-    if (!cleanEmail.includes("@")) {
-      showError("Informe um e-mail válido.");
-      return;
-    }
-
-    setRecoveryLoading(true);
-
-    try {
-      const { error } =
-        await supabase.auth.resetPasswordForEmail(
-          cleanEmail,
-          {
-            redirectTo: `${window.location.origin}/reset-password`,
-          },
-        );
-
-      if (error) {
-        const errorMessage = error.message.toLowerCase();
-
-        if (
-          errorMessage.includes("error sending recovery email")
-        ) {
+        if (errorMessage.includes("error sending recovery email")) {
           showError(
-            "O Supabase não conseguiu enviar o e-mail de recuperação. Verifique as configurações de e-mail e SMTP do projeto.",
+            "O Supabase não conseguiu enviar o e-mail. Verifique as configurações de e-mail e SMTP do projeto.",
           );
           return;
         }
@@ -465,16 +417,17 @@ function LoginPage() {
       }
 
       showSuccess(
-        "Se existir uma conta com este e-mail, enviaremos um link para redefinir sua senha.",
+        "Pronto! Se existir uma conta com este e-mail, enviamos um link para criar uma nova senha.",
       );
     } catch {
       showError(
-        "Não foi possível solicitar a recuperação de senha.",
+        "Não foi possível enviar o e-mail de recuperação.",
       );
     } finally {
-      setRecoveryLoading(false);
+      setVerifyLoading(false);
     }
   }
+
 
   function handleSubmit(
     event: React.FormEvent<HTMLFormElement>,
@@ -529,12 +482,12 @@ function LoginPage() {
           {isVerify ? (
             <div>
               <h1 className="text-3xl font-bold tracking-tight">
-                Verificar e-mail
+                Recuperar senha
               </h1>
 
               <p className="mt-3 text-base leading-relaxed text-slate-400">
-                Digite seu e-mail e enviaremos um novo link de
-                verificação para confirmar sua conta.
+                Digite seu e-mail e enviaremos um link para você
+                criar uma nova senha.
               </p>
 
               {feedback ? (
@@ -553,7 +506,7 @@ function LoginPage() {
                 className="mt-6 space-y-5"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  void handleResendVerification();
+                  void handleRecoverySubmit();
                 }}
               >
                 <div>
@@ -594,7 +547,7 @@ function LoginPage() {
                     </>
                   ) : (
                     <>
-                      Enviar e-mail com link
+                      Enviar código
                       <ArrowRight className="h-5 w-5" />
                     </>
                   )}
@@ -849,15 +802,13 @@ function LoginPage() {
               {!isSignUp ? (
                 <button
                   type="button"
-                  disabled={recoveryLoading}
                   onClick={() => {
-                    void handlePasswordRecovery();
+                    setVerifyEmail(email);
+                    changeMode("recover");
                   }}
-                  className="mt-4 text-sm font-medium text-violet-400 transition hover:text-violet-300 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-4 text-sm font-medium text-violet-400 transition hover:text-violet-300"
                 >
-                  {recoveryLoading
-                    ? "Enviando link..."
-                    : "Esqueci minha senha"}
+                  Esqueci minha senha
                 </button>
               ) : null}
             </div>
@@ -927,11 +878,7 @@ function LoginPage() {
 
             <button
               type="submit"
-              disabled={
-                loading ||
-                googleLoading ||
-                recoveryLoading
-              }
+              disabled={loading || googleLoading}
               className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? (
@@ -976,18 +923,6 @@ function LoginPage() {
             </button>
           </p>
 
-          {/* LINK PARA VERIFICAÇÃO DE E-MAIL */}
-
-          <p className="mt-3 text-center text-sm text-slate-500">
-            Não recebeu o e-mail de confirmação?{" "}
-            <button
-              type="button"
-              onClick={() => changeMode("verify")}
-              className="font-semibold text-violet-400 transition hover:text-violet-300"
-            >
-              Reenviar verificação
-            </button>
-          </p>
             </>
           )}
         </section>
