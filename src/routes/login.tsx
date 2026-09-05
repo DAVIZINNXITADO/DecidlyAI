@@ -15,7 +15,7 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-type Mode = "login" | "signup";
+type Mode = "login" | "signup" | "verify";
 
 type Feedback = {
   type: "success" | "error";
