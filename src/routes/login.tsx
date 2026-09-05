@@ -15,7 +15,7 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-type Mode = "login" | "signup";
+type Mode = "login" | "signup" | "verify";
 
 type Feedback = {
   type: "success" | "error";
@@ -41,9 +41,13 @@ function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [recoveryLoading, setRecoveryLoading] = useState(false);
 
+  const [verifyEmail, setVerifyEmail] = useState("");
+  const [verifyLoading, setVerifyLoading] = useState(false);
+
   const [feedback, setFeedback] = useState<Feedback>(null);
 
   const isSignUp = mode === "signup";
+  const isVerify = mode === "verify";
 
   function clearFeedback() {
     setFeedback(null);
@@ -315,22 +319,43 @@ function LoginPage() {
 
     setGoogleLoading(true);
 
+    /*
+     * Dentro do preview (iframe) o Google bloqueia o redirect,
+     * então abrimos o fluxo em uma nova aba.
+     */
+    const insideIframe = window.top !== window.self;
+
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/`,
+          skipBrowserRedirect: insideIframe,
+          queryParams: {
+            prompt: "select_account",
+          },
         },
       });
 
       if (error) {
         showError(error.message);
         setGoogleLoading(false);
+        return;
+      }
+
+      if (insideIframe && data?.url) {
+        window.open(data.url, "_blank", "noopener,noreferrer");
+
+        showSuccess(
+          "Abrimos o login do Google em uma nova aba. Conclua por lá e volte para cá.",
+        );
+
+        setGoogleLoading(false);
       }
 
       /*
-       * Se não houver erro, o navegador será redirecionado
-       * para o Google pelo Supabase.
+       * Fora do iframe, o navegador é redirecionado
+       * automaticamente para o Google.
        */
     } catch {
       showError(
@@ -338,6 +363,60 @@ function LoginPage() {
       );
 
       setGoogleLoading(false);
+    }
+  }
+
+  async function handleResendVerification() {
+    clearFeedback();
+
+    const cleanEmail = verifyEmail.trim().toLowerCase();
+
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      showError("Informe um e-mail válido.");
+      return;
+    }
+
+    setVerifyLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: cleanEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/login`,
+        },
+      });
+
+      if (error) {
+        const errorMessage = error.message.toLowerCase();
+
+        if (errorMessage.includes("already confirmed")) {
+          showError(
+            "Este e-mail já foi confirmado. Você já pode entrar normalmente.",
+          );
+          return;
+        }
+
+        if (errorMessage.includes("rate limit")) {
+          showError(
+            "Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.",
+          );
+          return;
+        }
+
+        showError(error.message);
+        return;
+      }
+
+      showSuccess(
+        "Pronto! Se existir uma conta pendente com este e-mail, enviamos um novo link de verificação.",
+      );
+    } catch {
+      showError(
+        "Não foi possível enviar o e-mail de verificação.",
+      );
+    } finally {
+      setVerifyLoading(false);
     }
   }
 
@@ -447,6 +526,91 @@ function LoginPage() {
         {/* CARD */}
 
         <section className="w-full rounded-[2rem] border border-slate-800 bg-slate-900/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
+          {isVerify ? (
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">
+                Verificar e-mail
+              </h1>
+
+              <p className="mt-3 text-base leading-relaxed text-slate-400">
+                Digite seu e-mail e enviaremos um novo link de
+                verificação para confirmar sua conta.
+              </p>
+
+              {feedback ? (
+                <div
+                  className={`mt-6 rounded-xl border p-4 text-sm leading-relaxed ${
+                    feedback.type === "error"
+                      ? "border-red-500/30 bg-red-500/10 text-red-300"
+                      : "border-violet-500/30 bg-violet-500/10 text-violet-200"
+                  }`}
+                >
+                  {feedback.message}
+                </div>
+              ) : null}
+
+              <form
+                className="mt-6 space-y-5"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void handleResendVerification();
+                }}
+              >
+                <div>
+                  <label
+                    htmlFor="verify-email"
+                    className="mb-2 block text-sm font-medium text-slate-200"
+                  >
+                    E-mail
+                  </label>
+
+                  <div className="relative">
+                    <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+
+                    <input
+                      id="verify-email"
+                      type="email"
+                      value={verifyEmail}
+                      onChange={(event) =>
+                        setVerifyEmail(event.target.value)
+                      }
+                      placeholder="seuemail@exemplo.com"
+                      autoComplete="email"
+                      maxLength={160}
+                      className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={verifyLoading}
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {verifyLoading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      Enviar e-mail com link
+                      <ArrowRight className="h-5 w-5" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <button
+                type="button"
+                onClick={() => changeMode("login")}
+                className="mt-6 w-full text-center text-sm font-medium text-violet-400 transition hover:text-violet-300"
+              >
+                Voltar para o login
+              </button>
+            </div>
+          ) : (
+            <>
           {/* HEADER */}
 
           <div>
@@ -811,6 +975,21 @@ function LoginPage() {
                 : "Criar conta"}
             </button>
           </p>
+
+          {/* LINK PARA VERIFICAÇÃO DE E-MAIL */}
+
+          <p className="mt-3 text-center text-sm text-slate-500">
+            Não recebeu o e-mail de confirmação?{" "}
+            <button
+              type="button"
+              onClick={() => changeMode("verify")}
+              className="font-semibold text-violet-400 transition hover:text-violet-300"
+            >
+              Reenviar verificação
+            </button>
+          </p>
+            </>
+          )}
         </section>
 
         <p className="mt-7 text-center text-xs text-slate-600">
