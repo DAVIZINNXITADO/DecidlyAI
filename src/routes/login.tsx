@@ -889,6 +889,21 @@ function LoginPage() {
                 : "Criar conta"}
             </button>
           </p>
+
+          {/* LINK PARA VERIFICAÇÃO DE E-MAIL */}
+
+          <p className="mt-3 text-center text-sm text-slate-500">
+            Não recebeu o e-mail de confirmação?{" "}
+            <button
+              type="button"
+              onClick={() => changeMode("verify")}
+              className="font-semibold text-violet-400 transition hover:text-violet-300"
+            >
+              Reenviar verificação
+            </button>
+          </p>
+            </>
+          )}
         </section>
 
         <p className="mt-7 text-center text-xs text-slate-600">
