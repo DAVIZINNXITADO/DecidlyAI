@@ -366,7 +366,7 @@ function LoginPage() {
     }
   }
 
-  async function handleResendVerification() {
+  async function handleRecoverySubmit() {
     clearFeedback();
 
     const cleanEmail = verifyEmail.trim().toLowerCase();
@@ -379,27 +379,24 @@ function LoginPage() {
     setVerifyLoading(true);
 
     try {
-      const { error } = await supabase.auth.resend({
-        type: "signup",
-        email: cleanEmail,
-        options: {
-          emailRedirectTo: `${window.location.origin}/login`,
-        },
-      });
+      const { error } =
+        await supabase.auth.resetPasswordForEmail(cleanEmail, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
 
       if (error) {
         const errorMessage = error.message.toLowerCase();
 
-        if (errorMessage.includes("already confirmed")) {
+        if (errorMessage.includes("rate limit")) {
           showError(
-            "Este e-mail já foi confirmado. Você já pode entrar normalmente.",
+            "Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.",
           );
           return;
         }
 
-        if (errorMessage.includes("rate limit")) {
+        if (errorMessage.includes("error sending recovery email")) {
           showError(
-            "Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.",
+            "O Supabase não conseguiu enviar o e-mail. Verifique as configurações de e-mail e SMTP do projeto.",
           );
           return;
         }
@@ -409,11 +406,11 @@ function LoginPage() {
       }
 
       showSuccess(
-        "Pronto! Se existir uma conta pendente com este e-mail, enviamos um novo link de verificação.",
+        "Pronto! Se existir uma conta com este e-mail, enviamos um link para criar uma nova senha.",
       );
     } catch {
       showError(
-        "Não foi possível enviar o e-mail de verificação.",
+        "Não foi possível enviar o e-mail de recuperação.",
       );
     } finally {
       setVerifyLoading(false);
