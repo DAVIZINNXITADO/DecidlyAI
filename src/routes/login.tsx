@@ -54,7 +54,6 @@ function LoginPage() {
 
   function changeMode(newMode: Mode) {
     setMode(newMode);
-
     clearFeedback();
 
     setPassword("");
@@ -63,7 +62,6 @@ function LoginPage() {
 
   function updateUsername(value: string) {
     const sanitized = value.replace(/[^a-zA-Z0-9._-]/g, "");
-
     setUsername(sanitized);
   }
 
@@ -143,9 +141,7 @@ function LoginPage() {
         to: "/",
       });
     } catch {
-      showError(
-        "Não foi possível conectar ao servidor. Tente novamente.",
-      );
+      showError("Não foi possível conectar ao servidor. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -200,16 +196,12 @@ function LoginPage() {
     }
 
     if (password.length < 6) {
-      showError(
-        "Sua senha precisa ter pelo menos 6 caracteres.",
-      );
+      showError("Sua senha precisa ter pelo menos 6 caracteres.");
       return;
     }
 
     if (password.length > 1000) {
-      showError(
-        "A senha pode ter no máximo 1.000 caracteres.",
-      );
+      showError("A senha pode ter no máximo 1.000 caracteres.");
       return;
     }
 
@@ -275,7 +267,6 @@ function LoginPage() {
         setConfirmPassword("");
 
         setMode("login");
-
         return;
       }
 
@@ -285,9 +276,7 @@ function LoginPage() {
         to: "/",
       });
     } catch {
-      showError(
-        "Não foi possível conectar ao servidor. Tente novamente.",
-      );
+      showError("Não foi possível conectar ao servidor. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -339,10 +328,7 @@ function LoginPage() {
         setGoogleLoading(false);
       }
     } catch {
-      showError(
-        "Não foi possível iniciar o login com o Google.",
-      );
-
+      showError("Não foi possível iniciar o login com o Google.");
       setGoogleLoading(false);
     }
   }
@@ -383,9 +369,7 @@ function LoginPage() {
         "Pronto! Se existir uma conta com este e-mail, enviaremos um link para criar uma nova senha.",
       );
     } catch {
-      showError(
-        "Não foi possível enviar o e-mail de recuperação.",
-      );
+      showError("Não foi possível enviar o e-mail de recuperação.");
     } finally {
       setVerifyLoading(false);
     }
@@ -420,19 +404,19 @@ function LoginPage() {
 
         <Link
           to="/"
-          className="mb-8 flex items-center justify-center gap-0 transition-opacity hover:opacity-80"
+          className="mb-8 inline-flex items-center transition-opacity hover:opacity-80"
         >
-          {/* ÍCONE = LETRA D */}
+          {/* O D É O ÍCONE */}
 
           <img
             src="/favicon.ico"
             alt="D"
-            className="h-11 w-11 shrink-0 object-contain"
+            className="h-12 w-12 shrink-0 object-contain"
           />
 
-          {/* RESTANTE DO NOME */}
+          {/* TEXTO ENCOSTADO NO D E ALINHADO NO MEIO */}
 
-          <span className="text-2xl font-bold leading-none tracking-tight">
+          <span className="-ml-2 flex translate-y-[1px] items-center text-2xl font-bold leading-none tracking-tight">
             ecidly
             <span className="text-violet-400">IA</span>
           </span>
@@ -448,7 +432,8 @@ function LoginPage() {
               </h1>
 
               <p className="mt-3 text-base leading-relaxed text-slate-400">
-                Digite seu e-mail e enviaremos um link para você criar uma nova senha.
+                Digite seu e-mail e enviaremos um link para você criar uma
+                nova senha.
               </p>
 
               {feedback ? (
@@ -590,10 +575,7 @@ function LoginPage() {
 
               {/* FORM */}
 
-              <form
-                className="space-y-5"
-                onSubmit={handleSubmit}
-              >
+              <form className="space-y-5" onSubmit={handleSubmit}>
                 {isSignUp ? (
                   <div>
                     <label
@@ -610,9 +592,7 @@ function LoginPage() {
                         id="name"
                         type="text"
                         value={name}
-                        onChange={(event) =>
-                          setName(event.target.value)
-                        }
+                        onChange={(event) => setName(event.target.value)}
                         placeholder="Como podemos te chamar?"
                         autoComplete="given-name"
                         maxLength={24}
@@ -673,9 +653,7 @@ function LoginPage() {
                       id="email"
                       type="email"
                       value={email}
-                      onChange={(event) =>
-                        setEmail(event.target.value)
-                      }
+                      onChange={(event) => setEmail(event.target.value)}
                       placeholder="seuemail@exemplo.com"
                       autoComplete="email"
                       maxLength={160}
@@ -703,14 +681,10 @@ function LoginPage() {
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={password}
-                      onChange={(event) =>
-                        setPassword(event.target.value)
-                      }
+                      onChange={(event) => setPassword(event.target.value)}
                       placeholder="Digite sua senha"
                       autoComplete={
-                        isSignUp
-                          ? "new-password"
-                          : "current-password"
+                        isSignUp ? "new-password" : "current-password"
                       }
                       maxLength={1000}
                       className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 pr-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
@@ -719,14 +693,10 @@ function LoginPage() {
                     <button
                       type="button"
                       onClick={() =>
-                        setShowPassword(
-                          (current) => !current,
-                        )
+                        setShowPassword((current) => !current)
                       }
                       aria-label={
-                        showPassword
-                          ? "Ocultar senha"
-                          : "Mostrar senha"
+                        showPassword ? "Ocultar senha" : "Mostrar senha"
                       }
                       className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-slate-500 transition hover:text-white"
                     >
@@ -773,15 +743,11 @@ function LoginPage() {
                       <input
                         id="confirm-password"
                         type={
-                          showConfirmPassword
-                            ? "text"
-                            : "password"
+                          showConfirmPassword ? "text" : "password"
                         }
                         value={confirmPassword}
                         onChange={(event) =>
-                          setConfirmPassword(
-                            event.target.value,
-                          )
+                          setConfirmPassword(event.target.value)
                         }
                         placeholder="Repita sua senha"
                         autoComplete="new-password"
@@ -839,8 +805,6 @@ function LoginPage() {
                 </button>
               </form>
 
-              {/* TROCAR LOGIN / CADASTRO */}
-
               <p className="mt-7 text-center text-sm text-slate-400">
                 {isSignUp
                   ? "Já possui uma conta? "
@@ -849,17 +813,11 @@ function LoginPage() {
                 <button
                   type="button"
                   onClick={() =>
-                    changeMode(
-                      isSignUp
-                        ? "login"
-                        : "signup",
-                    )
+                    changeMode(isSignUp ? "login" : "signup")
                   }
                   className="font-semibold text-violet-400 transition hover:text-violet-300"
                 >
-                  {isSignUp
-                    ? "Entrar"
-                    : "Criar conta"}
+                  {isSignUp ? "Entrar" : "Criar conta"}
                 </button>
               </p>
             </>
