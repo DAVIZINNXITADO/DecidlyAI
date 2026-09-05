@@ -40,26 +40,22 @@ function Index() {
 
         <nav className="sticky top-0 z-50 border-b border-slate-800/70 bg-slate-950/80 backdrop-blur-xl">
           <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-6">
-            {/* LOGO */}
+            {/* LOGO COM CÉREBRO */}
 
             <Link
               to="/"
-              className="flex items-center transition-opacity hover:opacity-80"
+              className="flex items-center gap-3 transition-opacity hover:opacity-80"
               onClick={closeMobileMenu}
             >
-              {/* D CUSTOMIZADO */}
-
               <img
-                src="/DIcon.ico"
-                alt="D"
-                className="h-11 w-11 shrink-0 object-contain"
+                src="/favicon.ico"
+                alt="DecidlyAI"
+                className="h-10 w-10 shrink-0 object-contain"
               />
 
-              {/* ECIDLYAI */}
-
-              <span className="-ml-[5.1px] flex items-center text-2xl font-bold leading-none tracking-tight">
+              <span className="text-2xl font-bold leading-none tracking-tight">
                 <span className="text-white">
-                  ecidly
+                  Decidly
                 </span>
 
                 <span className="text-violet-400">
@@ -433,19 +429,16 @@ function Index() {
                 <div className="mt-7 border-t border-slate-800 pt-7">
                   <div className="flex items-center gap-3 text-slate-300">
                     <Check className="h-5 w-5 text-violet-400" />
-
                     Criação de decisões
                   </div>
 
                   <div className="mt-4 flex items-center gap-3 text-slate-300">
                     <Check className="h-5 w-5 text-violet-400" />
-
                     Organização de possibilidades
                   </div>
 
                   <div className="mt-4 flex items-center gap-3 text-slate-300">
                     <Check className="h-5 w-5 text-violet-400" />
-
                     Análises para mais clareza
                   </div>
                 </div>
@@ -501,25 +494,21 @@ function Index() {
 
         <footer className="border-t border-slate-800">
           <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 px-6 py-8 text-center text-sm text-slate-500 md:flex-row md:text-left">
-            {/* LOGO FOOTER */}
+            {/* LOGO COM CÉREBRO */}
 
             <Link
               to="/"
-              className="flex items-center transition-opacity hover:opacity-80"
+              className="flex items-center gap-2 transition-opacity hover:opacity-80"
             >
-              {/* D CUSTOMIZADO */}
-
               <img
-                src="/DIcon.ico"
-                alt="D"
+                src="/favicon.ico"
+                alt="DecidlyAI"
                 className="h-8 w-8 shrink-0 object-contain"
               />
 
-              {/* ECIDLYAI */}
-
-              <span className="-ml-[3.7px] flex items-center text-lg font-bold leading-none tracking-tight">
+              <span className="flex items-center text-lg font-bold leading-none tracking-tight">
                 <span className="text-slate-300">
-                  ecidly
+                  Decidly
                 </span>
 
                 <span className="text-violet-400">
