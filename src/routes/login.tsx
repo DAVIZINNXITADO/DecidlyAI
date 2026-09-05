@@ -1,4 +1,8 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  useNavigate,
+} from "@tanstack/react-router";
 import {
   ArrowRight,
   Eye,
@@ -8,53 +12,158 @@ import {
   Mail,
   User,
 } from "lucide-react";
-import { useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { supabase } from "../lib/supabase";
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (
+            configuration: {
+              client_id: string;
+              callback: (
+                response: GoogleCredentialResponse,
+              ) => void;
+              auto_select?: boolean;
+              cancel_on_tap_outside?: boolean;
+            },
+          ) => void;
+
+          renderButton: (
+            parent: HTMLElement,
+            options: {
+              type?: "standard" | "icon";
+              theme?: "outline" | "filled_blue" | "filled_black";
+              size?: "large" | "medium" | "small";
+              text?:
+                | "signin_with"
+                | "signup_with"
+                | "continue_with"
+                | "signin";
+              shape?:
+                | "rectangular"
+                | "pill"
+                | "circle"
+                | "square";
+              logo_alignment?: "left" | "center";
+              width?: number;
+              locale?: string;
+            },
+          ) => void;
+
+          prompt: () => void;
+        };
+      };
+    };
+  }
+}
+
+type GoogleCredentialResponse = {
+  credential: string;
+  select_by?: string;
+};
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-type Mode = "login" | "signup" | "recover";
+type Mode =
+  | "login"
+  | "signup"
+  | "recover";
 
 type Feedback = {
   type: "success" | "error";
   message: string;
 } | null;
 
+const GOOGLE_CLIENT_ID =
+  "895354448430-qs5ilh31kgp5qqlb0c6s6abiag9s8vti.apps.googleusercontent.com";
+
 function LoginPage() {
   const navigate = useNavigate();
 
-  const [mode, setMode] = useState<Mode>("login");
+  const googleButtonRef =
+    useRef<HTMLDivElement>(null);
 
-  const [name, setName] = useState("");
-  const [username, setUsername] = useState("");
+  const googleInitializedRef =
+    useRef(false);
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [mode, setMode] =
+    useState<Mode>("login");
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] =
+  const [name, setName] =
+    useState("");
+
+  const [username, setUsername] =
+    useState("");
+
+  const [email, setEmail] =
+    useState("");
+
+  const [password, setPassword] =
+    useState("");
+
+  const [
+    confirmPassword,
+    setConfirmPassword,
+  ] = useState("");
+
+  const [
+    showPassword,
+    setShowPassword,
+  ] = useState(false);
+
+  const [
+    showConfirmPassword,
+    setShowConfirmPassword,
+  ] = useState(false);
+
+  const [loading, setLoading] =
     useState(false);
 
-  const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const [
+    googleLoading,
+    setGoogleLoading,
+  ] = useState(false);
 
-  const [verifyEmail, setVerifyEmail] = useState("");
-  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [
+    googleReady,
+    setGoogleReady,
+  ] = useState(false);
+
+  const [
+    verifyEmail,
+    setVerifyEmail,
+  ] = useState("");
+
+  const [
+    verifyLoading,
+    setVerifyLoading,
+  ] = useState(false);
 
   const [feedback, setFeedback] =
     useState<Feedback>(null);
 
-  const isSignUp = mode === "signup";
-  const isVerify = mode === "recover";
+  const isSignUp =
+    mode === "signup";
+
+  const isVerify =
+    mode === "recover";
 
   function clearFeedback() {
     setFeedback(null);
   }
 
-  function changeMode(newMode: Mode) {
+  function changeMode(
+    newMode: Mode,
+  ) {
     setMode(newMode);
 
     clearFeedback();
@@ -63,62 +172,289 @@ function LoginPage() {
     setConfirmPassword("");
   }
 
-  function updateUsername(value: string) {
-    const sanitized = value.replace(
-      /[^a-zA-Z0-9._-]/g,
-      "",
-    );
+  function updateUsername(
+    value: string,
+  ) {
+    const sanitized =
+      value.replace(
+        /[^a-zA-Z0-9._-]/g,
+        "",
+      );
 
     setUsername(sanitized);
   }
 
-  function showError(message: string) {
+  function showError(
+    message: string,
+  ) {
     setFeedback({
       type: "error",
       message,
     });
   }
 
-  function showSuccess(message: string) {
+  function showSuccess(
+    message: string,
+  ) {
     setFeedback({
       type: "success",
       message,
     });
   }
 
-  async function handleSignIn() {
-    clearFeedback();
-
-    const cleanEmail = email
-      .trim()
-      .toLowerCase();
-
-    if (!cleanEmail) {
-      showError("Informe seu e-mail.");
+  useEffect(() => {
+    if (isVerify) {
       return;
     }
 
-    if (!cleanEmail.includes("@")) {
-      showError("Informe um e-mail válido.");
+    let cancelled = false;
+
+    async function handleGoogleCredential(
+      response: GoogleCredentialResponse,
+    ) {
+      clearFeedback();
+
+      if (!response.credential) {
+        showError(
+          "Não foi possível receber a credencial do Google.",
+        );
+
+        return;
+      }
+
+      setGoogleLoading(true);
+
+      try {
+        const {
+          error,
+        } =
+          await supabase.auth.signInWithIdToken({
+            provider: "google",
+            token: response.credential,
+          });
+
+        if (error) {
+          const errorMessage =
+            error.message.toLowerCase();
+
+          if (
+            errorMessage.includes(
+              "provider is not enabled",
+            )
+          ) {
+            showError(
+              "O login com o Google ainda não está ativado no Supabase.",
+            );
+          } else {
+            showError(
+              error.message,
+            );
+          }
+
+          return;
+        }
+
+        navigate({
+          to: "/",
+        });
+      } catch {
+        showError(
+          "Não foi possível concluir o login com o Google.",
+        );
+      } finally {
+        setGoogleLoading(false);
+      }
+    }
+
+    function renderGoogleButton() {
+      if (
+        cancelled ||
+        !window.google ||
+        !googleButtonRef.current
+      ) {
+        return;
+      }
+
+      try {
+        if (
+          !googleInitializedRef.current
+        ) {
+          window.google.accounts.id.initialize({
+            client_id:
+              GOOGLE_CLIENT_ID,
+            callback:
+              handleGoogleCredential,
+            auto_select: false,
+            cancel_on_tap_outside: true,
+          });
+
+          googleInitializedRef.current =
+            true;
+        }
+
+        const container =
+          googleButtonRef.current;
+
+        container.innerHTML = "";
+
+        const containerWidth =
+          Math.floor(
+            container.getBoundingClientRect()
+              .width,
+          );
+
+        const buttonWidth =
+          Math.max(
+            200,
+            Math.min(
+              containerWidth,
+              400,
+            ),
+          );
+
+        window.google.accounts.id.renderButton(
+          container,
+          {
+            type: "standard",
+            shape: "rectangular",
+            theme: "outline",
+            text: "continue_with",
+            size: "large",
+            logo_alignment: "left",
+            width: buttonWidth,
+            locale: "pt-BR",
+          },
+        );
+
+        if (!cancelled) {
+          setGoogleReady(true);
+        }
+      } catch {
+        if (!cancelled) {
+          setGoogleReady(false);
+
+          showError(
+            "Não foi possível carregar o botão do Google.",
+          );
+        }
+      }
+    }
+
+    function loadGoogleScript() {
+      const existingScript =
+        document.getElementById(
+          "google-identity-services",
+        );
+
+      if (window.google) {
+        requestAnimationFrame(
+          renderGoogleButton,
+        );
+
+        return;
+      }
+
+      if (existingScript) {
+        existingScript.addEventListener(
+          "load",
+          renderGoogleButton,
+        );
+
+        return;
+      }
+
+      const script =
+        document.createElement(
+          "script",
+        );
+
+      script.id =
+        "google-identity-services";
+
+      script.src =
+        "https://accounts.google.com/gsi/client";
+
+      script.async = true;
+      script.defer = true;
+
+      script.onload =
+        renderGoogleButton;
+
+      script.onerror = () => {
+        if (!cancelled) {
+          setGoogleReady(false);
+
+          showError(
+            "Não foi possível carregar o Google. Verifique sua conexão e tente novamente.",
+          );
+        }
+      };
+
+      document.head.appendChild(
+        script,
+      );
+    }
+
+    loadGoogleScript();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isVerify,
+    navigate,
+  ]);
+
+  async function handleSignIn() {
+    clearFeedback();
+
+    const cleanEmail =
+      email
+        .trim()
+        .toLowerCase();
+
+    if (!cleanEmail) {
+      showError(
+        "Informe seu e-mail.",
+      );
+
+      return;
+    }
+
+    if (
+      !cleanEmail.includes("@")
+    ) {
+      showError(
+        "Informe um e-mail válido.",
+      );
+
       return;
     }
 
     if (!password) {
-      showError("Informe sua senha.");
+      showError(
+        "Informe sua senha.",
+      );
+
       return;
     }
 
-    if (password.length > 1000) {
+    if (
+      password.length > 1000
+    ) {
       showError(
         "A senha pode ter no máximo 1.000 caracteres.",
       );
+
       return;
     }
 
     setLoading(true);
 
     try {
-      const { error } =
+      const {
+        error,
+      } =
         await supabase.auth.signInWithPassword({
           email: cleanEmail,
           password,
@@ -139,6 +475,7 @@ function LoginPage() {
           showError(
             "E-mail ou senha incorretos.",
           );
+
           return;
         }
 
@@ -153,10 +490,14 @@ function LoginPage() {
           showError(
             "Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada antes de entrar.",
           );
+
           return;
         }
 
-        showError(error.message);
+        showError(
+          error.message,
+        );
+
         return;
       }
 
@@ -175,39 +516,56 @@ function LoginPage() {
   async function handleSignUp() {
     clearFeedback();
 
-    const cleanName = name.trim();
+    const cleanName =
+      name.trim();
 
-    const cleanUsername = username
-      .trim()
-      .toLowerCase();
+    const cleanUsername =
+      username
+        .trim()
+        .toLowerCase();
 
-    const cleanEmail = email
-      .trim()
-      .toLowerCase();
+    const cleanEmail =
+      email
+        .trim()
+        .toLowerCase();
 
-    if (cleanName.length < 2) {
-      showError("Informe seu nome.");
+    if (
+      cleanName.length < 2
+    ) {
+      showError(
+        "Informe seu nome.",
+      );
+
       return;
     }
 
-    if (cleanName.length > 24) {
+    if (
+      cleanName.length > 24
+    ) {
       showError(
         "O nome pode ter no máximo 24 caracteres.",
       );
+
       return;
     }
 
-    if (cleanUsername.length < 3) {
+    if (
+      cleanUsername.length < 3
+    ) {
       showError(
         "O nome de usuário precisa ter pelo menos 3 caracteres.",
       );
+
       return;
     }
 
-    if (cleanUsername.length > 24) {
+    if (
+      cleanUsername.length > 24
+    ) {
       showError(
         "O nome de usuário pode ter no máximo 24 caracteres.",
       );
+
       return;
     }
 
@@ -219,50 +577,75 @@ function LoginPage() {
       showError(
         "O nome de usuário pode usar apenas letras, números, ponto, hífen ou underline.",
       );
+
       return;
     }
 
     if (!cleanEmail) {
-      showError("Informe seu e-mail.");
+      showError(
+        "Informe seu e-mail.",
+      );
+
       return;
     }
 
-    if (!cleanEmail.includes("@")) {
-      showError("Informe um e-mail válido.");
+    if (
+      !cleanEmail.includes("@")
+    ) {
+      showError(
+        "Informe um e-mail válido.",
+      );
+
       return;
     }
 
-    if (password.length < 6) {
+    if (
+      password.length < 6
+    ) {
       showError(
         "Sua senha precisa ter pelo menos 6 caracteres.",
       );
+
       return;
     }
 
-    if (password.length > 1000) {
+    if (
+      password.length > 1000
+    ) {
       showError(
         "A senha pode ter no máximo 1.000 caracteres.",
       );
+
       return;
     }
 
-    if (password !== confirmPassword) {
-      showError("As senhas não são iguais.");
+    if (
+      password !== confirmPassword
+    ) {
+      showError(
+        "As senhas não são iguais.",
+      );
+
       return;
     }
 
     setLoading(true);
 
     try {
-      const { data, error } =
+      const {
+        data,
+        error,
+      } =
         await supabase.auth.signUp({
           email: cleanEmail,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/login`,
+            emailRedirectTo:
+              `${window.location.origin}/login`,
             data: {
               name: cleanName,
-              username: cleanUsername,
+              username:
+                cleanUsername,
             },
           },
         });
@@ -282,6 +665,7 @@ function LoginPage() {
           showError(
             "Este e-mail já possui uma conta. Tente entrar.",
           );
+
           return;
         }
 
@@ -293,10 +677,14 @@ function LoginPage() {
           showError(
             "A conta não pôde ser criada porque o Supabase não conseguiu enviar o e-mail de confirmação.",
           );
+
           return;
         }
 
-        showError(error.message);
+        showError(
+          error.message,
+        );
+
         return;
       }
 
@@ -304,6 +692,7 @@ function LoginPage() {
         showError(
           "Não foi possível concluir a criação da conta. Tente novamente.",
         );
+
         return;
       }
 
@@ -336,72 +725,13 @@ function LoginPage() {
     }
   }
 
-  async function handleGoogleLogin() {
-    clearFeedback();
-
-    setGoogleLoading(true);
-
-    const insideIframe =
-      window.top !== window.self;
-
-    try {
-      const { data, error } =
-        await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: {
-            redirectTo: `${window.location.origin}/`,
-            skipBrowserRedirect:
-              insideIframe,
-            queryParams: {
-              prompt: "select_account",
-            },
-          },
-        });
-
-      if (error) {
-        if (
-          error.message
-            .toLowerCase()
-            .includes(
-              "provider is not enabled",
-            )
-        ) {
-          showError(
-            "O login com o Google ainda não está ativado no Supabase.",
-          );
-        } else {
-          showError(error.message);
-        }
-
-        return;
-      }
-
-      if (insideIframe && data?.url) {
-        window.open(
-          data.url,
-          "_blank",
-          "noopener,noreferrer",
-        );
-
-        showSuccess(
-          "Abrimos o login do Google em uma nova aba. Conclua por lá e volte para cá.",
-        );
-      }
-    } catch {
-      showError(
-        "Não foi possível iniciar o login com o Google.",
-      );
-    } finally {
-      setGoogleLoading(false);
-    }
-  }
-
   async function handleRecoverySubmit() {
     clearFeedback();
 
-    const cleanEmail = verifyEmail
-      .trim()
-      .toLowerCase();
+    const cleanEmail =
+      verifyEmail
+        .trim()
+        .toLowerCase();
 
     if (
       !cleanEmail ||
@@ -410,17 +740,21 @@ function LoginPage() {
       showError(
         "Informe um e-mail válido.",
       );
+
       return;
     }
 
     setVerifyLoading(true);
 
     try {
-      const { error } =
+      const {
+        error,
+      } =
         await supabase.auth.resetPasswordForEmail(
           cleanEmail,
           {
-            redirectTo: `${window.location.origin}/reset-password`,
+            redirectTo:
+              `${window.location.origin}/reset-password`,
           },
         );
 
@@ -436,10 +770,14 @@ function LoginPage() {
           showError(
             "Muitas tentativas seguidas. Aguarde alguns minutos e tente novamente.",
           );
+
           return;
         }
 
-        showError(error.message);
+        showError(
+          error.message,
+        );
+
         return;
       }
 
@@ -462,6 +800,7 @@ function LoginPage() {
 
     if (isSignUp) {
       void handleSignUp();
+
       return;
     }
 
@@ -491,7 +830,7 @@ function LoginPage() {
             src="/DIcon.ico"
             alt="DecidlyIA"
             className="h-11 w-11 shrink-0 translate-y-[-2.25px] object-contain"
-  />
+          />
 
           {/* TEXTO ENCOSTADO E CENTRALIZADO */}
 
@@ -522,7 +861,8 @@ function LoginPage() {
               {feedback ? (
                 <div
                   className={`mt-6 rounded-xl border p-4 text-sm leading-relaxed ${
-                    feedback.type === "error"
+                    feedback.type ===
+                    "error"
                       ? "border-red-500/30 bg-red-500/10 text-red-300"
                       : "border-violet-500/30 bg-violet-500/10 text-violet-200"
                   }`}
@@ -533,8 +873,11 @@ function LoginPage() {
 
               <form
                 className="mt-6 space-y-5"
-                onSubmit={(event) => {
+                onSubmit={(
+                  event,
+                ) => {
                   event.preventDefault();
+
                   void handleRecoverySubmit();
                 }}
               >
@@ -552,10 +895,15 @@ function LoginPage() {
                     <input
                       id="verify-email"
                       type="email"
-                      value={verifyEmail}
-                      onChange={(event) =>
+                      value={
+                        verifyEmail
+                      }
+                      onChange={(
+                        event,
+                      ) =>
                         setVerifyEmail(
-                          event.target.value,
+                          event.target
+                            .value,
                         )
                       }
                       placeholder="seuemail@exemplo.com"
@@ -568,17 +916,21 @@ function LoginPage() {
 
                 <button
                   type="submit"
-                  disabled={verifyLoading}
+                  disabled={
+                    verifyLoading
+                  }
                   className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {verifyLoading ? (
                     <>
                       <Loader2 className="h-5 w-5 animate-spin" />
+
                       Enviando...
                     </>
                   ) : (
                     <>
                       Enviar link
+
                       <ArrowRight className="h-5 w-5" />
                     </>
                   )}
@@ -588,7 +940,9 @@ function LoginPage() {
               <button
                 type="button"
                 onClick={() =>
-                  changeMode("login")
+                  changeMode(
+                    "login",
+                  )
                 }
                 className="mt-6 w-full text-center text-sm font-medium text-violet-400 transition hover:text-violet-300"
               >
@@ -611,28 +965,36 @@ function LoginPage() {
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  void handleGoogleLogin();
-                }}
-                disabled={
-                  googleLoading || loading
-                }
-                className="mt-8 flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-slate-700 bg-white px-4 font-medium text-slate-800 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {googleLoading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <GoogleIcon />
-                )}
+              {/* BOTÃO OFICIAL DO GOOGLE */}
 
-                <span>
-                  {googleLoading
-                    ? "Conectando..."
-                    : "Continuar com o Google"}
-                </span>
-              </button>
+              <div className="mt-8">
+                <div
+                  ref={
+                    googleButtonRef
+                  }
+                  className={`flex min-h-12 w-full justify-center ${
+                    googleLoading ||
+                    loading
+                      ? "pointer-events-none opacity-60"
+                      : ""
+                  }`}
+                />
+
+                {!googleReady &&
+                !googleLoading ? (
+                  <div className="mt-2 text-center text-xs text-slate-500">
+                    Carregando Google...
+                  </div>
+                ) : null}
+
+                {googleLoading ? (
+                  <div className="mt-3 flex items-center justify-center gap-2 text-sm text-slate-400">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+
+                    Conectando...
+                  </div>
+                ) : null}
+              </div>
 
               <div className="my-7 flex items-center gap-4">
                 <div className="h-px flex-1 bg-slate-800" />
@@ -647,7 +1009,8 @@ function LoginPage() {
               {feedback ? (
                 <div
                   className={`mb-6 rounded-xl border p-4 text-sm leading-relaxed ${
-                    feedback.type === "error"
+                    feedback.type ===
+                    "error"
                       ? "border-red-500/30 bg-red-500/10 text-red-300"
                       : "border-violet-500/30 bg-violet-500/10 text-violet-200"
                   }`}
@@ -658,7 +1021,9 @@ function LoginPage() {
 
               <form
                 className="space-y-5"
-                onSubmit={handleSubmit}
+                onSubmit={
+                  handleSubmit
+                }
               >
                 {isSignUp ? (
                   <div>
@@ -676,9 +1041,12 @@ function LoginPage() {
                         id="name"
                         type="text"
                         value={name}
-                        onChange={(event) =>
+                        onChange={(
+                          event,
+                        ) =>
                           setName(
-                            event.target.value,
+                            event.target
+                              .value,
                           )
                         }
                         placeholder="Como podemos te chamar?"
@@ -710,10 +1078,16 @@ function LoginPage() {
                       <input
                         id="username"
                         type="text"
-                        value={username}
-                        onChange={(event) =>
+                        value={
+                          username
+                        }
+                        onChange={(
+                          event,
+                        ) =>
                           updateUsername(
-                            event.target.value,
+                            event
+                              .target
+                              .value,
                           )
                         }
                         placeholder="Escolha seu nome de usuário"
@@ -745,9 +1119,12 @@ function LoginPage() {
                       id="email"
                       type="email"
                       value={email}
-                      onChange={(event) =>
+                      onChange={(
+                        event,
+                      ) =>
                         setEmail(
-                          event.target.value,
+                          event.target
+                            .value,
                         )
                       }
                       placeholder="seuemail@exemplo.com"
@@ -781,10 +1158,15 @@ function LoginPage() {
                           ? "text"
                           : "password"
                       }
-                      value={password}
-                      onChange={(event) =>
+                      value={
+                        password
+                      }
+                      onChange={(
+                        event,
+                      ) =>
                         setPassword(
-                          event.target.value,
+                          event.target
+                            .value,
                         )
                       }
                       placeholder="Digite sua senha"
@@ -793,7 +1175,9 @@ function LoginPage() {
                           ? "new-password"
                           : "current-password"
                       }
-                      maxLength={1000}
+                      maxLength={
+                        1000
+                      }
                       className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 pr-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
                     />
 
@@ -801,7 +1185,9 @@ function LoginPage() {
                       type="button"
                       onClick={() =>
                         setShowPassword(
-                          (current) =>
+                          (
+                            current,
+                          ) =>
                             !current,
                         )
                       }
@@ -830,7 +1216,10 @@ function LoginPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        setVerifyEmail(email);
+                        setVerifyEmail(
+                          email,
+                        );
+
                         changeMode(
                           "recover",
                         );
@@ -864,14 +1253,20 @@ function LoginPage() {
                         value={
                           confirmPassword
                         }
-                        onChange={(event) =>
+                        onChange={(
+                          event,
+                        ) =>
                           setConfirmPassword(
-                            event.target.value,
+                            event
+                              .target
+                              .value,
                           )
                         }
                         placeholder="Repita sua senha"
                         autoComplete="new-password"
-                        maxLength={1000}
+                        maxLength={
+                          1000
+                        }
                         className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 pr-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
                       />
 
@@ -879,7 +1274,9 @@ function LoginPage() {
                         type="button"
                         onClick={() =>
                           setShowConfirmPassword(
-                            (current) =>
+                            (
+                              current,
+                            ) =>
                               !current,
                           )
                         }
@@ -908,13 +1305,15 @@ function LoginPage() {
                 <button
                   type="submit"
                   disabled={
-                    loading || googleLoading
+                    loading ||
+                    googleLoading
                   }
                   className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {loading ? (
                     <>
                       <Loader2 className="h-5 w-5 animate-spin" />
+
                       Aguarde...
                     </>
                   ) : (
@@ -959,35 +1358,5 @@ function LoginPage() {
         </p>
       </div>
     </main>
-  );
-}
-
-function GoogleIcon() {
-  return (
-    <svg
-      className="h-5 w-5"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path
-        fill="#4285F4"
-        d="M21.35 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h5.23a4.47 4.47 0 0 1-1.94 2.94v2.79h3.14c1.84-1.69 2.92-4.18 2.92-7.76Z"
-      />
-
-      <path
-        fill="#34A853"
-        d="M12 21.75c2.62 0 4.82-.87 6.43-2.36l-3.14-2.79c-.87.58-1.99.92-3.29.92-2.53 0-4.68-1.71-5.45-4.01H3.31v2.88A9.72 9.72 0 0 0 12 21.75Z"
-      />
-
-      <path
-        fill="#FBBC05"
-        d="M6.55 13.51A5.86 5.86 0 0 1 6.25 12c0-.52.09-1.03.3-1.51V7.61H3.31A9.75 9.75 0 0 0 2.25 12c0 1.57.38 3.06 1.06 4.39l3.24-2.88Z"
-      />
-
-      <path
-        fill="#EA4335"
-        d="M12 6.48c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.81 3.55 14.61 2.25 12 2.25a9.72 9.72 0 0 0-8.69 5.36l3.24 2.88C7.32 8.19 9.47 6.48 12 6.48Z"
-      />
-    </svg>
   );
 }
