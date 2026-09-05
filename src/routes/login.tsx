@@ -490,12 +490,12 @@ function LoginPage() {
           <img
             src="/favicon.ico"
             alt="DecidlyIA"
-            className="h-9 w-9 shrink-0 object-contain"
+            className="h-11 w-11 shrink-0 object-contain"
           />
 
           {/* TEXTO ENCOSTADO E CENTRALIZADO */}
 
-          <span className="-ml-[3px] flex items-center text-3xl font-bold leading-none tracking-tight">
+          <span className="-ml-[1.5px] flex items-center text-3xl font-bold leading-none tracking-tight">
             <span className="text-white">
               ecidly
             </span>
