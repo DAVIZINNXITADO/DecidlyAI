@@ -526,12 +526,12 @@ function LoginPage() {
           {isVerify ? (
             <div>
               <h1 className="text-3xl font-bold tracking-tight">
-                Verificar e-mail
+                Recuperar senha
               </h1>
 
               <p className="mt-3 text-base leading-relaxed text-slate-400">
-                Digite seu e-mail e enviaremos um novo link de
-                verificação para confirmar sua conta.
+                Digite seu e-mail e enviaremos um link para você
+                criar uma nova senha.
               </p>
 
               {feedback ? (
@@ -550,7 +550,7 @@ function LoginPage() {
                 className="mt-6 space-y-5"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  void handleResendVerification();
+                  void handleRecoverySubmit();
                 }}
               >
                 <div>
@@ -591,7 +591,7 @@ function LoginPage() {
                     </>
                   ) : (
                     <>
-                      Enviar e-mail com link
+                      Enviar código
                       <ArrowRight className="h-5 w-5" />
                     </>
                   )}
@@ -973,18 +973,6 @@ function LoginPage() {
             </button>
           </p>
 
-          {/* LINK PARA VERIFICAÇÃO DE E-MAIL */}
-
-          <p className="mt-3 text-center text-sm text-slate-500">
-            Não recebeu o e-mail de confirmação?{" "}
-            <button
-              type="button"
-              onClick={() => changeMode("verify")}
-              className="font-semibold text-violet-400 transition hover:text-violet-300"
-            >
-              Reenviar verificação
-            </button>
-          </p>
             </>
           )}
         </section>
