@@ -39,7 +39,7 @@ function LoginPage() {
 
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [recoveryLoading, setRecoveryLoading] = useState(false);
+  
 
   const [verifyEmail, setVerifyEmail] = useState("");
   const [verifyLoading, setVerifyLoading] = useState(false);
@@ -870,7 +870,7 @@ function LoginPage() {
               disabled={
                 loading ||
                 googleLoading ||
-                recoveryLoading
+                
               }
               className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
