@@ -47,6 +47,7 @@ function LoginPage() {
   const [feedback, setFeedback] = useState<Feedback>(null);
 
   const isSignUp = mode === "signup";
+  const isVerify = mode === "verify";
 
   function clearFeedback() {
     setFeedback(null);
