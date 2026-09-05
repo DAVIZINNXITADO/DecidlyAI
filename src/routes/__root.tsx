@@ -12,6 +12,16 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
+const SITE_URL = "https://decidlyia.lovable.app/";
+
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "DecidlyAI",
+  alternateName: ["Decidly AI", "decidlyia"],
+  url: SITE_URL,
+};
+
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -101,6 +111,7 @@ export const Route =
         {
           charSet: "utf-8",
         },
+
         {
           name: "viewport",
           content:
@@ -174,12 +185,17 @@ export const Route =
         {
           property: "og:description",
           content:
-            "Uma plataforma para ajudar você a organizar possibilidades, analisar opções e tomar decisões com mais clareza.",
+            "DecidlyAI é uma plataforma para ajudar você a organizar pensamentos, analisar possibilidades e tomar decisões com mais clareza.",
         },
 
         {
           property: "og:type",
           content: "website",
+        },
+
+        {
+          property: "og:url",
+          content: SITE_URL,
         },
 
         {
@@ -206,7 +222,7 @@ export const Route =
         {
           name: "twitter:description",
           content:
-            "Organize possibilidades, analise opções e tome decisões com mais clareza.",
+            "DecidlyAI é uma plataforma para ajudar você a organizar pensamentos, analisar possibilidades e tomar decisões com mais clareza.",
         },
       ],
 
@@ -224,7 +240,7 @@ export const Route =
 
         {
           rel: "canonical",
-          href: "https://decidlyia.lovable.app/",
+          href: SITE_URL,
         },
 
         {
@@ -235,6 +251,13 @@ export const Route =
         {
           rel: "apple-touch-icon",
           href: "/appicon-192.png",
+        },
+      ],
+
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify(websiteSchema),
         },
       ],
     }),
@@ -273,9 +296,7 @@ function RootComponent() {
     Route.useRouteContext();
 
   return (
-    <QueryClientProvider
-      client={queryClient}
-    >
+    <QueryClientProvider client={queryClient}>
       <Outlet />
     </QueryClientProvider>
   );
