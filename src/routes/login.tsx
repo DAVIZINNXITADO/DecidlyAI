@@ -338,7 +338,18 @@ function LoginPage() {
       });
 
       if (error) {
-        showError(error.message);
+        if (
+          error.message
+            .toLowerCase()
+            .includes("provider is not enabled")
+        ) {
+          showError(
+            "O login com o Google ainda não está ativado no seu projeto Supabase. Ative o provedor Google em Authentication > Sign In / Providers, salve o Client ID e o Client Secret, e tente de novo.",
+          );
+        } else {
+          showError(error.message);
+        }
+
         setGoogleLoading(false);
         return;
       }
