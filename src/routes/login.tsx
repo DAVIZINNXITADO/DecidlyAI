@@ -15,7 +15,7 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-type Mode = "login" | "signup" | "verify";
+type Mode = "login" | "signup" | "recover";
 
 type Feedback = {
   type: "success" | "error";
@@ -47,7 +47,7 @@ function LoginPage() {
   const [feedback, setFeedback] = useState<Feedback>(null);
 
   const isSignUp = mode === "signup";
-  const isVerify = mode === "verify";
+  const isVerify = mode === "recover";
 
   function clearFeedback() {
     setFeedback(null);
