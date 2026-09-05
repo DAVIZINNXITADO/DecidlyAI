@@ -432,7 +432,7 @@ function LoginPage() {
 
           {/* TEXTO COM ESPAÇAMENTO DE 10PX */}
 
-          <span className="ml-[0.01px] text-2xl font-bold leading-none tracking-tight">
+          <span className="ml-[0.0001px] text-2xl font-bold leading-none tracking-tight">
             ecidly
             <span className="text-violet-400">IA</span>
           </span>
