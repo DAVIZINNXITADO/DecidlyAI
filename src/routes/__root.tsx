@@ -130,6 +130,11 @@ export const Route =
         },
 
         {
+          name: "application-name",
+          content: "DecidlyAI",
+        },
+
+        {
           name: "robots",
           content:
             "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
@@ -266,7 +271,6 @@ function RootComponent() {
     <QueryClientProvider
       client={queryClient}
     >
-      {/* Required: nested routes render here. */}
       <Outlet />
     </QueryClientProvider>
   );
