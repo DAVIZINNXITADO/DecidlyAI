@@ -54,16 +54,13 @@ function LoginPage() {
 
   function changeMode(newMode: Mode) {
     setMode(newMode);
-
     clearFeedback();
-
     setPassword("");
     setConfirmPassword("");
   }
 
   function updateUsername(value: string) {
     const sanitized = value.replace(/[^a-zA-Z0-9._-]/g, "");
-
     setUsername(sanitized);
   }
 
@@ -268,12 +265,11 @@ function LoginPage() {
 
       if (!data.session) {
         showSuccess(
-          "Conta criada com sucesso!",
+          "Conta criada com sucesso! Verifique seu e-mail e confirme sua conta antes de entrar.",
         );
 
         setPassword("");
         setConfirmPassword("");
-
         setMode("login");
 
         return;
@@ -325,6 +321,7 @@ function LoginPage() {
           showError(error.message);
         }
 
+        setGoogleLoading(false);
         return;
       }
 
@@ -415,24 +412,19 @@ function LoginPage() {
       </div>
 
       <div className="relative mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-md flex-col items-center justify-center">
-
         {/* LOGO */}
 
         <Link
           to="/"
-          className="mb-8 flex items-center justify-center transition-opacity hover:opacity-80"
+          className="mb-8 flex items-center justify-center gap-[0.0000001px] transition-opacity hover:opacity-80"
         >
-          {/* ÍCONE D */}
-
           <img
             src="/favicon.ico"
             alt="D"
             className="h-11 w-11 shrink-0 object-contain"
           />
 
-          {/* TEXTO COM ESPAÇAMENTO DE 10PX */}
-
-          <span className="ml-[0px] text-2xl font-bold leading-none tracking-tight">
+          <span className="text-2xl font-bold leading-none tracking-tight">
             ecidly
             <span className="text-violet-400">IA</span>
           </span>
@@ -441,7 +433,6 @@ function LoginPage() {
         {/* CARD */}
 
         <section className="w-full rounded-[2rem] border border-slate-800 bg-slate-900/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
-
           {isVerify ? (
             <div>
               <h1 className="text-3xl font-bold tracking-tight">
