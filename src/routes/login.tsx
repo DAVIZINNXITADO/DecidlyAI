@@ -490,8 +490,8 @@ function LoginPage() {
           <img
             src="/DIcon.ico"
             alt="DecidlyIA"
-            className="h-11 w-11 shrink-0 object-contain"
-          />
+            className="h-11 w-11 shrink-0 translate-y-[-2px] object-contain"
+  />
 
           {/* TEXTO ENCOSTADO E CENTRALIZADO */}
 
