@@ -41,6 +41,9 @@ function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [recoveryLoading, setRecoveryLoading] = useState(false);
 
+  const [verifyEmail, setVerifyEmail] = useState("");
+  const [verifyLoading, setVerifyLoading] = useState(false);
+
   const [feedback, setFeedback] = useState<Feedback>(null);
 
   const isSignUp = mode === "signup";
