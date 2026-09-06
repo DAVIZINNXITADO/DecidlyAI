@@ -9,12 +9,10 @@ import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
-  BrainCircuit,
   CheckCircle2,
   Eye,
   EyeOff,
   KeyRound,
-  Languages,
   Loader2,
   Mail,
   ShieldAlert,
@@ -26,86 +24,62 @@ export const Route = createFileRoute("/reset-password")({
   component: ResetPasswordPage,
 });
 
-type Language = "pt" | "en";
+function Brand() {
+  return (
+    <Link
+      to="/"
+      className="flex w-fit items-center gap-3 transition-opacity hover:opacity-80"
+    >
+      <img
+        src="/favicon.ico"
+        alt="DecidlyAI"
+        className="h-11 w-11 shrink-0 object-contain"
+      />
 
-const translations = {
-  pt: {
-    back: "Voltar",
-    title: "Crie uma nova senha",
-    subtitle: "Escolha uma senha segura para recuperar o acesso à sua conta.",
-    password: "Nova senha",
-    passwordPlaceholder: "Digite sua nova senha",
-    confirmPassword: "Confirmar nova senha",
-    confirmPasswordPlaceholder: "Digite sua nova senha novamente",
-    savePassword: "Salvar nova senha",
-    saving: "Salvando...",
-    passwordsDontMatch: "As senhas não coincidem.",
-    passwordTooShort: "Sua senha deve ter pelo menos 6 caracteres.",
-    successTitle: "Senha atualizada!",
-    successMessage: "Sua senha foi alterada com sucesso. Agora você pode entrar na sua conta.",
-    goToLogin: "Ir para o login",
-    connectionError: "Não foi possível atualizar sua senha. Tente novamente.",
-    checkingTitle: "Verificando acesso...",
-    checkingMessage: "Estamos verificando a autorização para redefinir sua senha.",
-    invalidTokenTitle: "Token de Autenticação Não Informado",
-    invalidTokenMessage: "Por Favor Feche Essa Página Imediatamente",
-    invalidTokenDescription: "Esta página de recuperação só pode ser acessada através de um link válido enviado para o seu email.",
-    goBackToLogin: "Voltar para o login",
-    brandText: "Sua segurança também importa.",
-    brandDescription: "Proteja sua conta e continue tomando decisões com mais clareza.",
-    feature1: "Recuperação segura",
-    feature2: "Sua conta protegida",
-    feature3: "Acesso rápido novamente",
-  },
-  en: {
-    back: "Back",
-    title: "Create a new password",
-    subtitle: "Choose a secure password to regain access to your account.",
-    password: "New password",
-    passwordPlaceholder: "Enter your new password",
-    confirmPassword: "Confirm new password",
-    confirmPasswordPlaceholder: "Enter your new password again",
-    savePassword: "Save new password",
-    saving: "Saving...",
-    passwordsDontMatch: "Passwords do not match.",
-    passwordTooShort: "Your password must be at least 6 characters long.",
-    successTitle: "Password updated!",
-    successMessage: "Your password has been changed successfully. You can now sign in to your account.",
-    goToLogin: "Go to login",
-    connectionError: "Unable to update your password. Please try again.",
-    checkingTitle: "Verifying access...",
-    checkingMessage: "We're verifying your authorization to reset your password.",
-    invalidTokenTitle: "Authentication Token Not Provided",
-    invalidTokenMessage: "Please Close This Page Immediately",
-    invalidTokenDescription: "This recovery page can only be accessed through a valid link sent to your email.",
-    goBackToLogin: "Back to login",
-    brandText: "Your security matters too.",
-    brandDescription: "Protect your account and continue making decisions with more clarity.",
-    feature1: "Secure recovery",
-    feature2: "Protected account",
-    feature3: "Quick access again",
-  },
-};
+      <span className="flex items-center text-2xl font-bold leading-none tracking-tight">
+        <span className="text-white">
+          Decidly
+        </span>
+
+        <span className="text-violet-400">
+          AI
+        </span>
+      </span>
+    </Link>
+  );
+}
 
 function ResetPasswordPage() {
   const navigate = useNavigate();
 
-  const [language, setLanguage] = useState<Language>("pt");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [checkingRecovery, setCheckingRecovery] = useState(true);
-  const [recoveryValid, setRecoveryValid] = useState(false);
+  const [confirmPassword, setConfirmPassword] =
+    useState("");
 
-  const t = translations[language];
+  const [showPassword, setShowPassword] =
+    useState(false);
 
-  function changeLanguage() {
-    setLanguage((current) => (current === "pt" ? "en" : "pt"));
-  }
+  const [
+    showConfirmPassword,
+    setShowConfirmPassword,
+  ] = useState(false);
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [success, setSuccess] =
+    useState(false);
+
+  const [errorMessage, setErrorMessage] =
+    useState("");
+
+  const [
+    checkingRecovery,
+    setCheckingRecovery,
+  ] = useState(true);
+
+  const [recoveryValid, setRecoveryValid] =
+    useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -116,13 +90,19 @@ function ResetPasswordPage() {
           data: { session },
         } = await supabase.auth.getSession();
 
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
 
         setRecoveryValid(!!session);
       } catch {
-        if (mounted) setRecoveryValid(false);
+        if (mounted) {
+          setRecoveryValid(false);
+        }
       } finally {
-        if (mounted) setCheckingRecovery(false);
+        if (mounted) {
+          setCheckingRecovery(false);
+        }
       }
     }
 
@@ -130,14 +110,21 @@ function ResetPasswordPage() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!mounted) return;
+    } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (!mounted) {
+          return;
+        }
 
-      if (event === "PASSWORD_RECOVERY" && session) {
-        setRecoveryValid(true);
-        setCheckingRecovery(false);
-      }
-    });
+        if (
+          event === "PASSWORD_RECOVERY" &&
+          session
+        ) {
+          setRecoveryValid(true);
+          setCheckingRecovery(false);
+        }
+      },
+    );
 
     return () => {
       mounted = false;
@@ -145,23 +132,34 @@ function ResetPasswordPage() {
     };
   }, []);
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(
+    event: FormEvent,
+  ) {
+    event.preventDefault();
 
     setErrorMessage("");
 
     if (!recoveryValid) {
-      setErrorMessage(t.invalidTokenDescription);
+      setErrorMessage(
+        "Este link de recuperação não é válido ou expirou.",
+      );
+
       return;
     }
 
     if (password.length < 6) {
-      setErrorMessage(t.passwordTooShort);
+      setErrorMessage(
+        "Sua senha deve ter pelo menos 6 caracteres.",
+      );
+
       return;
     }
 
     if (password !== confirmPassword) {
-      setErrorMessage(t.passwordsDontMatch);
+      setErrorMessage(
+        "As senhas não coincidem.",
+      );
+
       return;
     }
 
@@ -174,280 +172,463 @@ function ResetPasswordPage() {
 
       if (!session) {
         setRecoveryValid(false);
-        setErrorMessage(t.invalidTokenDescription);
+
+        setErrorMessage(
+          "Sua sessão de recuperação expirou. Solicite um novo link.",
+        );
+
         return;
       }
 
-      const { error } = await supabase.auth.updateUser({ password });
+      const { error } =
+        await supabase.auth.updateUser({
+          password,
+        });
 
       if (error) {
-        setErrorMessage(error.message);
+        setErrorMessage(
+          error.message ||
+            "Não foi possível atualizar sua senha. Tente novamente.",
+        );
+
         return;
       }
 
       setSuccess(true);
     } catch {
-      setErrorMessage(t.connectionError);
+      setErrorMessage(
+        "Não foi possível atualizar sua senha. Tente novamente.",
+      );
     } finally {
       setLoading(false);
     }
   }
 
+  /* VERIFICANDO RECUPERAÇÃO */
+
   if (checkingRecovery) {
     return (
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-6 text-foreground">
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -left-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-primary/10 blur-3xl" />
-          <div className="absolute -bottom-40 -right-40 h-[32rem] w-[32rem] rounded-full bg-primary/10 blur-3xl" />
+      <main className="min-h-screen overflow-hidden bg-slate-950 text-white">
+        <div className="pointer-events-none fixed inset-0 overflow-hidden">
+          <div className="absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-violet-600/10 blur-[140px]" />
+
+          <div className="absolute -right-40 bottom-0 h-[500px] w-[500px] rounded-full bg-violet-500/10 blur-[140px]" />
         </div>
-        <div className="relative w-full max-w-md rounded-3xl border bg-card p-8 text-center shadow-xl sm:p-10">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Loader2 className="h-9 w-9 animate-spin" />
+
+        <div className="relative flex min-h-screen items-center justify-center px-6">
+          <div className="w-full max-w-md rounded-[2rem] border border-slate-800 bg-slate-900/60 p-8 text-center shadow-2xl backdrop-blur-xl md:p-10">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-500/15 text-violet-400">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+
+            <p className="mt-7 text-sm font-semibold tracking-wider text-violet-400">
+              DECIDLYAI
+            </p>
+
+            <h1 className="mt-3 text-3xl font-bold tracking-tight">
+              Verificando acesso...
+            </h1>
+
+            <p className="mt-4 leading-relaxed text-slate-400">
+              Estamos verificando a autorização para
+              redefinir sua senha.
+            </p>
           </div>
-          <p className="mt-6 text-xs font-bold tracking-[0.2em] text-primary">DECIDLYIA</p>
-          <h1 className="mt-3 text-2xl font-bold tracking-tight">{t.checkingTitle}</h1>
-          <p className="mt-4 leading-relaxed text-muted-foreground">{t.checkingMessage}</p>
         </div>
       </main>
     );
   }
+
+  /* LINK INVÁLIDO */
 
   if (!recoveryValid) {
     return (
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-6 text-foreground">
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -left-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-destructive/10 blur-3xl" />
-          <div className="absolute -bottom-40 -right-40 h-[32rem] w-[32rem] rounded-full bg-destructive/10 blur-3xl" />
+      <main className="min-h-screen overflow-hidden bg-slate-950 text-white">
+        <div className="pointer-events-none fixed inset-0 overflow-hidden">
+          <div className="absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-red-500/10 blur-[140px]" />
+
+          <div className="absolute -right-40 bottom-0 h-[500px] w-[500px] rounded-full bg-violet-500/10 blur-[140px]" />
         </div>
-        <div className="relative w-full max-w-md overflow-hidden rounded-3xl border bg-card shadow-2xl">
-          <div className="h-1.5 w-full bg-destructive" />
-          <div className="p-8 text-center sm:p-10">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl border border-destructive/20 bg-destructive/10 text-destructive shadow-sm">
-              <ShieldAlert className="h-10 w-10" />
-            </div>
-            <div className="mt-7 flex justify-center">
-              <div className="inline-flex items-center gap-2 rounded-full border border-destructive/20 bg-destructive/5 px-4 py-2 text-xs font-bold tracking-wider text-destructive">
+
+        <div className="relative flex min-h-screen items-center justify-center px-6">
+          <div className="w-full max-w-md overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-900/60 shadow-2xl backdrop-blur-xl">
+            <div className="h-1 w-full bg-red-500" />
+
+            <div className="p-8 text-center md:p-10">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl border border-red-500/20 bg-red-500/10 text-red-400">
+                <ShieldAlert className="h-10 w-10" />
+              </div>
+
+              <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-xs font-semibold tracking-wider text-red-300">
                 <AlertTriangle className="h-4 w-4" />
-                SECURITY WARNING
+
+                LINK INVÁLIDO
               </div>
-            </div>
-            <h1 className="mt-6 text-2xl font-bold tracking-tight sm:text-3xl">⚠️ {t.invalidTokenTitle} ⚠️</h1>
-            <p className="mt-4 text-lg font-semibold text-destructive">{t.invalidTokenMessage}</p>
-            <p className="mt-5 leading-relaxed text-muted-foreground">{t.invalidTokenDescription}</p>
-            <div className="my-8 h-px bg-border" />
-            <div className="flex items-start gap-3 rounded-2xl border bg-muted/40 p-4 text-left">
-              <Mail className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                Para redefinir sua senha, solicite um novo link através da página de login e abra o link recebido no seu email.
+
+              <h1 className="mt-6 text-3xl font-bold tracking-tight">
+                Não foi possível verificar este link
+              </h1>
+
+              <p className="mt-4 leading-relaxed text-slate-400">
+                Este link de recuperação é inválido ou
+                expirou. Solicite um novo link para
+                redefinir sua senha.
               </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => navigate({ to: "/login" })}
-              className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl border bg-card px-4 py-3.5 font-semibold transition hover:bg-muted"
-            >
-              <ArrowLeft className="h-5 w-5" />
-              {t.goBackToLogin}
-            </button>
-          </div>
-          <div className="border-t px-6 py-4 text-center">
-            <p className="text-xs text-muted-foreground">© 2026 DecidlyIA · Security protected</p>
-          </div>
-        </div>
-      </main>
-    );
-  }
 
-  if (success) {
-    return (
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-6 text-foreground">
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -left-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-primary/10 blur-3xl" />
-          <div className="absolute -bottom-40 -right-40 h-[32rem] w-[32rem] rounded-full bg-primary/10 blur-3xl" />
-        </div>
-        <div className="relative w-full max-w-md rounded-3xl border bg-card p-8 text-center shadow-xl sm:p-10">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <CheckCircle2 className="h-9 w-9" />
-          </div>
-          <p className="mt-6 text-xs font-bold tracking-[0.2em] text-primary">DECIDLYIA</p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight">{t.successTitle}</h1>
-          <p className="mt-4 leading-relaxed text-muted-foreground">{t.successMessage}</p>
-          <button
-            type="button"
-            onClick={() => navigate({ to: "/login" })}
-            className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3.5 font-semibold text-primary-foreground shadow-lg transition hover:opacity-90"
-          >
-            {t.goToLogin}
-            <ArrowRight className="h-5 w-5" />
-          </button>
-        </div>
-      </main>
-    );
-  }
+              <div className="mt-7 rounded-2xl border border-slate-800 bg-slate-950/50 p-5 text-left">
+                <div className="flex items-start gap-3">
+                  <Mail className="mt-0.5 h-5 w-5 shrink-0 text-violet-400" />
 
-  return (
-    <main className="relative min-h-screen overflow-hidden bg-background text-foreground">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute -bottom-40 -right-40 h-[32rem] w-[32rem] rounded-full bg-primary/10 blur-3xl" />
-      </div>
-
-      <div className="relative mx-auto flex min-h-screen max-w-7xl">
-        <section className="hidden w-1/2 flex-col justify-between border-r p-12 lg:flex">
-          <Link to="/login" className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" />
-            {t.back}
-          </Link>
-
-          <div className="max-w-lg">
-            <div className="mb-10 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg">
-                <BrainCircuit className="h-6 w-6" />
-              </div>
-              <span className="text-2xl font-bold tracking-tight">
-                Decidly<span className="text-primary">IA</span>
-              </span>
-            </div>
-
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-card px-4 py-2 text-sm text-muted-foreground">
-              <Sparkles className="h-4 w-4 text-primary" />
-              AI Decision Intelligence
-            </div>
-
-            <h1 className="text-5xl font-bold leading-tight tracking-tight">{t.brandText}</h1>
-            <p className="mt-6 text-lg leading-relaxed text-muted-foreground">{t.brandDescription}</p>
-
-            <div className="mt-10 space-y-4">
-              {[
-                { icon: ShieldCheck, text: t.feature1 },
-                { icon: KeyRound, text: t.feature2 },
-                { icon: ArrowRight, text: t.feature3 },
-              ].map((feature) => {
-                const Icon = feature.icon;
-                return (
-                  <div key={feature.text} className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <span className="text-sm text-muted-foreground">{feature.text}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <p className="text-sm text-muted-foreground">© 2026 DecidlyIA</p>
-        </section>
-
-        <section className="flex flex-1 items-center justify-center p-6 sm:p-10">
-          <div className="w-full max-w-md">
-            <div className="mb-10 flex items-center justify-between">
-              <Link to="/login" className="inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground lg:hidden">
-                <ArrowLeft className="h-4 w-4" />
-                {t.back}
-              </Link>
-
-              <div className="flex items-center gap-3 lg:hidden">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                  <BrainCircuit className="h-5 w-5" />
+                  <p className="text-sm leading-relaxed text-slate-400">
+                    Volte para a página de login e
+                    solicite um novo link de recuperação
+                    de senha.
+                  </p>
                 </div>
-                <span className="font-bold">
-                  Decidly<span className="text-primary">IA</span>
-                </span>
               </div>
 
               <button
                 type="button"
-                onClick={changeLanguage}
-                className="ml-auto flex items-center gap-2 rounded-xl border bg-card px-3 py-2 text-sm font-medium transition hover:bg-muted"
+                onClick={() =>
+                  navigate({
+                    to: "/login",
+                  })
+                }
+                className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-700 px-5 py-3.5 font-semibold text-slate-200 transition hover:border-violet-500 hover:text-white"
               >
-                <Languages className="h-4 w-4" />
-                {language === "pt" ? "EN" : "PT"}
+                <ArrowLeft className="h-5 w-5" />
+
+                Voltar para o login
               </button>
             </div>
 
-            <div>
-              <p className="text-xs font-bold tracking-[0.2em] text-primary">DECIDLYIA</p>
-              <h1 className="mt-3 text-3xl font-bold tracking-tight">{t.title}</h1>
-              <p className="mt-3 leading-relaxed text-muted-foreground">{t.subtitle}</p>
+            <div className="border-t border-slate-800 px-6 py-5 text-center text-xs text-slate-500">
+              © 2026 DecidlyAI
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  /* SUCESSO */
+
+  if (success) {
+    return (
+      <main className="min-h-screen overflow-hidden bg-slate-950 text-white">
+        <div className="pointer-events-none fixed inset-0 overflow-hidden">
+          <div className="absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-violet-600/10 blur-[140px]" />
+
+          <div className="absolute -right-40 bottom-0 h-[500px] w-[500px] rounded-full bg-violet-500/10 blur-[140px]" />
+        </div>
+
+        <div className="relative flex min-h-screen items-center justify-center px-6">
+          <div className="w-full max-w-md rounded-[2rem] border border-slate-800 bg-slate-900/60 p-8 text-center shadow-2xl backdrop-blur-xl md:p-10">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-violet-500/15 text-violet-400">
+              <CheckCircle2 className="h-10 w-10" />
             </div>
 
-            <div className="mt-6 flex items-center gap-3 rounded-2xl border bg-primary/5 p-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <p className="mt-7 text-sm font-semibold tracking-wider text-violet-400">
+              SENHA ATUALIZADA
+            </p>
+
+            <h1 className="mt-3 text-3xl font-bold tracking-tight">
+              Tudo pronto!
+            </h1>
+
+            <p className="mt-4 leading-relaxed text-slate-400">
+              Sua senha foi alterada com sucesso.
+              Agora você já pode entrar novamente na
+              sua conta.
+            </p>
+
+            <button
+              type="button"
+              onClick={() =>
+                navigate({
+                  to: "/login",
+                })
+              }
+              className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-4 font-semibold text-white shadow-lg shadow-violet-950/40 transition hover:bg-violet-500"
+            >
+              Ir para o login
+
+              <ArrowRight className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  /* PÁGINA PRINCIPAL */
+
+  return (
+    <main className="min-h-screen overflow-hidden bg-slate-950 text-white">
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-violet-600/10 blur-[140px]" />
+
+        <div className="absolute -left-40 top-[600px] h-[500px] w-[500px] rounded-full bg-purple-700/10 blur-[140px]" />
+
+        <div className="absolute -right-40 top-[800px] h-[500px] w-[500px] rounded-full bg-violet-500/10 blur-[140px]" />
+      </div>
+
+      <div className="relative mx-auto flex min-h-screen max-w-7xl">
+        {/* PAINEL ESQUERDO */}
+
+        <section className="hidden w-1/2 flex-col justify-between border-r border-slate-800 p-12 lg:flex">
+          <div>
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-2 text-sm text-slate-400 transition hover:text-white"
+            >
+              <ArrowLeft className="h-4 w-4" />
+
+              Voltar para o login
+            </Link>
+          </div>
+
+          <div className="max-w-lg">
+            <Brand />
+
+            <div className="mt-12 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-2 text-sm text-violet-300">
+              <Sparkles className="h-4 w-4" />
+
+              Segurança da sua conta
+            </div>
+
+            <h1 className="mt-6 text-5xl font-bold leading-tight tracking-tight">
+              Sua segurança
+              <span className="block text-violet-400">
+                também importa.
+              </span>
+            </h1>
+
+            <p className="mt-6 text-lg leading-relaxed text-slate-400">
+              Crie uma nova senha e recupere o acesso à
+              sua conta para continuar tomando decisões
+              com mais clareza.
+            </p>
+
+            <div className="mt-10 space-y-5">
+              <Feature
+                icon={
+                  <ShieldCheck className="h-5 w-5" />
+                }
+                text="Recuperação segura da sua conta"
+              />
+
+              <Feature
+                icon={
+                  <KeyRound className="h-5 w-5" />
+                }
+                text="Escolha uma nova senha protegida"
+              />
+
+              <Feature
+                icon={
+                  <ArrowRight className="h-5 w-5" />
+                }
+                text="Volte a acessar o DecidlyAI"
+              />
+            </div>
+          </div>
+
+          <p className="text-sm text-slate-500">
+            © 2026 DecidlyAI
+          </p>
+        </section>
+
+        {/* FORMULÁRIO */}
+
+        <section className="flex flex-1 items-center justify-center px-6 py-12 sm:px-10">
+          <div className="w-full max-w-md">
+            {/* TOPO MOBILE */}
+
+            <div className="mb-10 flex items-center justify-between lg:hidden">
+              <Link
+                to="/login"
+                className="inline-flex items-center gap-2 text-sm text-slate-400 transition hover:text-white"
+              >
+                <ArrowLeft className="h-4 w-4" />
+
+                Voltar
+              </Link>
+
+              <Brand />
+            </div>
+
+            {/* CABEÇALHO */}
+
+            <div>
+              <p className="text-sm font-semibold tracking-wider text-violet-400">
+                RECUPERAÇÃO DE SENHA
+              </p>
+
+              <h1 className="mt-3 text-4xl font-bold tracking-tight">
+                Crie uma nova senha
+              </h1>
+
+              <p className="mt-4 leading-relaxed text-slate-400">
+                Escolha uma senha segura para recuperar
+                o acesso à sua conta.
+              </p>
+            </div>
+
+            {/* SESSÃO VERIFICADA */}
+
+            <div className="mt-7 flex items-start gap-4 rounded-2xl border border-violet-500/20 bg-violet-500/5 p-5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-400">
                 <ShieldCheck className="h-5 w-5" />
               </div>
+
               <div>
-                <p className="text-sm font-semibold">Secure password recovery</p>
-                <p className="mt-1 text-xs text-muted-foreground">Your recovery session has been verified.</p>
+                <p className="font-semibold text-white">
+                  Recuperação verificada
+                </p>
+
+                <p className="mt-1 text-sm leading-relaxed text-slate-400">
+                  Você pode criar uma nova senha para sua
+                  conta.
+                </p>
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+            {/* FORM */}
+
+            <form
+              onSubmit={handleSubmit}
+              className="mt-8 space-y-5"
+            >
               <div>
-                <label className="mb-2 block text-sm font-medium">{t.password}</label>
+                <label
+                  htmlFor="password"
+                  className="mb-2 block text-sm font-medium text-slate-200"
+                >
+                  Nova senha
+                </label>
+
                 <div className="relative">
-                  <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                  <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+
                   <input
-                    type={showPassword ? "text" : "password"}
+                    id="password"
+                    type={
+                      showPassword
+                        ? "text"
+                        : "password"
+                    }
                     required
                     minLength={6}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder={t.passwordPlaceholder}
-                    className="w-full rounded-xl border bg-background py-3.5 pl-12 pr-12 outline-none transition focus:ring-2 focus:ring-primary"
+                    onChange={(event) =>
+                      setPassword(
+                        event.target.value,
+                      )
+                    }
+                    placeholder="Digite sua nova senha"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900/60 py-3.5 pl-12 pr-12 text-white outline-none transition placeholder:text-slate-600 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
                   />
+
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+                    onClick={() =>
+                      setShowPassword(
+                        (current) =>
+                          !current,
+                      )
+                    }
+                    aria-label={
+                      showPassword
+                        ? "Ocultar senha"
+                        : "Mostrar senha"
+                    }
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-white"
                   >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium">{t.confirmPassword}</label>
+                <label
+                  htmlFor="confirm-password"
+                  className="mb-2 block text-sm font-medium text-slate-200"
+                >
+                  Confirmar nova senha
+                </label>
+
                 <div className="relative">
-                  <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                  <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+
                   <input
-                    type={showConfirmPassword ? "text" : "password"}
+                    id="confirm-password"
+                    type={
+                      showConfirmPassword
+                        ? "text"
+                        : "password"
+                    }
                     required
                     minLength={6}
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder={t.confirmPasswordPlaceholder}
-                    className="w-full rounded-xl border bg-background py-3.5 pl-12 pr-12 outline-none transition focus:ring-2 focus:ring-primary"
+                    onChange={(event) =>
+                      setConfirmPassword(
+                        event.target.value,
+                      )
+                    }
+                    placeholder="Digite sua nova senha novamente"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900/60 py-3.5 pl-12 pr-12 text-white outline-none transition placeholder:text-slate-600 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
                   />
+
                   <button
                     type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+                    onClick={() =>
+                      setShowConfirmPassword(
+                        (current) =>
+                          !current,
+                      )
+                    }
+                    aria-label={
+                      showConfirmPassword
+                        ? "Ocultar senha"
+                        : "Mostrar senha"
+                    }
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-white"
                   >
-                    {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
                   </button>
                 </div>
               </div>
 
-              {errorMessage && (
-                <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+              {errorMessage ? (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
                   {errorMessage}
                 </div>
-              )}
+              ) : null}
 
               <button
                 type="submit"
                 disabled={loading}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3.5 font-semibold text-primary-foreground shadow-lg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-4 font-semibold text-white shadow-lg shadow-violet-950/40 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" />
-                    {t.saving}
+
+                    Salvando...
                   </>
                 ) : (
                   <>
-                    {t.savePassword}
+                    Salvar nova senha
+
                     <ArrowRight className="h-5 w-5" />
                   </>
                 )}
@@ -457,5 +638,25 @@ function ResetPasswordPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+function Feature({
+  icon,
+  text,
+}: {
+  icon: React.ReactNode;
+  text: string;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400">
+        {icon}
+      </div>
+
+      <span className="text-sm text-slate-400">
+        {text}
+      </span>
+    </div>
   );
 }
