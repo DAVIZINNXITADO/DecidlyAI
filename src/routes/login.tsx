@@ -4,6 +4,7 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 import {
+  ArrowLeft,
   ArrowRight,
   Eye,
   EyeOff,
@@ -16,7 +17,9 @@ import {
   useEffect,
   useRef,
   useState,
+  type FormEvent,
 } from "react";
+import { AppShell } from "@/components/AppShell";
 import { supabase } from "../lib/supabase";
 
 declare global {
@@ -39,8 +42,14 @@ declare global {
             parent: HTMLElement,
             options: {
               type?: "standard" | "icon";
-              theme?: "outline" | "filled_blue" | "filled_black";
-              size?: "large" | "medium" | "small";
+              theme?:
+                | "outline"
+                | "filled_blue"
+                | "filled_black";
+              size?:
+                | "large"
+                | "medium"
+                | "small";
               text?:
                 | "signin_with"
                 | "signup_with"
@@ -56,8 +65,6 @@ declare global {
               locale?: string;
             },
           ) => void;
-
-          prompt: () => void;
         };
       };
     };
@@ -154,7 +161,7 @@ function LoginPage() {
   const isSignUp =
     mode === "signup";
 
-  const isVerify =
+  const isRecover =
     mode === "recover";
 
   function clearFeedback() {
@@ -203,7 +210,7 @@ function LoginPage() {
   }
 
   useEffect(() => {
-    if (isVerify) {
+    if (isRecover) {
       return;
     }
 
@@ -225,9 +232,7 @@ function LoginPage() {
       setGoogleLoading(true);
 
       try {
-        const {
-          error,
-        } =
+        const { error } =
           await supabase.auth.signInWithIdToken({
             provider: "google",
             token: response.credential,
@@ -401,7 +406,7 @@ function LoginPage() {
       cancelled = true;
     };
   }, [
-    isVerify,
+    isRecover,
     navigate,
   ]);
 
@@ -439,22 +444,10 @@ function LoginPage() {
       return;
     }
 
-    if (
-      password.length > 1000
-    ) {
-      showError(
-        "A senha pode ter no máximo 1.000 caracteres.",
-      );
-
-      return;
-    }
-
     setLoading(true);
 
     try {
-      const {
-        error,
-      } =
+      const { error } =
         await supabase.auth.signInWithPassword({
           email: cleanEmail,
           password,
@@ -610,16 +603,6 @@ function LoginPage() {
     }
 
     if (
-      password.length > 1000
-    ) {
-      showError(
-        "A senha pode ter no máximo 1.000 caracteres.",
-      );
-
-      return;
-    }
-
-    if (
       password !== confirmPassword
     ) {
       showError(
@@ -669,18 +652,6 @@ function LoginPage() {
           return;
         }
 
-        if (
-          errorMessage.includes(
-            "error sending confirmation email",
-          )
-        ) {
-          showError(
-            "A conta não pôde ser criada porque o Supabase não conseguiu enviar o e-mail de confirmação.",
-          );
-
-          return;
-        }
-
         showError(
           error.message,
         );
@@ -708,10 +679,6 @@ function LoginPage() {
 
         return;
       }
-
-      showSuccess(
-        "Conta criada com sucesso!",
-      );
 
       navigate({
         to: "/",
@@ -747,9 +714,7 @@ function LoginPage() {
     setVerifyLoading(true);
 
     try {
-      const {
-        error,
-      } =
+      const { error } =
         await supabase.auth.resetPasswordForEmail(
           cleanEmail,
           {
@@ -794,7 +759,7 @@ function LoginPage() {
   }
 
   function handleSubmit(
-    event: React.FormEvent<HTMLFormElement>,
+    event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
 
@@ -808,555 +773,533 @@ function LoginPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-slate-950 px-5 py-10 text-white">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-violet-600/10 blur-[140px]" />
+    <AppShell>
+      <main className="relative min-h-[calc(100vh-10rem)] overflow-hidden px-5 py-10 text-white">
+        {/* FUNDO */}
 
-        <div className="absolute -bottom-40 -left-40 h-[500px] w-[500px] rounded-full bg-purple-700/10 blur-[140px]" />
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-violet-600/10 blur-[140px]" />
 
-        <div className="absolute -bottom-40 -right-40 h-[500px] w-[500px] rounded-full bg-violet-500/10 blur-[140px]" />
-      </div>
+          <div className="absolute -bottom-40 -left-40 h-[500px] w-[500px] rounded-full bg-purple-700/10 blur-[140px]" />
 
-      <div className="relative mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-md flex-col items-center justify-center">
-        {/* LOGO */}
+          <div className="absolute -bottom-40 -right-40 h-[500px] w-[500px] rounded-full bg-violet-500/10 blur-[140px]" />
+        </div>
 
-        <Link
-          to="/"
-          className="mb-8 flex items-center justify-center transition-opacity hover:opacity-80"
-        >
-          {/* ÍCONE D */}
+        {/* VOLTAR */}
 
-          <img
-            src="/DIcon.ico"
-            alt="DecidlyIA"
-            className="h-11 w-11 shrink-0 translate-y-[-2.25px] object-contain"
-          />
+        <div className="relative mx-auto w-full max-w-6xl">
+          <Link
+            to="/"
+            className="absolute left-0 top-0 z-10 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-slate-900 hover:text-white"
+          >
+            <ArrowLeft className="h-4 w-4" />
 
-          {/* TEXTO ENCOSTADO E CENTRALIZADO */}
+            Voltar para o início
+          </Link>
+        </div>
 
-          <span className="-ml-[5.1px] flex items-center text-3xl font-bold leading-none tracking-tight">
-            <span className="text-white">
-              ecidly
+        <div className="relative mx-auto flex min-h-[calc(100vh-12rem)] w-full max-w-md flex-col items-center justify-center py-10">
+          {/* LOGO */}
+
+          <Link
+            to="/"
+            className="mb-8 flex items-center justify-center transition-opacity hover:opacity-80"
+          >
+            <img
+              src="/DIcon.ico"
+              alt="DecidlyAI"
+              className="h-11 w-11 shrink-0 translate-y-[-2.25px] object-contain"
+            />
+
+            <span className="-ml-[5.1px] flex items-center text-3xl font-bold leading-none tracking-tight">
+              <span className="text-white">
+                ecidly
+              </span>
+
+              <span className="text-violet-400">
+                AI
+              </span>
             </span>
+          </Link>
 
-            <span className="text-violet-400">
-              IA
-            </span>
-          </span>
-        </Link>
+          {/* CARD */}
 
-        <section className="w-full rounded-[2rem] border border-slate-800 bg-slate-900/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
-          {isVerify ? (
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">
-                Recuperar senha
-              </h1>
-
-              <p className="mt-3 text-base leading-relaxed text-slate-400">
-                Digite seu e-mail e enviaremos
-                um link para você criar uma nova
-                senha.
-              </p>
-
-              {feedback ? (
-                <div
-                  className={`mt-6 rounded-xl border p-4 text-sm leading-relaxed ${
-                    feedback.type ===
-                    "error"
-                      ? "border-red-500/30 bg-red-500/10 text-red-300"
-                      : "border-violet-500/30 bg-violet-500/10 text-violet-200"
-                  }`}
-                >
-                  {feedback.message}
-                </div>
-              ) : null}
-
-              <form
-                className="mt-6 space-y-5"
-                onSubmit={(
-                  event,
-                ) => {
-                  event.preventDefault();
-
-                  void handleRecoverySubmit();
-                }}
-              >
-                <div>
-                  <label
-                    htmlFor="verify-email"
-                    className="mb-2 block text-sm font-medium text-slate-200"
-                  >
-                    E-mail
-                  </label>
-
-                  <div className="relative">
-                    <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
-
-                    <input
-                      id="verify-email"
-                      type="email"
-                      value={
-                        verifyEmail
-                      }
-                      onChange={(
-                        event,
-                      ) =>
-                        setVerifyEmail(
-                          event.target
-                            .value,
-                        )
-                      }
-                      placeholder="seuemail@exemplo.com"
-                      autoComplete="email"
-                      maxLength={160}
-                      className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={
-                    verifyLoading
-                  }
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {verifyLoading ? (
-                    <>
-                      <Loader2 className="h-5 w-5 animate-spin" />
-
-                      Enviando...
-                    </>
-                  ) : (
-                    <>
-                      Enviar link
-
-                      <ArrowRight className="h-5 w-5" />
-                    </>
-                  )}
-                </button>
-              </form>
-
-              <button
-                type="button"
-                onClick={() =>
-                  changeMode(
-                    "login",
-                  )
-                }
-                className="mt-6 w-full text-center text-sm font-medium text-violet-400 transition hover:text-violet-300"
-              >
-                Voltar para o login
-              </button>
-            </div>
-          ) : (
-            <>
+          <section className="w-full rounded-[2rem] border border-slate-800 bg-slate-900/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
+            {isRecover ? (
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">
-                  {isSignUp
-                    ? "Criar conta"
-                    : "Entrar"}
+                  Recuperar senha
                 </h1>
 
                 <p className="mt-3 text-base leading-relaxed text-slate-400">
-                  {isSignUp
-                    ? "Crie sua conta e comece a tomar decisões com mais clareza."
-                    : "Bem-vindo de volta! Acesse sua conta para continuar."}
+                  Digite seu e-mail e enviaremos
+                  um link para você criar uma nova
+                  senha.
                 </p>
-              </div>
 
-              {/* BOTÃO OFICIAL DO GOOGLE */}
-
-              <div className="mt-8">
-                <div
-                  ref={
-                    googleButtonRef
-                  }
-                  className={`flex min-h-12 w-full justify-center ${
-                    googleLoading ||
-                    loading
-                      ? "pointer-events-none opacity-60"
-                      : ""
-                  }`}
-                />
-
-                {!googleReady &&
-                !googleLoading ? (
-                  <div className="mt-2 text-center text-xs text-slate-500">
-                    Carregando Google...
-                  </div>
+                {feedback ? (
+                  <FeedbackBox
+                    feedback={feedback}
+                  />
                 ) : null}
 
-                {googleLoading ? (
-                  <div className="mt-3 flex items-center justify-center gap-2 text-sm text-slate-400">
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                <form
+                  className="mt-6 space-y-5"
+                  onSubmit={(event) => {
+                    event.preventDefault();
 
-                    Conectando...
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="my-7 flex items-center gap-4">
-                <div className="h-px flex-1 bg-slate-800" />
-
-                <span className="text-[11px] font-medium tracking-wider text-slate-500">
-                  OU CONTINUE COM E-MAIL
-                </span>
-
-                <div className="h-px flex-1 bg-slate-800" />
-              </div>
-
-              {feedback ? (
-                <div
-                  className={`mb-6 rounded-xl border p-4 text-sm leading-relaxed ${
-                    feedback.type ===
-                    "error"
-                      ? "border-red-500/30 bg-red-500/10 text-red-300"
-                      : "border-violet-500/30 bg-violet-500/10 text-violet-200"
-                  }`}
+                    void handleRecoverySubmit();
+                  }}
                 >
-                  {feedback.message}
-                </div>
-              ) : null}
-
-              <form
-                className="space-y-5"
-                onSubmit={
-                  handleSubmit
-                }
-              >
-                {isSignUp ? (
                   <div>
                     <label
-                      htmlFor="name"
+                      htmlFor="verify-email"
                       className="mb-2 block text-sm font-medium text-slate-200"
                     >
-                      Nome
+                      E-mail
                     </label>
 
                     <div className="relative">
-                      <User className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+                      <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
 
                       <input
-                        id="name"
-                        type="text"
-                        value={name}
-                        onChange={(
-                          event,
-                        ) =>
-                          setName(
-                            event.target
-                              .value,
+                        id="verify-email"
+                        type="email"
+                        value={verifyEmail}
+                        onChange={(event) =>
+                          setVerifyEmail(
+                            event.target.value,
                           )
                         }
-                        placeholder="Como podemos te chamar?"
-                        autoComplete="given-name"
-                        maxLength={24}
+                        placeholder="seuemail@exemplo.com"
+                        autoComplete="email"
+                        maxLength={160}
                         className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
                       />
                     </div>
-
-                    <p className="mt-2 text-xs text-slate-500">
-                      Como você gostaria de ser
-                      chamado?
-                    </p>
                   </div>
-                ) : null}
 
-                {isSignUp ? (
-                  <div>
-                    <label
-                      htmlFor="username"
-                      className="mb-2 block text-sm font-medium text-slate-200"
-                    >
-                      Nome de usuário
-                    </label>
-
-                    <div className="relative">
-                      <User className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
-
-                      <input
-                        id="username"
-                        type="text"
-                        value={
-                          username
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          updateUsername(
-                            event
-                              .target
-                              .value,
-                          )
-                        }
-                        placeholder="Escolha seu nome de usuário"
-                        autoComplete="username"
-                        maxLength={24}
-                        className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
-                      />
-                    </div>
-
-                    <p className="mt-2 text-xs text-slate-500">
-                      Use letras, números, ponto,
-                      hífen ou underline.
-                    </p>
-                  </div>
-                ) : null}
-
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="mb-2 block text-sm font-medium text-slate-200"
+                  <button
+                    type="submit"
+                    disabled={verifyLoading}
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    E-mail
-                  </label>
+                    {verifyLoading ? (
+                      <>
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        Enviando...
+                      </>
+                    ) : (
+                      <>
+                        Enviar link
+                        <ArrowRight className="h-5 w-5" />
+                      </>
+                    )}
+                  </button>
+                </form>
 
-                  <div className="relative">
-                    <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
-
-                    <input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(
-                        event,
-                      ) =>
-                        setEmail(
-                          event.target
-                            .value,
-                        )
-                      }
-                      placeholder="seuemail@exemplo.com"
-                      autoComplete="email"
-                      maxLength={160}
-                      className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
-                    />
-                  </div>
-
-                  <p className="mt-2 text-xs text-slate-500">
-                    Use um e-mail que você tenha
-                    acesso.
-                  </p>
-                </div>
-
+                <button
+                  type="button"
+                  onClick={() =>
+                    changeMode("login")
+                  }
+                  className="mt-6 w-full text-center text-sm font-medium text-violet-400 transition hover:text-violet-300"
+                >
+                  Voltar para o login
+                </button>
+              </div>
+            ) : (
+              <>
                 <div>
-                  <label
-                    htmlFor="password"
-                    className="mb-2 block text-sm font-medium text-slate-200"
-                  >
-                    Senha
-                  </label>
-
-                  <div className="relative">
-                    <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
-
-                    <input
-                      id="password"
-                      type={
-                        showPassword
-                          ? "text"
-                          : "password"
-                      }
-                      value={
-                        password
-                      }
-                      onChange={(
-                        event,
-                      ) =>
-                        setPassword(
-                          event.target
-                            .value,
-                        )
-                      }
-                      placeholder="Digite sua senha"
-                      autoComplete={
-                        isSignUp
-                          ? "new-password"
-                          : "current-password"
-                      }
-                      maxLength={
-                        1000
-                      }
-                      className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 pr-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowPassword(
-                          (
-                            current,
-                          ) =>
-                            !current,
-                        )
-                      }
-                      aria-label={
-                        showPassword
-                          ? "Ocultar senha"
-                          : "Mostrar senha"
-                      }
-                      className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-slate-500 transition hover:text-white"
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-5 w-5" />
-                      ) : (
-                        <Eye className="h-5 w-5" />
-                      )}
-                    </button>
-                  </div>
-
-                  <p className="mt-2 text-xs text-slate-500">
+                  <h1 className="text-3xl font-bold tracking-tight">
                     {isSignUp
-                      ? "Sua senha deve ter pelo menos 6 caracteres."
-                      : "Digite a senha usada na sua conta."}
+                      ? "Criar conta"
+                      : "Entrar"}
+                  </h1>
+
+                  <p className="mt-3 text-base leading-relaxed text-slate-400">
+                    {isSignUp
+                      ? "Crie sua conta e comece a tomar decisões com mais clareza."
+                      : "Bem-vindo de volta! Acesse sua conta para continuar."}
                   </p>
+                </div>
+
+                {/* GOOGLE */}
+
+                <div className="mt-8">
+                  <div
+                    ref={googleButtonRef}
+                    className={`flex min-h-12 w-full justify-center ${
+                      googleLoading ||
+                      loading
+                        ? "pointer-events-none opacity-60"
+                        : ""
+                    }`}
+                  />
+
+                  {!googleReady &&
+                  !googleLoading ? (
+                    <div className="mt-2 text-center text-xs text-slate-500">
+                      Carregando Google...
+                    </div>
+                  ) : null}
+
+                  {googleLoading ? (
+                    <div className="mt-3 flex items-center justify-center gap-2 text-sm text-slate-400">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Conectando...
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="my-7 flex items-center gap-4">
+                  <div className="h-px flex-1 bg-slate-800" />
+
+                  <span className="text-[11px] font-medium tracking-wider text-slate-500">
+                    OU CONTINUE COM E-MAIL
+                  </span>
+
+                  <div className="h-px flex-1 bg-slate-800" />
+                </div>
+
+                {feedback ? (
+                  <div className="mb-6">
+                    <FeedbackBox
+                      feedback={feedback}
+                    />
+                  </div>
+                ) : null}
+
+                <form
+                  className="space-y-5"
+                  onSubmit={handleSubmit}
+                >
+                  {isSignUp ? (
+                    <InputField
+                      id="name"
+                      label="Nome"
+                      value={name}
+                      onChange={setName}
+                      placeholder="Como podemos te chamar?"
+                      icon={
+                        <User className="h-5 w-5" />
+                      }
+                    />
+                  ) : null}
+
+                  {isSignUp ? (
+                    <InputField
+                      id="username"
+                      label="Nome de usuário"
+                      value={username}
+                      onChange={updateUsername}
+                      placeholder="Escolha seu nome de usuário"
+                      icon={
+                        <User className="h-5 w-5" />
+                      }
+                    />
+                  ) : null}
+
+                  <InputField
+                    id="email"
+                    label="E-mail"
+                    type="email"
+                    value={email}
+                    onChange={setEmail}
+                    placeholder="seuemail@exemplo.com"
+                    icon={
+                      <Mail className="h-5 w-5" />
+                    }
+                  />
+
+                  <PasswordField
+                    id="password"
+                    label="Senha"
+                    value={password}
+                    onChange={setPassword}
+                    show={showPassword}
+                    setShow={setShowPassword}
+                    autoComplete={
+                      isSignUp
+                        ? "new-password"
+                        : "current-password"
+                    }
+                  />
 
                   {!isSignUp ? (
                     <button
                       type="button"
                       onClick={() => {
-                        setVerifyEmail(
-                          email,
-                        );
+                        setVerifyEmail(email);
 
                         changeMode(
                           "recover",
                         );
                       }}
-                      className="mt-4 text-sm font-medium text-violet-400 transition hover:text-violet-300"
+                      className="text-sm font-medium text-violet-400 transition hover:text-violet-300"
                     >
                       Esqueci minha senha
                     </button>
                   ) : null}
-                </div>
 
-                {isSignUp ? (
-                  <div>
-                    <label
-                      htmlFor="confirm-password"
-                      className="mb-2 block text-sm font-medium text-slate-200"
-                    >
-                      Confirmar senha
-                    </label>
+                  {isSignUp ? (
+                    <PasswordField
+                      id="confirm-password"
+                      label="Confirmar senha"
+                      value={
+                        confirmPassword
+                      }
+                      onChange={
+                        setConfirmPassword
+                      }
+                      show={
+                        showConfirmPassword
+                      }
+                      setShow={
+                        setShowConfirmPassword
+                      }
+                      autoComplete="new-password"
+                    />
+                  ) : null}
 
-                    <div className="relative">
-                      <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+                  <button
+                    type="submit"
+                    disabled={
+                      loading ||
+                      googleLoading
+                    }
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        Aguarde...
+                      </>
+                    ) : (
+                      <>
+                        {isSignUp
+                          ? "Criar minha conta"
+                          : "Entrar na minha conta"}
 
-                      <input
-                        id="confirm-password"
-                        type={
-                          showConfirmPassword
-                            ? "text"
-                            : "password"
-                        }
-                        value={
-                          confirmPassword
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          setConfirmPassword(
-                            event
-                              .target
-                              .value,
-                          )
-                        }
-                        placeholder="Repita sua senha"
-                        autoComplete="new-password"
-                        maxLength={
-                          1000
-                        }
-                        className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 pr-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
-                      />
+                        <ArrowRight className="h-5 w-5" />
+                      </>
+                    )}
+                  </button>
+                </form>
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setShowConfirmPassword(
-                            (
-                              current,
-                            ) =>
-                              !current,
-                          )
-                        }
-                        aria-label={
-                          showConfirmPassword
-                            ? "Ocultar senha"
-                            : "Mostrar senha"
-                        }
-                        className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-slate-500 transition hover:text-white"
-                      >
-                        {showConfirmPassword ? (
-                          <EyeOff className="h-5 w-5" />
-                        ) : (
-                          <Eye className="h-5 w-5" />
-                        )}
-                      </button>
-                    </div>
-
-                    <p className="mt-2 text-xs text-slate-500">
-                      Digite novamente a mesma
-                      senha.
-                    </p>
-                  </div>
-                ) : null}
-
-                <button
-                  type="submit"
-                  disabled={
-                    loading ||
-                    googleLoading
-                  }
-                  className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="h-5 w-5 animate-spin" />
-
-                      Aguarde...
-                    </>
-                  ) : (
-                    <>
-                      {isSignUp
-                        ? "Criar minha conta"
-                        : "Entrar na minha conta"}
-
-                      <ArrowRight className="h-5 w-5" />
-                    </>
-                  )}
-                </button>
-              </form>
-
-              <p className="mt-7 text-center text-sm text-slate-400">
-                {isSignUp
-                  ? "Já possui uma conta? "
-                  : "Ainda não possui uma conta? "}
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    changeMode(
-                      isSignUp
-                        ? "login"
-                        : "signup",
-                    )
-                  }
-                  className="font-semibold text-violet-400 transition hover:text-violet-300"
-                >
+                <p className="mt-7 text-center text-sm text-slate-400">
                   {isSignUp
-                    ? "Entrar"
-                    : "Criar conta"}
-                </button>
-              </p>
-            </>
-          )}
-        </section>
+                    ? "Já possui uma conta? "
+                    : "Ainda não possui uma conta? "}
 
-        <p className="mt-7 text-center text-xs text-slate-600">
-          © 2026 DecidlyIA
-        </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      changeMode(
+                        isSignUp
+                          ? "login"
+                          : "signup",
+                      )
+                    }
+                    className="font-semibold text-violet-400 transition hover:text-violet-300"
+                  >
+                    {isSignUp
+                      ? "Entrar"
+                      : "Criar conta"}
+                  </button>
+                </p>
+
+                {/* AVISO LEGAL */}
+
+                <p className="mt-6 text-center text-xs leading-relaxed text-slate-500">
+                  Ao continuar, você concorda com os{" "}
+
+                  <Link
+                    to="/terms"
+                    className="text-slate-400 underline underline-offset-2 transition hover:text-violet-300"
+                  >
+                    Termos de Uso
+                  </Link>
+
+                  {" "}e reconhece nossa{" "}
+
+                  <Link
+                    to="/privacy"
+                    className="text-slate-400 underline underline-offset-2 transition hover:text-violet-300"
+                  >
+                    Política de Privacidade
+                  </Link>
+
+                  {" "}e{" "}
+
+                  <Link
+                    to="/cookies"
+                    className="text-slate-400 underline underline-offset-2 transition hover:text-violet-300"
+                  >
+                    Política de Cookies
+                  </Link>
+
+                  .
+                </p>
+              </>
+            )}
+          </section>
+        </div>
+      </main>
+    </AppShell>
+  );
+}
+
+function FeedbackBox({
+  feedback,
+}: {
+  feedback: Exclude<
+    Feedback,
+    null
+  >;
+}) {
+  return (
+    <div
+      className={`mt-6 rounded-xl border p-4 text-sm leading-relaxed ${
+        feedback.type === "error"
+          ? "border-red-500/30 bg-red-500/10 text-red-300"
+          : "border-violet-500/30 bg-violet-500/10 text-violet-200"
+      }`}
+    >
+      {feedback.message}
+    </div>
+  );
+}
+
+function InputField({
+  id,
+  label,
+  type = "text",
+  value,
+  onChange,
+  placeholder,
+  icon,
+}: {
+  id: string;
+  label: string;
+  type?: string;
+  value: string;
+  onChange: (
+    value: string,
+  ) => void;
+  placeholder: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label
+        htmlFor={id}
+        className="mb-2 block text-sm font-medium text-slate-200"
+      >
+        {label}
+      </label>
+
+      <div className="relative">
+        <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
+          {icon}
+        </div>
+
+        <input
+          id={id}
+          type={type}
+          value={value}
+          onChange={(event) =>
+            onChange(
+              event.target.value,
+            )
+          }
+          placeholder={placeholder}
+          maxLength={160}
+          className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+        />
       </div>
-    </main>
+    </div>
+  );
+}
+
+function PasswordField({
+  id,
+  label,
+  value,
+  onChange,
+  show,
+  setShow,
+  autoComplete,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (
+    value: string,
+  ) => void;
+  show: boolean;
+  setShow: (
+    value:
+      | boolean
+      | ((
+          current: boolean,
+        ) => boolean),
+  ) => void;
+  autoComplete: string;
+}) {
+  return (
+    <div>
+      <label
+        htmlFor={id}
+        className="mb-2 block text-sm font-medium text-slate-200"
+      >
+        {label}
+      </label>
+
+      <div className="relative">
+        <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+
+        <input
+          id={id}
+          type={
+            show
+              ? "text"
+              : "password"
+          }
+          value={value}
+          onChange={(event) =>
+            onChange(
+              event.target.value,
+            )
+          }
+          placeholder="Digite sua senha"
+          autoComplete={autoComplete}
+          maxLength={1000}
+          className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 pr-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+        />
+
+        <button
+          type="button"
+          onClick={() =>
+            setShow(
+              (current) =>
+                !current,
+            )
+          }
+          aria-label={
+            show
+              ? "Ocultar senha"
+              : "Mostrar senha"
+          }
+          className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-slate-500 transition hover:text-white"
+        >
+          {show ? (
+            <EyeOff className="h-5 w-5" />
+          ) : (
+            <Eye className="h-5 w-5" />
+          )}
+        </button>
+      </div>
+    </div>
   );
 }
