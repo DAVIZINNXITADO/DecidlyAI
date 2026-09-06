@@ -14,10 +14,70 @@ import {
   User,
 } from "lucide-react";
 import {
+  useEffect,
+  useRef,
   useState,
   type FormEvent,
 } from "react";
 import { supabase } from "../lib/supabase";
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (
+            configuration: {
+              client_id: string;
+              callback: (
+                response: GoogleCredentialResponse,
+              ) => void;
+              auto_select?: boolean;
+              cancel_on_tap_outside?: boolean;
+            },
+          ) => void;
+
+          renderButton: (
+            parent: HTMLElement,
+            options: {
+              type?: "standard" | "icon";
+              theme?:
+                | "outline"
+                | "filled_blue"
+                | "filled_black";
+              size?:
+                | "large"
+                | "medium"
+                | "small";
+              text?:
+                | "signin_with"
+                | "signup_with"
+                | "continue_with"
+                | "signin";
+              shape?:
+                | "rectangular"
+                | "pill"
+                | "circle"
+                | "square";
+              logo_alignment?:
+                | "left"
+                | "center";
+              width?: number;
+              locale?: string;
+            },
+          ) => void;
+
+          prompt: () => void;
+        };
+      };
+    };
+  }
+}
+
+type GoogleCredentialResponse = {
+  credential: string;
+  select_by?: string;
+};
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -33,8 +93,17 @@ type Feedback = {
   message: string;
 } | null;
 
+const GOOGLE_CLIENT_ID =
+  "895354448430-qs5ilh31kgp5qqlb0c6s6abiag9s8vti.apps.googleusercontent.com";
+
 function LoginPage() {
   const navigate = useNavigate();
+
+  const googleButtonRef =
+    useRef<HTMLDivElement>(null);
+
+  const googleInitializedRef =
+    useRef(false);
 
   const [mode, setMode] =
     useState<Mode>("login");
@@ -72,6 +141,11 @@ function LoginPage() {
   const [
     googleLoading,
     setGoogleLoading,
+  ] = useState(false);
+
+  const [
+    googleReady,
+    setGoogleReady,
   ] = useState(false);
 
   const [
@@ -139,78 +213,265 @@ function LoginPage() {
   }
 
   /*
-   * LOGIN COM GOOGLE
+   * GOOGLE IDENTITY SERVICES OFICIAL
    *
-   * Em vez de carregar o botão externo do Google
-   * após a página abrir, usamos um botão próprio
-   * que chama diretamente o OAuth do Supabase.
-   *
-   * Isso elimina o atraso visual do botão e permite
-   * que o design seja totalmente consistente com
-   * o DecidlyAI.
+   * Mantemos o botão oficial do Google.
+   * A largura é calculada conforme o
+   * container para funcionar bem em
+   * desktop e celular.
    */
 
-  async function handleGoogleLogin() {
-    clearFeedback();
+  useEffect(() => {
+    if (isRecover) {
+      return;
+    }
 
-    setGoogleLoading(true);
+    let cancelled = false;
+    let resizeObserver:
+      | ResizeObserver
+      | undefined;
 
-    try {
-      const {
-        data,
-        error,
-      } =
-        await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: {
-            redirectTo:
-              window.location.origin,
-          },
-        });
+    async function handleGoogleCredential(
+      response: GoogleCredentialResponse,
+    ) {
+      clearFeedback();
 
-      if (error) {
-        const errorMessage =
-          error.message.toLowerCase();
-
-        if (
-          errorMessage.includes(
-            "provider is not enabled",
-          )
-        ) {
-          showError(
-            "O login com o Google ainda não está ativado no Supabase.",
-          );
-        } else {
-          showError(
-            error.message,
-          );
-        }
+      if (!response.credential) {
+        showError(
+          "Não foi possível receber a credencial do Google.",
+        );
 
         return;
       }
 
-      /*
-       * O Supabase normalmente redireciona o usuário
-       * imediatamente para o Google.
-       *
-       * Esta verificação evita deixar o botão preso
-       * em loading caso o redirecionamento não aconteça.
-       */
-      if (!data.url) {
-        setGoogleLoading(false);
+      setGoogleLoading(true);
 
+      try {
+        const { error } =
+          await supabase.auth.signInWithIdToken({
+            provider: "google",
+            token: response.credential,
+          });
+
+        if (error) {
+          const errorMessage =
+            error.message.toLowerCase();
+
+          if (
+            errorMessage.includes(
+              "provider is not enabled",
+            )
+          ) {
+            showError(
+              "O login com o Google ainda não está ativado.",
+            );
+          } else {
+            showError(
+              error.message,
+            );
+          }
+
+          return;
+        }
+
+        navigate({
+          to: "/",
+        });
+      } catch {
         showError(
-          "Não foi possível iniciar o login com o Google.",
+          "Não foi possível concluir o login com o Google.",
         );
+      } finally {
+        setGoogleLoading(false);
       }
-    } catch {
-      setGoogleLoading(false);
+    }
 
-      showError(
-        "Não foi possível conectar ao Google. Tente novamente.",
+    function renderGoogleButton() {
+      if (
+        cancelled ||
+        !window.google ||
+        !googleButtonRef.current
+      ) {
+        return;
+      }
+
+      const container =
+        googleButtonRef.current;
+
+      const containerWidth =
+        Math.floor(
+          container.getBoundingClientRect()
+            .width,
+        );
+
+      if (containerWidth < 200) {
+        return;
+      }
+
+      /*
+       * O Google recomenda valores inteiros.
+       * Limitamos a largura para manter o botão
+       * proporcional ao card.
+       */
+
+      const buttonWidth =
+        Math.max(
+          200,
+          Math.min(
+            containerWidth,
+            500,
+          ),
+        );
+
+      try {
+        if (
+          !googleInitializedRef.current
+        ) {
+          window.google.accounts.id.initialize({
+            client_id:
+              GOOGLE_CLIENT_ID,
+            callback:
+              handleGoogleCredential,
+            auto_select: false,
+            cancel_on_tap_outside: true,
+          });
+
+          googleInitializedRef.current =
+            true;
+        }
+
+        container.innerHTML = "";
+
+        window.google.accounts.id.renderButton(
+          container,
+          {
+            type: "standard",
+            theme: "outline",
+            size: "large",
+            shape: "rectangular",
+            text: "continue_with",
+            logo_alignment: "left",
+            width: buttonWidth,
+            locale: "pt-BR",
+          },
+        );
+
+        if (!cancelled) {
+          setGoogleReady(true);
+        }
+      } catch {
+        if (!cancelled) {
+          setGoogleReady(false);
+
+          showError(
+            "Não foi possível carregar o botão do Google.",
+          );
+        }
+      }
+    }
+
+    function loadGoogleScript() {
+      const existingScript =
+        document.getElementById(
+          "google-identity-services",
+        );
+
+      if (window.google) {
+        requestAnimationFrame(
+          renderGoogleButton,
+        );
+
+        return;
+      }
+
+      if (existingScript) {
+        existingScript.addEventListener(
+          "load",
+          renderGoogleButton,
+          {
+            once: true,
+          },
+        );
+
+        return;
+      }
+
+      const script =
+        document.createElement(
+          "script",
+        );
+
+      script.id =
+        "google-identity-services";
+
+      script.src =
+        "https://accounts.google.com/gsi/client";
+
+      script.async = true;
+      script.defer = true;
+
+      script.onload =
+        renderGoogleButton;
+
+      script.onerror = () => {
+        if (!cancelled) {
+          setGoogleReady(false);
+
+          showError(
+            "Não foi possível carregar o Google. Verifique sua conexão e tente novamente.",
+          );
+        }
+      };
+
+      document.head.appendChild(
+        script,
       );
     }
-  }
+
+    loadGoogleScript();
+
+    /*
+     * Se o usuário mudar o tamanho da janela,
+     * renderizamos novamente para o botão
+     * continuar acompanhando o formulário.
+     */
+
+    if (
+      googleButtonRef.current &&
+      typeof ResizeObserver !==
+        "undefined"
+    ) {
+      let resizeTimeout:
+        ReturnType<
+          typeof setTimeout
+        >;
+
+      resizeObserver =
+        new ResizeObserver(() => {
+          clearTimeout(
+            resizeTimeout,
+          );
+
+          resizeTimeout =
+            setTimeout(() => {
+              renderGoogleButton();
+            }, 120);
+        });
+
+      resizeObserver.observe(
+        googleButtonRef.current,
+      );
+    }
+
+    return () => {
+      cancelled = true;
+
+      resizeObserver?.disconnect();
+    };
+  }, [
+    isRecover,
+    navigate,
+  ]);
 
   async function handleSignIn() {
     clearFeedback();
@@ -283,7 +544,7 @@ function LoginPage() {
           )
         ) {
           showError(
-            "Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada antes de entrar.",
+            "Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada.",
           );
 
           return;
@@ -376,15 +637,8 @@ function LoginPage() {
       return;
     }
 
-    if (!cleanEmail) {
-      showError(
-        "Informe seu e-mail.",
-      );
-
-      return;
-    }
-
     if (
+      !cleanEmail ||
       !cleanEmail.includes("@")
     ) {
       showError(
@@ -463,7 +717,7 @@ function LoginPage() {
 
       if (!data.user) {
         showError(
-          "Não foi possível concluir a criação da conta. Tente novamente.",
+          "Não foi possível concluir a criação da conta.",
         );
 
         return;
@@ -471,12 +725,11 @@ function LoginPage() {
 
       if (!data.session) {
         showSuccess(
-          "Conta criada com sucesso! Verifique seu e-mail e confirme sua conta antes de entrar.",
+          "Conta criada! Verifique seu e-mail e confirme sua conta antes de entrar.",
         );
 
         setPassword("");
         setConfirmPassword("");
-
         setMode("login");
 
         return;
@@ -535,7 +788,7 @@ function LoginPage() {
           )
         ) {
           showError(
-            "Muitas tentativas seguidas. Aguarde alguns minutos e tente novamente.",
+            "Muitas tentativas seguidas. Aguarde alguns minutos.",
           );
 
           return;
@@ -576,8 +829,6 @@ function LoginPage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-950 px-4 py-8 text-white sm:px-6 md:px-8">
-      {/* FUNDO LEVE */}
-
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0"
@@ -602,8 +853,6 @@ function LoginPage() {
         }}
       />
 
-      {/* VOLTAR */}
-
       <div className="relative z-10 mx-auto w-full max-w-6xl">
         <Link
           to="/"
@@ -615,11 +864,7 @@ function LoginPage() {
         </Link>
       </div>
 
-      {/* ÁREA CENTRAL */}
-
       <div className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-xl flex-col items-center justify-center py-10">
-        {/* LOGO */}
-
         <Link
           to="/"
           className="interactive-scale group mb-10 flex items-center justify-center gap-3 rounded-2xl"
@@ -642,8 +887,6 @@ function LoginPage() {
             </span>
           </span>
         </Link>
-
-        {/* CARD */}
 
         <section className="w-full rounded-[2rem] border border-slate-800 bg-slate-900/70 p-7 shadow-2xl backdrop-blur-xl sm:p-10">
           {isRecover ? (
@@ -671,33 +914,17 @@ function LoginPage() {
                   void handleRecoverySubmit();
                 }}
               >
-                <div>
-                  <label
-                    htmlFor="verify-email"
-                    className="mb-2 block text-sm font-medium text-slate-200"
-                  >
-                    E-mail
-                  </label>
-
-                  <div className="relative">
-                    <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
-
-                    <input
-                      id="verify-email"
-                      type="email"
-                      value={verifyEmail}
-                      onChange={(event) =>
-                        setVerifyEmail(
-                          event.target.value,
-                        )
-                      }
-                      placeholder="seuemail@exemplo.com"
-                      autoComplete="email"
-                      maxLength={160}
-                      className="h-14 w-full rounded-2xl border border-slate-700 bg-slate-950 px-5 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
-                    />
-                  </div>
-                </div>
+                <InputField
+                  id="verify-email"
+                  label="E-mail"
+                  type="email"
+                  value={verifyEmail}
+                  onChange={setVerifyEmail}
+                  placeholder="seuemail@exemplo.com"
+                  icon={
+                    <Mail className="h-5 w-5" />
+                  }
+                />
 
                 <button
                   type="submit"
@@ -707,13 +934,11 @@ function LoginPage() {
                   {verifyLoading ? (
                     <>
                       <Loader2 className="h-5 w-5 animate-spin" />
-
                       Enviando...
                     </>
                   ) : (
                     <>
                       Enviar link
-
                       <ArrowRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-1" />
                     </>
                   )}
@@ -746,45 +971,36 @@ function LoginPage() {
                 </p>
               </div>
 
-              {/* GOOGLE */}
+              {/* GOOGLE OFICIAL */}
 
               <div className="mt-9">
-                <button
-                  type="button"
-                  onClick={() =>
-                    void handleGoogleLogin()
-                  }
-                  disabled={
-                    googleLoading ||
-                    loading
-                  }
-                  className="interactive-lift group flex h-16 w-full items-center justify-center gap-4 rounded-2xl border border-slate-700 bg-white px-6 text-base font-semibold text-slate-800 shadow-lg shadow-black/10 transition hover:border-violet-300 hover:bg-slate-100 hover:shadow-xl hover:shadow-violet-950/20 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {googleLoading ? (
-                    <>
-                      <Loader2 className="h-5 w-5 animate-spin text-violet-600" />
+                <div className="relative min-h-[44px] w-full">
+                  {!googleReady ? (
+                    <div className="absolute inset-0 flex h-[44px] items-center justify-center rounded-lg border border-slate-700 bg-white">
+                      <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                    </div>
+                  ) : null}
 
-                      <span>
-                        Abrindo Google...
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <GoogleIcon />
+                  <div
+                    ref={googleButtonRef}
+                    className={`relative z-10 flex w-full justify-center transition-opacity ${
+                      googleReady
+                        ? "opacity-100"
+                        : "opacity-0"
+                    } ${
+                      googleLoading
+                        ? "pointer-events-none opacity-60"
+                        : ""
+                    }`}
+                  />
+                </div>
 
-                      <span>
-                        {isSignUp
-                          ? "Continuar com Google"
-                          : "Continuar com Google"}
-                      </span>
-
-                      <ArrowRight className="ml-auto h-5 w-5 text-slate-400 transition-transform duration-200 group-hover:translate-x-1" />
-                    </>
-                  )}
-                </button>
+                {googleLoading ? (
+                  <p className="mt-3 text-center text-xs text-slate-400">
+                    Entrando com Google...
+                  </p>
+                ) : null}
               </div>
-
-              {/* DIVISOR */}
 
               <div className="my-9 flex items-center gap-4">
                 <div className="h-px flex-1 bg-slate-800" />
@@ -880,18 +1096,10 @@ function LoginPage() {
                   <PasswordField
                     id="confirm-password"
                     label="Confirmar senha"
-                    value={
-                      confirmPassword
-                    }
-                    onChange={
-                      setConfirmPassword
-                    }
-                    show={
-                      showConfirmPassword
-                    }
-                    setShow={
-                      setShowConfirmPassword
-                    }
+                    value={confirmPassword}
+                    onChange={setConfirmPassword}
+                    show={showConfirmPassword}
+                    setShow={setShowConfirmPassword}
                     autoComplete="new-password"
                   />
                 ) : null}
@@ -907,7 +1115,6 @@ function LoginPage() {
                   {loading ? (
                     <>
                       <Loader2 className="h-5 w-5 animate-spin" />
-
                       Aguarde...
                     </>
                   ) : (
@@ -943,8 +1150,6 @@ function LoginPage() {
                     : "Criar conta"}
                 </button>
               </p>
-
-              {/* AVISO LEGAL */}
 
               <p className="mt-7 text-center text-xs leading-relaxed text-slate-500">
                 Ao continuar, você concorda com os{" "}
@@ -1072,13 +1277,9 @@ function PasswordField({
     value: string,
   ) => void;
   show: boolean;
-  setShow: (
-    value:
-      | boolean
-      | ((
-          current: boolean,
-        ) => boolean),
-  ) => void;
+  setShow: React.Dispatch<
+    React.SetStateAction<boolean>
+  >;
   autoComplete: string;
 }) {
   return (
@@ -1135,35 +1336,5 @@ function PasswordField({
         </button>
       </div>
     </div>
-  );
-}
-
-function GoogleIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      className="h-6 w-6 shrink-0"
-    >
-      <path
-        fill="#4285F4"
-        d="M21.35 12.24c0-.79-.07-1.55-.2-2.28H12v4.32h5.23a4.47 4.47 0 0 1-1.94 2.93v2.8h3.14c1.84-1.69 2.92-4.18 2.92-7.17Z"
-      />
-
-      <path
-        fill="#34A853"
-        d="M12 21.7c2.62 0 4.82-.87 6.43-2.35l-3.14-2.8c-.87.58-1.99.92-3.29.92-2.53 0-4.67-1.71-5.44-4.01H3.32v2.89A9.7 9.7 0 0 0 12 21.7Z"
-      />
-
-      <path
-        fill="#FBBC05"
-        d="M6.56 13.46A5.83 5.83 0 0 1 6.25 12c0-.51.09-1 .31-1.46V7.65H3.32A9.7 9.7 0 0 0 2.3 12c0 1.56.37 3.03 1.02 4.35l3.24-2.89Z"
-      />
-
-      <path
-        fill="#EA4335"
-        d="M12 6.53c1.43 0 2.72.49 3.73 1.45l2.8-2.8C16.81 3.57 14.62 2.3 12 2.3a9.7 9.7 0 0 0-8.68 5.35l3.24 2.89C7.33 8.24 9.47 6.53 12 6.53Z"
-      />
-    </svg>
   );
 }
