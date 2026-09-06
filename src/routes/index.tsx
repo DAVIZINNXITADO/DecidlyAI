@@ -15,6 +15,30 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  function scrollToSection(
+    event: React.MouseEvent<HTMLAnchorElement>,
+    sectionId: string,
+  ) {
+    event.preventDefault();
+
+    const section = document.getElementById(sectionId);
+
+    if (!section) {
+      return;
+    }
+
+    section.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+
+    window.history.pushState(
+      null,
+      "",
+      `#${sectionId}`,
+    );
+  }
+
   return (
     <main className="min-h-screen overflow-hidden bg-slate-950 text-white">
       {/* BACKGROUND */}
@@ -65,6 +89,9 @@ function Index() {
 
             <a
               href="#planos"
+              onClick={(event) =>
+                scrollToSection(event, "planos")
+              }
               className="flex items-center justify-center rounded-xl border border-slate-700 px-7 py-4 font-semibold text-slate-200 transition hover:border-violet-500 hover:text-white"
             >
               Ver planos
@@ -309,6 +336,7 @@ function Index() {
             <div className="relative">
               <h2 className="text-4xl font-bold tracking-tight md:text-5xl">
                 Pronto para decidir
+
                 <span className="block text-violet-400">
                   com mais clareza?
                 </span>
@@ -321,6 +349,9 @@ function Index() {
 
               <a
                 href="#como-funciona"
+                onClick={(event) =>
+                  scrollToSection(event, "como-funciona")
+                }
                 className="mx-auto mt-8 flex w-fit items-center justify-center gap-2 rounded-xl border border-slate-600 px-7 py-4 font-semibold text-slate-200 transition hover:border-violet-500 hover:text-white"
               >
                 Ver como funciona
