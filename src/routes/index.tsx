@@ -40,18 +40,39 @@ function Index() {
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-slate-950 text-white">
-      {/* BACKGROUND */}
+    <main className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
+      {/* BACKGROUND
+       *
+       * Gradientes radiais em vez de grandes elementos
+       * com filter: blur(). Mantém o visual e reduz o
+       * custo gráfico, principalmente em dispositivos móveis.
+       */}
 
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-violet-600/10 blur-[140px]" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          backgroundImage: `
+            radial-gradient(
+              circle 600px at 50% 0%,
+              rgba(124, 58, 237, 0.10),
+              transparent 70%
+            ),
+            radial-gradient(
+              circle 450px at 0% 32%,
+              rgba(109, 40, 217, 0.08),
+              transparent 72%
+            ),
+            radial-gradient(
+              circle 450px at 100% 52%,
+              rgba(139, 92, 246, 0.08),
+              transparent 72%
+            )
+          `,
+        }}
+      />
 
-        <div className="absolute -left-40 top-[700px] h-[500px] w-[500px] rounded-full bg-purple-700/10 blur-[140px]" />
-
-        <div className="absolute -right-40 top-[1000px] h-[500px] w-[500px] rounded-full bg-violet-500/10 blur-[140px]" />
-      </div>
-
-      <div className="relative">
+      <div className="relative z-10">
         <Navbar />
 
         {/* HERO */}
@@ -100,7 +121,7 @@ function Index() {
 
           {/* EXEMPLO */}
 
-          <div className="interactive-lift mx-auto mt-20 max-w-3xl rounded-[2rem] border border-slate-800 bg-slate-900/60 p-6 text-left shadow-2xl backdrop-blur-xl transition-shadow hover:border-violet-500/20 hover:shadow-violet-950/30 md:p-10">
+          <div className="interactive-lift group mx-auto mt-20 max-w-3xl rounded-[2rem] border border-slate-800 bg-slate-900/60 p-6 text-left shadow-2xl backdrop-blur-xl transition-shadow hover:border-violet-500/20 hover:shadow-violet-950/30 md:p-10">
             <div className="flex items-center gap-3 border-b border-slate-800 pb-6">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/15 text-violet-400 transition-transform duration-200 group-hover:scale-105">
                 <Brain className="h-6 w-6" />
@@ -291,7 +312,7 @@ function Index() {
                     Gratuito
                   </h3>
 
-                  <span className="rounded-full bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-300 transition hover:bg-violet-500/20">
+                  <span className="rounded-full bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-300">
                     Para começar
                   </span>
                 </div>
@@ -329,9 +350,21 @@ function Index() {
 
         <section className="mx-auto max-w-6xl px-6 py-24 md:py-32">
           <div className="relative overflow-hidden rounded-[2rem] border border-violet-500/30 bg-violet-600/10 px-6 py-16 text-center shadow-2xl transition hover:border-violet-400/40 md:px-12 md:py-20">
-            <div className="pointer-events-none absolute inset-0">
-              <div className="absolute left-1/2 top-1/2 h-[350px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-500/10 blur-[100px]" />
-            </div>
+            {/* Luz de fundo sem filter: blur() */}
+
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0"
+              style={{
+                backgroundImage: `
+                  radial-gradient(
+                    circle 320px at 50% 50%,
+                    rgba(139, 92, 246, 0.12),
+                    transparent 72%
+                  )
+                `,
+              }}
+            />
 
             <div className="relative">
               <h2 className="text-4xl font-bold tracking-tight md:text-5xl">
