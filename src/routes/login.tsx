@@ -19,7 +19,6 @@ import {
   useState,
   type FormEvent,
 } from "react";
-import { AppShell } from "@/components/AppShell";
 import { supabase } from "../lib/supabase";
 
 declare global {
@@ -773,387 +772,383 @@ function LoginPage() {
   }
 
   return (
-    <AppShell>
-      <main className="relative min-h-[calc(100vh-8rem)] overflow-hidden px-4 py-8 text-white sm:px-6 md:px-8">
-        {/* FUNDO */}
+    <main className="relative min-h-screen overflow-hidden bg-slate-950 px-4 py-8 text-white sm:px-6 md:px-8">
+      {/* FUNDO */}
 
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute left-1/2 top-0 h-[600px] w-[850px] -translate-x-1/2 rounded-full bg-violet-600/10 blur-[160px]" />
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute left-1/2 top-0 h-[600px] w-[850px] -translate-x-1/2 rounded-full bg-violet-600/10 blur-[160px]" />
 
-          <div className="absolute -bottom-40 -left-40 h-[550px] w-[550px] rounded-full bg-purple-700/10 blur-[150px]" />
+        <div className="absolute -bottom-40 -left-40 h-[550px] w-[550px] rounded-full bg-purple-700/10 blur-[150px]" />
 
-          <div className="absolute -bottom-40 -right-40 h-[550px] w-[550px] rounded-full bg-violet-500/10 blur-[150px]" />
-        </div>
+        <div className="absolute -bottom-40 -right-40 h-[550px] w-[550px] rounded-full bg-violet-500/10 blur-[150px]" />
+      </div>
 
-        {/* VOLTAR */}
+      {/* VOLTAR */}
 
-        <div className="relative z-10 mx-auto w-full max-w-6xl">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-slate-900 hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4" />
+      <div className="relative z-10 mx-auto w-full max-w-6xl">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-slate-900 hover:text-white"
+        >
+          <ArrowLeft className="h-4 w-4" />
 
-            Voltar para o início
-          </Link>
-        </div>
+          Voltar para o início
+        </Link>
+      </div>
 
-        {/* ÁREA CENTRAL */}
+      {/* ÁREA CENTRAL */}
 
-        <div className="relative z-10 mx-auto flex min-h-[calc(100vh-13rem)] w-full max-w-xl flex-col items-center justify-center py-10">
-          {/* LOGO */}
+      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-xl flex-col items-center justify-center py-10">
+        {/* LOGO */}
 
-          <Link
-            to="/"
-            className="mb-10 flex items-center justify-center gap-3 transition-opacity hover:opacity-80"
-          >
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-lg shadow-black/20">
-              <img
-                src="/DIcon.ico"
-                alt="DecidlyAI"
-                className="h-full w-full object-cover"
-              />
-            </div>
+        <Link
+          to="/"
+          className="mb-10 flex items-center justify-center gap-3 transition-opacity hover:opacity-80"
+        >
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-lg shadow-black/20">
+            <img
+              src="/DIcon.ico"
+              alt="DecidlyAI"
+              className="h-full w-full object-cover"
+            />
+          </div>
 
-            <span className="text-3xl font-bold leading-none tracking-tight sm:text-4xl">
-              <span className="text-white">
-                Decidly
-              </span>
-
-              <span className="text-violet-400">
-                AI
-              </span>
+          <span className="text-3xl font-bold leading-none tracking-tight sm:text-4xl">
+            <span className="text-white">
+              Decidly
             </span>
-          </Link>
 
-          {/* CARD */}
+            <span className="text-violet-400">
+              AI
+            </span>
+          </span>
+        </Link>
 
-          <section className="w-full rounded-[2rem] border border-slate-800 bg-slate-900/70 p-7 shadow-2xl backdrop-blur-xl sm:p-10">
-            {isRecover ? (
+        {/* CARD */}
+
+        <section className="w-full rounded-[2rem] border border-slate-800 bg-slate-900/70 p-7 shadow-2xl backdrop-blur-xl sm:p-10">
+          {isRecover ? (
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                Recuperar senha
+              </h1>
+
+              <p className="mt-4 text-base leading-relaxed text-slate-400 sm:text-lg">
+                Digite seu e-mail e enviaremos um
+                link para você criar uma nova senha.
+              </p>
+
+              {feedback ? (
+                <FeedbackBox
+                  feedback={feedback}
+                />
+              ) : null}
+
+              <form
+                className="mt-8 space-y-6"
+                onSubmit={(event) => {
+                  event.preventDefault();
+
+                  void handleRecoverySubmit();
+                }}
+              >
+                <div>
+                  <label
+                    htmlFor="verify-email"
+                    className="mb-2 block text-sm font-medium text-slate-200"
+                  >
+                    E-mail
+                  </label>
+
+                  <div className="relative">
+                    <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+
+                    <input
+                      id="verify-email"
+                      type="email"
+                      value={verifyEmail}
+                      onChange={(event) =>
+                        setVerifyEmail(
+                          event.target.value,
+                        )
+                      }
+                      placeholder="seuemail@exemplo.com"
+                      autoComplete="email"
+                      maxLength={160}
+                      className="h-14 w-full rounded-2xl border border-slate-700 bg-slate-950 px-5 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={verifyLoading}
+                  className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {verifyLoading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      Enviar link
+                      <ArrowRight className="h-5 w-5" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <button
+                type="button"
+                onClick={() =>
+                  changeMode("login")
+                }
+                className="mt-7 w-full text-center text-sm font-medium text-violet-400 transition hover:text-violet-300"
+              >
+                Voltar para o login
+              </button>
+            </div>
+          ) : (
+            <>
               <div>
                 <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                  Recuperar senha
+                  {isSignUp
+                    ? "Criar conta"
+                    : "Entrar"}
                 </h1>
 
                 <p className="mt-4 text-base leading-relaxed text-slate-400 sm:text-lg">
-                  Digite seu e-mail e enviaremos um
-                  link para você criar uma nova senha.
+                  {isSignUp
+                    ? "Crie sua conta e comece a tomar decisões com mais clareza."
+                    : "Bem-vindo de volta! Acesse sua conta para continuar."}
                 </p>
+              </div>
 
-                {feedback ? (
+              {/* GOOGLE */}
+
+              <div className="mt-9">
+                <div
+                  ref={googleButtonRef}
+                  className={`flex min-h-12 w-full justify-center ${
+                    googleLoading ||
+                    loading
+                      ? "pointer-events-none opacity-60"
+                      : ""
+                  }`}
+                />
+
+                {!googleReady &&
+                !googleLoading ? (
+                  <div className="mt-3 text-center text-xs text-slate-500">
+                    Carregando Google...
+                  </div>
+                ) : null}
+
+                {googleLoading ? (
+                  <div className="mt-4 flex items-center justify-center gap-2 text-sm text-slate-400">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Conectando...
+                  </div>
+                ) : null}
+              </div>
+
+              {/* DIVISOR */}
+
+              <div className="my-9 flex items-center gap-4">
+                <div className="h-px flex-1 bg-slate-800" />
+
+                <span className="whitespace-nowrap text-[11px] font-medium tracking-wider text-slate-500">
+                  OU CONTINUE COM E-MAIL
+                </span>
+
+                <div className="h-px flex-1 bg-slate-800" />
+              </div>
+
+              {feedback ? (
+                <div className="mb-7">
                   <FeedbackBox
                     feedback={feedback}
                   />
+                </div>
+              ) : null}
+
+              <form
+                className="space-y-6"
+                onSubmit={handleSubmit}
+              >
+                {isSignUp ? (
+                  <InputField
+                    id="name"
+                    label="Nome"
+                    value={name}
+                    onChange={setName}
+                    placeholder="Como podemos te chamar?"
+                    icon={
+                      <User className="h-5 w-5" />
+                    }
+                  />
                 ) : null}
 
-                <form
-                  className="mt-8 space-y-6"
-                  onSubmit={(event) => {
-                    event.preventDefault();
+                {isSignUp ? (
+                  <InputField
+                    id="username"
+                    label="Nome de usuário"
+                    value={username}
+                    onChange={updateUsername}
+                    placeholder="Escolha seu nome de usuário"
+                    icon={
+                      <User className="h-5 w-5" />
+                    }
+                  />
+                ) : null}
 
-                    void handleRecoverySubmit();
-                  }}
-                >
-                  <div>
-                    <label
-                      htmlFor="verify-email"
-                      className="mb-2 block text-sm font-medium text-slate-200"
-                    >
-                      E-mail
-                    </label>
+                <InputField
+                  id="email"
+                  label="E-mail"
+                  type="email"
+                  value={email}
+                  onChange={setEmail}
+                  placeholder="seuemail@exemplo.com"
+                  icon={
+                    <Mail className="h-5 w-5" />
+                  }
+                />
 
-                    <div className="relative">
-                      <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+                <PasswordField
+                  id="password"
+                  label="Senha"
+                  value={password}
+                  onChange={setPassword}
+                  show={showPassword}
+                  setShow={setShowPassword}
+                  autoComplete={
+                    isSignUp
+                      ? "new-password"
+                      : "current-password"
+                  }
+                />
 
-                      <input
-                        id="verify-email"
-                        type="email"
-                        value={verifyEmail}
-                        onChange={(event) =>
-                          setVerifyEmail(
-                            event.target.value,
-                          )
-                        }
-                        placeholder="seuemail@exemplo.com"
-                        autoComplete="email"
-                        maxLength={160}
-                        className="h-14 w-full rounded-2xl border border-slate-700 bg-slate-950 px-5 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
-                      />
-                    </div>
-                  </div>
-
+                {!isSignUp ? (
                   <button
-                    type="submit"
-                    disabled={verifyLoading}
-                    className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    type="button"
+                    onClick={() => {
+                      setVerifyEmail(email);
+
+                      changeMode(
+                        "recover",
+                      );
+                    }}
+                    className="text-sm font-medium text-violet-400 transition hover:text-violet-300"
                   >
-                    {verifyLoading ? (
-                      <>
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                        Enviando...
-                      </>
-                    ) : (
-                      <>
-                        Enviar link
-                        <ArrowRight className="h-5 w-5" />
-                      </>
-                    )}
+                    Esqueci minha senha
                   </button>
-                </form>
+                ) : null}
+
+                {isSignUp ? (
+                  <PasswordField
+                    id="confirm-password"
+                    label="Confirmar senha"
+                    value={
+                      confirmPassword
+                    }
+                    onChange={
+                      setConfirmPassword
+                    }
+                    show={
+                      showConfirmPassword
+                    }
+                    setShow={
+                      setShowConfirmPassword
+                    }
+                    autoComplete="new-password"
+                  />
+                ) : null}
+
+                <button
+                  type="submit"
+                  disabled={
+                    loading ||
+                    googleLoading
+                  }
+                  className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Aguarde...
+                    </>
+                  ) : (
+                    <>
+                      {isSignUp
+                        ? "Criar minha conta"
+                        : "Entrar na minha conta"}
+
+                      <ArrowRight className="h-5 w-5" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <p className="mt-8 text-center text-sm text-slate-400">
+                {isSignUp
+                  ? "Já possui uma conta? "
+                  : "Ainda não possui uma conta? "}
 
                 <button
                   type="button"
                   onClick={() =>
-                    changeMode("login")
-                  }
-                  className="mt-7 w-full text-center text-sm font-medium text-violet-400 transition hover:text-violet-300"
-                >
-                  Voltar para o login
-                </button>
-              </div>
-            ) : (
-              <>
-                {/* CABEÇALHO */}
-
-                <div>
-                  <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                    {isSignUp
-                      ? "Criar conta"
-                      : "Entrar"}
-                  </h1>
-
-                  <p className="mt-4 text-base leading-relaxed text-slate-400 sm:text-lg">
-                    {isSignUp
-                      ? "Crie sua conta e comece a tomar decisões com mais clareza."
-                      : "Bem-vindo de volta! Acesse sua conta para continuar."}
-                  </p>
-                </div>
-
-                {/* GOOGLE */}
-
-                <div className="mt-9">
-                  <div
-                    ref={googleButtonRef}
-                    className={`flex min-h-12 w-full justify-center ${
-                      googleLoading ||
-                      loading
-                        ? "pointer-events-none opacity-60"
-                        : ""
-                    }`}
-                  />
-
-                  {!googleReady &&
-                  !googleLoading ? (
-                    <div className="mt-3 text-center text-xs text-slate-500">
-                      Carregando Google...
-                    </div>
-                  ) : null}
-
-                  {googleLoading ? (
-                    <div className="mt-4 flex items-center justify-center gap-2 text-sm text-slate-400">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Conectando...
-                    </div>
-                  ) : null}
-                </div>
-
-                {/* DIVISOR */}
-
-                <div className="my-9 flex items-center gap-4">
-                  <div className="h-px flex-1 bg-slate-800" />
-
-                  <span className="whitespace-nowrap text-[11px] font-medium tracking-wider text-slate-500">
-                    OU CONTINUE COM E-MAIL
-                  </span>
-
-                  <div className="h-px flex-1 bg-slate-800" />
-                </div>
-
-                {feedback ? (
-                  <div className="mb-7">
-                    <FeedbackBox
-                      feedback={feedback}
-                    />
-                  </div>
-                ) : null}
-
-                <form
-                  className="space-y-6"
-                  onSubmit={handleSubmit}
-                >
-                  {isSignUp ? (
-                    <InputField
-                      id="name"
-                      label="Nome"
-                      value={name}
-                      onChange={setName}
-                      placeholder="Como podemos te chamar?"
-                      icon={
-                        <User className="h-5 w-5" />
-                      }
-                    />
-                  ) : null}
-
-                  {isSignUp ? (
-                    <InputField
-                      id="username"
-                      label="Nome de usuário"
-                      value={username}
-                      onChange={updateUsername}
-                      placeholder="Escolha seu nome de usuário"
-                      icon={
-                        <User className="h-5 w-5" />
-                      }
-                    />
-                  ) : null}
-
-                  <InputField
-                    id="email"
-                    label="E-mail"
-                    type="email"
-                    value={email}
-                    onChange={setEmail}
-                    placeholder="seuemail@exemplo.com"
-                    icon={
-                      <Mail className="h-5 w-5" />
-                    }
-                  />
-
-                  <PasswordField
-                    id="password"
-                    label="Senha"
-                    value={password}
-                    onChange={setPassword}
-                    show={showPassword}
-                    setShow={setShowPassword}
-                    autoComplete={
+                    changeMode(
                       isSignUp
-                        ? "new-password"
-                        : "current-password"
-                    }
-                  />
-
-                  {!isSignUp ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setVerifyEmail(email);
-
-                        changeMode(
-                          "recover",
-                        );
-                      }}
-                      className="text-sm font-medium text-violet-400 transition hover:text-violet-300"
-                    >
-                      Esqueci minha senha
-                    </button>
-                  ) : null}
-
-                  {isSignUp ? (
-                    <PasswordField
-                      id="confirm-password"
-                      label="Confirmar senha"
-                      value={
-                        confirmPassword
-                      }
-                      onChange={
-                        setConfirmPassword
-                      }
-                      show={
-                        showConfirmPassword
-                      }
-                      setShow={
-                        setShowConfirmPassword
-                      }
-                      autoComplete="new-password"
-                    />
-                  ) : null}
-
-                  <button
-                    type="submit"
-                    disabled={
-                      loading ||
-                      googleLoading
-                    }
-                    className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                        Aguarde...
-                      </>
-                    ) : (
-                      <>
-                        {isSignUp
-                          ? "Criar minha conta"
-                          : "Entrar na minha conta"}
-
-                        <ArrowRight className="h-5 w-5" />
-                      </>
-                    )}
-                  </button>
-                </form>
-
-                <p className="mt-8 text-center text-sm text-slate-400">
+                        ? "login"
+                        : "signup",
+                    )
+                  }
+                  className="font-semibold text-violet-400 transition hover:text-violet-300"
+                >
                   {isSignUp
-                    ? "Já possui uma conta? "
-                    : "Ainda não possui uma conta? "}
+                    ? "Entrar"
+                    : "Criar conta"}
+                </button>
+              </p>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      changeMode(
-                        isSignUp
-                          ? "login"
-                          : "signup",
-                      )
-                    }
-                    className="font-semibold text-violet-400 transition hover:text-violet-300"
-                  >
-                    {isSignUp
-                      ? "Entrar"
-                      : "Criar conta"}
-                  </button>
-                </p>
+              {/* AVISO LEGAL */}
 
-                {/* AVISO LEGAL */}
+              <p className="mt-7 text-center text-xs leading-relaxed text-slate-500">
+                Ao continuar, você concorda com os{" "}
 
-                <p className="mt-7 text-center text-xs leading-relaxed text-slate-500">
-                  Ao continuar, você concorda com os{" "}
+                <Link
+                  to="/terms"
+                  className="text-slate-400 underline underline-offset-2 transition hover:text-violet-300"
+                >
+                  Termos de Uso
+                </Link>
 
-                  <Link
-                    to="/terms"
-                    className="text-slate-400 underline underline-offset-2 transition hover:text-violet-300"
-                  >
-                    Termos de Uso
-                  </Link>
+                {" "}e reconhece nossa{" "}
 
-                  {" "}e reconhece nossa{" "}
+                <Link
+                  to="/privacy"
+                  className="text-slate-400 underline underline-offset-2 transition hover:text-violet-300"
+                >
+                  Política de Privacidade
+                </Link>
 
-                  <Link
-                    to="/privacy"
-                    className="text-slate-400 underline underline-offset-2 transition hover:text-violet-300"
-                  >
-                    Política de Privacidade
-                  </Link>
+                {" "}e{" "}
 
-                  {" "}e{" "}
+                <Link
+                  to="/cookies"
+                  className="text-slate-400 underline underline-offset-2 transition hover:text-violet-300"
+                >
+                  Política de Cookies
+                </Link>
 
-                  <Link
-                    to="/cookies"
-                    className="text-slate-400 underline underline-offset-2 transition hover:text-violet-300"
-                  >
-                    Política de Cookies
-                  </Link>
-
-                  .
-                </p>
-              </>
-            )}
-          </section>
-        </div>
-      </main>
-    </AppShell>
+                .
+              </p>
+            </>
+          )}
+        </section>
+      </div>
+    </main>
   );
 }
 
