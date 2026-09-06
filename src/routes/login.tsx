@@ -17,7 +17,10 @@ import {
   useEffect,
   useRef,
   useState,
+  type Dispatch,
   type FormEvent,
+  type ReactNode,
+  type SetStateAction,
 } from "react";
 import { supabase } from "../lib/supabase";
 
@@ -95,6 +98,14 @@ type Feedback = {
 
 const GOOGLE_CLIENT_ID =
   "895354448430-qs5ilh31kgp5qqlb0c6s6abiag9s8vti.apps.googleusercontent.com";
+
+/*
+ * Tentativa de aumentar visualmente o botão oficial.
+ *
+ * O Google não permite definir height diretamente,
+ * então usamos scale apenas no botão renderizado.
+ */
+const GOOGLE_BUTTON_SCALE = 1.12;
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -213,12 +224,10 @@ function LoginPage() {
   }
 
   /*
-   * GOOGLE IDENTITY SERVICES OFICIAL
+   * GOOGLE IDENTITY SERVICES
    *
-   * Mantemos o botão oficial do Google.
-   * A largura é calculada conforme o
-   * container para funcionar bem em
-   * desktop e celular.
+   * Mantém o botão oficial.
+   * Não usamos botão falso/customizado.
    */
 
   useEffect(() => {
@@ -227,8 +236,13 @@ function LoginPage() {
     }
 
     let cancelled = false;
+
     let resizeObserver:
       | ResizeObserver
+      | undefined;
+
+    let resizeTimeout:
+      | ReturnType<typeof setTimeout>
       | undefined;
 
     async function handleGoogleCredential(
@@ -309,17 +323,36 @@ function LoginPage() {
       }
 
       /*
-       * O Google recomenda valores inteiros.
-       * Limitamos a largura para manter o botão
-       * proporcional ao card.
+       * Como o botão será aumentado visualmente
+       * com transform: scale(), renderizamos
+       * inicialmente um pouco menor.
+       *
+       * Exemplo:
+       *
+       * container: 400px
+       * scale: 1.12
+       *
+       * renderiza aproximadamente 357px
+       * e visualmente chega perto de 400px.
+       */
+
+      const widthBeforeScale =
+        Math.floor(
+          containerWidth /
+            GOOGLE_BUTTON_SCALE,
+        );
+
+      /*
+       * O Google possui limites próprios
+       * para a largura do botão.
        */
 
       const buttonWidth =
         Math.max(
           200,
           Math.min(
-            containerWidth,
-            500,
+            widthBeforeScale,
+            400,
           ),
         );
 
@@ -346,12 +379,29 @@ function LoginPage() {
           container,
           {
             type: "standard",
-            theme: "outline",
+
+            /*
+             * Tema escuro oficial.
+             * Combina melhor com o DecidlyAI.
+             */
+            theme: "filled_black",
+
+            /*
+             * Maior tamanho oficial disponível.
+             */
             size: "large",
+
+            /*
+             * Mantido como você pediu.
+             */
             shape: "rectangular",
+
             text: "continue_with",
+
             logo_alignment: "left",
+
             width: buttonWidth,
+
             locale: "pt-BR",
           },
         );
@@ -431,9 +481,8 @@ function LoginPage() {
     loadGoogleScript();
 
     /*
-     * Se o usuário mudar o tamanho da janela,
-     * renderizamos novamente para o botão
-     * continuar acompanhando o formulário.
+     * Mantém a largura correta quando
+     * a tela for redimensionada.
      */
 
     if (
@@ -441,21 +490,18 @@ function LoginPage() {
       typeof ResizeObserver !==
         "undefined"
     ) {
-      let resizeTimeout:
-        ReturnType<
-          typeof setTimeout
-        >;
-
       resizeObserver =
         new ResizeObserver(() => {
-          clearTimeout(
-            resizeTimeout,
-          );
+          if (resizeTimeout) {
+            clearTimeout(
+              resizeTimeout,
+            );
+          }
 
           resizeTimeout =
             setTimeout(() => {
               renderGoogleButton();
-            }, 120);
+            }, 150);
         });
 
       resizeObserver.observe(
@@ -465,6 +511,12 @@ function LoginPage() {
 
     return () => {
       cancelled = true;
+
+      if (resizeTimeout) {
+        clearTimeout(
+          resizeTimeout,
+        );
+      }
 
       resizeObserver?.disconnect();
     };
@@ -939,6 +991,7 @@ function LoginPage() {
                   ) : (
                     <>
                       Enviar link
+
                       <ArrowRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-1" />
                     </>
                   )}
@@ -971,28 +1024,37 @@ function LoginPage() {
                 </p>
               </div>
 
-              {/* GOOGLE OFICIAL */}
+              {/* LOGIN OFICIAL COM GOOGLE */}
 
               <div className="mt-9">
-                <div className="relative min-h-[44px] w-full">
+                <div className="relative h-[58px] w-full">
                   {!googleReady ? (
-                    <div className="absolute inset-0 flex h-[44px] items-center justify-center rounded-lg border border-slate-700 bg-white">
-                      <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                    <div className="absolute inset-0 z-0 flex h-[50px] w-full items-center justify-center rounded-xl border border-slate-700 bg-slate-950">
+                      <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
                     </div>
                   ) : null}
 
                   <div
-                    ref={googleButtonRef}
-                    className={`relative z-10 flex w-full justify-center transition-opacity ${
+                    className={`absolute inset-0 z-10 flex w-full items-center justify-center transition-all duration-200 ${
                       googleReady
                         ? "opacity-100"
-                        : "opacity-0"
+                        : "pointer-events-none opacity-0"
                     } ${
                       googleLoading
                         ? "pointer-events-none opacity-60"
                         : ""
                     }`}
-                  />
+                  >
+                    <div
+                      ref={googleButtonRef}
+                      className="flex w-full items-center justify-center"
+                      style={{
+                        transform: `scale(${GOOGLE_BUTTON_SCALE})`,
+                        transformOrigin:
+                          "center center",
+                      }}
+                    />
+                  </div>
                 </div>
 
                 {googleLoading ? (
@@ -1115,6 +1177,7 @@ function LoginPage() {
                   {loading ? (
                     <>
                       <Loader2 className="h-5 w-5 animate-spin" />
+
                       Aguarde...
                     </>
                   ) : (
@@ -1227,7 +1290,7 @@ function InputField({
     value: string,
   ) => void;
   placeholder: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
 }) {
   return (
     <div>
@@ -1277,8 +1340,8 @@ function PasswordField({
     value: string,
   ) => void;
   show: boolean;
-  setShow: React.Dispatch<
-    React.SetStateAction<boolean>
+  setShow: Dispatch<
+    SetStateAction<boolean>
   >;
   autoComplete: string;
 }) {
