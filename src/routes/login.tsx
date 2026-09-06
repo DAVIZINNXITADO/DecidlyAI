@@ -215,13 +215,6 @@ function LoginPage() {
     });
   }
 
-  /*
-   * GOOGLE IDENTITY SERVICES
-   *
-   * O botão visual é nosso.
-   * O botão oficial fica invisível por cima.
-   */
-
   useEffect(() => {
     if (isRecover) {
       return;
@@ -955,7 +948,7 @@ function LoginPage() {
                     }`}
                   >
                     <img
-                      src="/isos/googleicon.svg"
+                      src="/isos/googleicon.png"
                       alt=""
                       className="h-6 w-6 shrink-0"
                     />
@@ -1168,19 +1161,11 @@ function LoginPage() {
         </section>
       </div>
 
-      {/* OVERLAY DE AUTENTICAÇÃO COM GOOGLE */}
-
       {googleLoading ? (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center px-6">
-          {/* Blur e escurecimento */}
-
           <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-md" />
 
-          {/* Card */}
-
           <div className="relative flex w-full max-w-sm flex-col items-center rounded-[2rem] border border-violet-300/70 bg-slate-900/95 px-8 py-10 text-center shadow-2xl shadow-violet-950/40 backdrop-blur-xl">
-            {/* Loader */}
-
             <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-violet-400/30 bg-violet-500/10">
               <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
             </div>
