@@ -13,6 +13,7 @@ import {
   ReactNode,
   useState,
 } from "react";
+import { CookieConsent } from "@/components/CookieConsent";
 
 type AppShellProps = {
   children: ReactNode;
@@ -308,14 +309,14 @@ export function AppShell({
 
               <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3">
                 <Link
-                  to="/termos"
+                  to="/terms"
                   className="transition hover:text-violet-300"
                 >
                   Termos de Uso
                 </Link>
 
                 <Link
-                  to="/privacidade"
+                  to="/privacy"
                   className="transition hover:text-violet-300"
                 >
                   Política de Privacidade
@@ -371,6 +372,10 @@ export function AppShell({
           </nav>
         </div>
       </div>
+
+      {/* AVISO DE COOKIES */}
+
+      <CookieConsent />
     </main>
   );
 }
