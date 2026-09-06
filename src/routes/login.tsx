@@ -99,14 +99,6 @@ type Feedback = {
 const GOOGLE_CLIENT_ID =
   "895354448430-qs5ilh31kgp5qqlb0c6s6abiag9s8vti.apps.googleusercontent.com";
 
-/*
- * Tentativa de aumentar visualmente o botão oficial.
- *
- * O Google não permite definir height diretamente,
- * então usamos scale apenas no botão renderizado.
- */
-const GOOGLE_BUTTON_SCALE = 1.12;
-
 function LoginPage() {
   const navigate = useNavigate();
 
@@ -226,8 +218,8 @@ function LoginPage() {
   /*
    * GOOGLE IDENTITY SERVICES
    *
-   * Mantém o botão oficial.
-   * Não usamos botão falso/customizado.
+   * O botão oficial é renderizado invisível.
+   * O botão visual que o usuário vê é customizado.
    */
 
   useEffect(() => {
@@ -322,40 +314,6 @@ function LoginPage() {
         return;
       }
 
-      /*
-       * Como o botão será aumentado visualmente
-       * com transform: scale(), renderizamos
-       * inicialmente um pouco menor.
-       *
-       * Exemplo:
-       *
-       * container: 400px
-       * scale: 1.12
-       *
-       * renderiza aproximadamente 357px
-       * e visualmente chega perto de 400px.
-       */
-
-      const widthBeforeScale =
-        Math.floor(
-          containerWidth /
-            GOOGLE_BUTTON_SCALE,
-        );
-
-      /*
-       * O Google possui limites próprios
-       * para a largura do botão.
-       */
-
-      const buttonWidth =
-        Math.max(
-          200,
-          Math.min(
-            widthBeforeScale,
-            400,
-          ),
-        );
-
       try {
         if (
           !googleInitializedRef.current
@@ -381,26 +339,20 @@ function LoginPage() {
             type: "standard",
 
             /*
-             * Tema escuro oficial.
-             * Combina melhor com o DecidlyAI.
+             * Não importa visualmente porque
+             * o botão oficial fica invisível.
              */
             theme: "filled_black",
 
-            /*
-             * Maior tamanho oficial disponível.
-             */
             size: "large",
 
-            /*
-             * Mantido como você pediu.
-             */
-            shape: "rectangular",
+            shape: "pill",
 
             text: "continue_with",
 
             logo_alignment: "left",
 
-            width: buttonWidth,
+            width: containerWidth,
 
             locale: "pt-BR",
           },
@@ -414,7 +366,7 @@ function LoginPage() {
           setGoogleReady(false);
 
           showError(
-            "Não foi possível carregar o botão do Google.",
+            "Não foi possível carregar o login com o Google.",
           );
         }
       }
@@ -479,11 +431,6 @@ function LoginPage() {
     }
 
     loadGoogleScript();
-
-    /*
-     * Mantém a largura correta quando
-     * a tela for redimensionada.
-     */
 
     if (
       googleButtonRef.current &&
@@ -831,21 +778,6 @@ function LoginPage() {
         );
 
       if (error) {
-        const errorMessage =
-          error.message.toLowerCase();
-
-        if (
-          errorMessage.includes(
-            "rate limit",
-          )
-        ) {
-          showError(
-            "Muitas tentativas seguidas. Aguarde alguns minutos.",
-          );
-
-          return;
-        }
-
         showError(
           error.message,
         );
@@ -1024,44 +956,48 @@ function LoginPage() {
                 </p>
               </div>
 
-              {/* LOGIN OFICIAL COM GOOGLE */}
+              {/* GOOGLE */}
 
               <div className="mt-9">
-                <div className="relative h-[58px] w-full">
-                  {!googleReady ? (
-                    <div className="absolute inset-0 z-0 flex h-[50px] w-full items-center justify-center rounded-xl border border-slate-700 bg-slate-950">
-                      <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
-                    </div>
-                  ) : null}
+                <div className="google-auth-container relative h-[58px] w-full">
+                  {/* BOTÃO VISUAL */}
 
                   <div
-                    className={`absolute inset-0 z-10 flex w-full items-center justify-center transition-all duration-200 ${
-                      googleReady
-                        ? "opacity-100"
-                        : "pointer-events-none opacity-0"
-                    } ${
+                    className={`pointer-events-none absolute inset-0 flex items-center justify-center gap-3 rounded-full border border-slate-700 bg-slate-950 px-6 text-[17px] font-semibold text-slate-100 transition duration-200 ${
                       googleLoading
-                        ? "pointer-events-none opacity-60"
+                        ? "opacity-60"
                         : ""
                     }`}
                   >
-                    <div
-                      ref={googleButtonRef}
-                      className="flex w-full items-center justify-center"
-                      style={{
-                        transform: `scale(${GOOGLE_BUTTON_SCALE})`,
-                        transformOrigin:
-                          "center center",
-                      }}
-                    />
-                  </div>
-                </div>
+                    <GoogleIcon />
 
-                {googleLoading ? (
-                  <p className="mt-3 text-center text-xs text-slate-400">
-                    Entrando com Google...
-                  </p>
-                ) : null}
+                    <span>
+                      {googleLoading
+                        ? "Entrando com o Google..."
+                        : "Continuar com o Google"}
+                    </span>
+                  </div>
+
+                  {/* BOTÃO OFICIAL INVISÍVEL */}
+
+                  <div
+                    ref={googleButtonRef}
+                    aria-label="Continuar com o Google"
+                    className={`botao-google-real absolute inset-0 z-10 h-full w-full ${
+                      googleReady
+                        ? "opacity-0"
+                        : "pointer-events-none opacity-0"
+                    }`}
+                  />
+
+                  {/* LOADING */}
+
+                  {!googleReady ? (
+                    <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-full bg-slate-950/70">
+                      <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
+                    </div>
+                  ) : null}
+                </div>
               </div>
 
               <div className="my-9 flex items-center gap-4">
@@ -1248,7 +1184,56 @@ function LoginPage() {
           )}
         </section>
       </div>
+
+      {/* ESTILO DO BOTÃO OFICIAL INVISÍVEL */}
+
+      <style>{`
+        .botao-google-real,
+        .botao-google-real > div,
+        .botao-google-real iframe {
+          width: 100% !important;
+          height: 100% !important;
+          max-width: none !important;
+          min-width: 0 !important;
+        }
+
+        .botao-google-real {
+          cursor: pointer;
+        }
+      `}</style>
     </main>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg
+      width="23"
+      height="23"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      <path
+        fill="#4285F4"
+        d="M21.35 12.27c0-.79-.07-1.55-.21-2.27H12v4.3h5.22a4.46 4.46 0 0 1-1.94 2.93v2.79h3.14c1.84-1.69 2.93-4.18 2.93-7.75Z"
+      />
+
+      <path
+        fill="#34A853"
+        d="M12 21.75c2.62 0 4.82-.87 6.42-2.36l-3.14-2.79c-.87.58-1.99.92-3.28.92-2.52 0-4.65-1.7-5.41-3.99H3.35v2.88A9.75 9.75 0 0 0 12 21.75Z"
+      />
+
+      <path
+        fill="#FBBC05"
+        d="M6.59 13.53A5.87 5.87 0 0 1 6.29 12c0-.53.09-1.04.3-1.53V7.59H3.35A9.75 9.75 0 0 0 2.25 12c0 1.58.38 3.08 1.1 4.41l3.24-2.88Z"
+      />
+
+      <path
+        fill="#EA4335"
+        d="M12 6.48c1.42 0 2.7.49 3.7 1.45l2.78-2.78C16.81 3.6 14.62 2.25 12 2.25a9.75 9.75 0 0 0-8.65 5.34l3.24 2.88c.76-2.29 2.89-3.99 5.41-3.99Z"
+      />
+    </svg>
   );
 }
 
