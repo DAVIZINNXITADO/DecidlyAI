@@ -14,66 +14,10 @@ import {
   User,
 } from "lucide-react";
 import {
-  useEffect,
-  useRef,
   useState,
   type FormEvent,
 } from "react";
 import { supabase } from "../lib/supabase";
-
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (
-            configuration: {
-              client_id: string;
-              callback: (
-                response: GoogleCredentialResponse,
-              ) => void;
-              auto_select?: boolean;
-              cancel_on_tap_outside?: boolean;
-            },
-          ) => void;
-
-          renderButton: (
-            parent: HTMLElement,
-            options: {
-              type?: "standard" | "icon";
-              theme?:
-                | "outline"
-                | "filled_blue"
-                | "filled_black";
-              size?:
-                | "large"
-                | "medium"
-                | "small";
-              text?:
-                | "signin_with"
-                | "signup_with"
-                | "continue_with"
-                | "signin";
-              shape?:
-                | "rectangular"
-                | "pill"
-                | "circle"
-                | "square";
-              logo_alignment?: "left" | "center";
-              width?: number;
-              locale?: string;
-            },
-          ) => void;
-        };
-      };
-    };
-  }
-}
-
-type GoogleCredentialResponse = {
-  credential: string;
-  select_by?: string;
-};
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -89,17 +33,8 @@ type Feedback = {
   message: string;
 } | null;
 
-const GOOGLE_CLIENT_ID =
-  "895354448430-qs5ilh31kgp5qqlb0c6s6abiag9s8vti.apps.googleusercontent.com";
-
 function LoginPage() {
   const navigate = useNavigate();
-
-  const googleButtonRef =
-    useRef<HTMLDivElement>(null);
-
-  const googleInitializedRef =
-    useRef(false);
 
   const [mode, setMode] =
     useState<Mode>("login");
@@ -137,11 +72,6 @@ function LoginPage() {
   const [
     googleLoading,
     setGoogleLoading,
-  ] = useState(false);
-
-  const [
-    googleReady,
-    setGoogleReady,
   ] = useState(false);
 
   const [
@@ -208,206 +138,79 @@ function LoginPage() {
     });
   }
 
-  useEffect(() => {
-    if (isRecover) {
-      return;
-    }
+  /*
+   * LOGIN COM GOOGLE
+   *
+   * Em vez de carregar o botão externo do Google
+   * após a página abrir, usamos um botão próprio
+   * que chama diretamente o OAuth do Supabase.
+   *
+   * Isso elimina o atraso visual do botão e permite
+   * que o design seja totalmente consistente com
+   * o DecidlyAI.
+   */
 
-    let cancelled = false;
+  async function handleGoogleLogin() {
+    clearFeedback();
 
-    async function handleGoogleCredential(
-      response: GoogleCredentialResponse,
-    ) {
-      clearFeedback();
+    setGoogleLoading(true);
 
-      if (!response.credential) {
-        showError(
-          "Não foi possível receber a credencial do Google.",
-        );
-
-        return;
-      }
-
-      setGoogleLoading(true);
-
-      try {
-        const { error } =
-          await supabase.auth.signInWithIdToken({
-            provider: "google",
-            token: response.credential,
-          });
-
-        if (error) {
-          const errorMessage =
-            error.message.toLowerCase();
-
-          if (
-            errorMessage.includes(
-              "provider is not enabled",
-            )
-          ) {
-            showError(
-              "O login com o Google ainda não está ativado no Supabase.",
-            );
-          } else {
-            showError(
-              error.message,
-            );
-          }
-
-          return;
-        }
-
-        navigate({
-          to: "/",
-        });
-      } catch {
-        showError(
-          "Não foi possível concluir o login com o Google.",
-        );
-      } finally {
-        setGoogleLoading(false);
-      }
-    }
-
-    function renderGoogleButton() {
-      if (
-        cancelled ||
-        !window.google ||
-        !googleButtonRef.current
-      ) {
-        return;
-      }
-
-      try {
-        if (
-          !googleInitializedRef.current
-        ) {
-          window.google.accounts.id.initialize({
-            client_id:
-              GOOGLE_CLIENT_ID,
-            callback:
-              handleGoogleCredential,
-            auto_select: false,
-            cancel_on_tap_outside: true,
-          });
-
-          googleInitializedRef.current =
-            true;
-        }
-
-        const container =
-          googleButtonRef.current;
-
-        container.innerHTML = "";
-
-        const containerWidth =
-          Math.floor(
-            container.getBoundingClientRect()
-              .width,
-          );
-
-        const buttonWidth =
-          Math.max(
-            240,
-            Math.min(
-              containerWidth,
-              520,
-            ),
-          );
-
-        window.google.accounts.id.renderButton(
-          container,
-          {
-            type: "standard",
-            shape: "rectangular",
-            theme: "outline",
-            text: "continue_with",
-            size: "large",
-            logo_alignment: "left",
-            width: buttonWidth,
-            locale: "pt-BR",
+    try {
+      const {
+        data,
+        error,
+      } =
+        await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo:
+              window.location.origin,
           },
-        );
+        });
 
-        if (!cancelled) {
-          setGoogleReady(true);
-        }
-      } catch {
-        if (!cancelled) {
-          setGoogleReady(false);
+      if (error) {
+        const errorMessage =
+          error.message.toLowerCase();
 
+        if (
+          errorMessage.includes(
+            "provider is not enabled",
+          )
+        ) {
           showError(
-            "Não foi possível carregar o botão do Google.",
+            "O login com o Google ainda não está ativado no Supabase.",
+          );
+        } else {
+          showError(
+            error.message,
           );
         }
-      }
-    }
-
-    function loadGoogleScript() {
-      const existingScript =
-        document.getElementById(
-          "google-identity-services",
-        );
-
-      if (window.google) {
-        requestAnimationFrame(
-          renderGoogleButton,
-        );
 
         return;
       }
 
-      if (existingScript) {
-        existingScript.addEventListener(
-          "load",
-          renderGoogleButton,
-        );
+      /*
+       * O Supabase normalmente redireciona o usuário
+       * imediatamente para o Google.
+       *
+       * Esta verificação evita deixar o botão preso
+       * em loading caso o redirecionamento não aconteça.
+       */
+      if (!data.url) {
+        setGoogleLoading(false);
 
-        return;
+        showError(
+          "Não foi possível iniciar o login com o Google.",
+        );
       }
+    } catch {
+      setGoogleLoading(false);
 
-      const script =
-        document.createElement(
-          "script",
-        );
-
-      script.id =
-        "google-identity-services";
-
-      script.src =
-        "https://accounts.google.com/gsi/client";
-
-      script.async = true;
-      script.defer = true;
-
-      script.onload =
-        renderGoogleButton;
-
-      script.onerror = () => {
-        if (!cancelled) {
-          setGoogleReady(false);
-
-          showError(
-            "Não foi possível carregar o Google. Verifique sua conexão e tente novamente.",
-          );
-        }
-      };
-
-      document.head.appendChild(
-        script,
+      showError(
+        "Não foi possível conectar ao Google. Tente novamente.",
       );
     }
-
-    loadGoogleScript();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    isRecover,
-    navigate,
-  ]);
+  }
 
   async function handleSignIn() {
     clearFeedback();
@@ -773,22 +576,38 @@ function LoginPage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-950 px-4 py-8 text-white sm:px-6 md:px-8">
-      {/* FUNDO */}
+      {/* FUNDO LEVE */}
 
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-0 h-[600px] w-[850px] -translate-x-1/2 rounded-full bg-violet-600/10 blur-[160px]" />
-
-        <div className="absolute -bottom-40 -left-40 h-[550px] w-[550px] rounded-full bg-purple-700/10 blur-[150px]" />
-
-        <div className="absolute -bottom-40 -right-40 h-[550px] w-[550px] rounded-full bg-violet-500/10 blur-[150px]" />
-      </div>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          backgroundImage: `
+            radial-gradient(
+              circle 600px at 50% 0%,
+              rgba(124, 58, 237, 0.10),
+              transparent 72%
+            ),
+            radial-gradient(
+              circle 450px at 0% 100%,
+              rgba(109, 40, 217, 0.08),
+              transparent 72%
+            ),
+            radial-gradient(
+              circle 450px at 100% 100%,
+              rgba(139, 92, 246, 0.08),
+              transparent 72%
+            )
+          `,
+        }}
+      />
 
       {/* VOLTAR */}
 
       <div className="relative z-10 mx-auto w-full max-w-6xl">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-slate-900 hover:text-white"
+          className="interactive-lift inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-slate-900 hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
 
@@ -803,9 +622,9 @@ function LoginPage() {
 
         <Link
           to="/"
-          className="mb-10 flex items-center justify-center gap-3 transition-opacity hover:opacity-80"
+          className="interactive-scale group mb-10 flex items-center justify-center gap-3 rounded-2xl"
         >
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-lg shadow-black/20">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-lg shadow-black/20 transition-transform duration-200 group-hover:scale-105">
             <img
               src="/favicon.ico"
               alt="DecidlyAI"
@@ -883,17 +702,19 @@ function LoginPage() {
                 <button
                   type="submit"
                   disabled={verifyLoading}
-                  className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="interactive-lift group flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {verifyLoading ? (
                     <>
                       <Loader2 className="h-5 w-5 animate-spin" />
+
                       Enviando...
                     </>
                   ) : (
                     <>
                       Enviar link
-                      <ArrowRight className="h-5 w-5" />
+
+                      <ArrowRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-1" />
                     </>
                   )}
                 </button>
@@ -904,7 +725,7 @@ function LoginPage() {
                 onClick={() =>
                   changeMode("login")
                 }
-                className="mt-7 w-full text-center text-sm font-medium text-violet-400 transition hover:text-violet-300"
+                className="mt-7 w-full rounded-xl py-2 text-center text-sm font-medium text-violet-400 transition hover:text-violet-300"
               >
                 Voltar para o login
               </button>
@@ -928,29 +749,39 @@ function LoginPage() {
               {/* GOOGLE */}
 
               <div className="mt-9">
-                <div
-                  ref={googleButtonRef}
-                  className={`flex min-h-12 w-full justify-center ${
+                <button
+                  type="button"
+                  onClick={() =>
+                    void handleGoogleLogin()
+                  }
+                  disabled={
                     googleLoading ||
                     loading
-                      ? "pointer-events-none opacity-60"
-                      : ""
-                  }`}
-                />
+                  }
+                  className="interactive-lift group flex h-16 w-full items-center justify-center gap-4 rounded-2xl border border-slate-700 bg-white px-6 text-base font-semibold text-slate-800 shadow-lg shadow-black/10 transition hover:border-violet-300 hover:bg-slate-100 hover:shadow-xl hover:shadow-violet-950/20 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {googleLoading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin text-violet-600" />
 
-                {!googleReady &&
-                !googleLoading ? (
-                  <div className="mt-3 text-center text-xs text-slate-500">
-                    Carregando Google...
-                  </div>
-                ) : null}
+                      <span>
+                        Abrindo Google...
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <GoogleIcon />
 
-                {googleLoading ? (
-                  <div className="mt-4 flex items-center justify-center gap-2 text-sm text-slate-400">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Conectando...
-                  </div>
-                ) : null}
+                      <span>
+                        {isSignUp
+                          ? "Continuar com Google"
+                          : "Continuar com Google"}
+                      </span>
+
+                      <ArrowRight className="ml-auto h-5 w-5 text-slate-400 transition-transform duration-200 group-hover:translate-x-1" />
+                    </>
+                  )}
+                </button>
               </div>
 
               {/* DIVISOR */}
@@ -1039,7 +870,7 @@ function LoginPage() {
                         "recover",
                       );
                     }}
-                    className="text-sm font-medium text-violet-400 transition hover:text-violet-300"
+                    className="rounded-lg py-1 text-sm font-medium text-violet-400 transition hover:text-violet-300"
                   >
                     Esqueci minha senha
                   </button>
@@ -1071,11 +902,12 @@ function LoginPage() {
                     loading ||
                     googleLoading
                   }
-                  className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="interactive-lift group flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 hover:shadow-violet-950/50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {loading ? (
                     <>
                       <Loader2 className="h-5 w-5 animate-spin" />
+
                       Aguarde...
                     </>
                   ) : (
@@ -1084,7 +916,7 @@ function LoginPage() {
                         ? "Criar minha conta"
                         : "Entrar na minha conta"}
 
-                      <ArrowRight className="h-5 w-5" />
+                      <ArrowRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-1" />
                     </>
                   )}
                 </button>
@@ -1104,7 +936,7 @@ function LoginPage() {
                         : "signup",
                     )
                   }
-                  className="font-semibold text-violet-400 transition hover:text-violet-300"
+                  className="rounded-lg py-1 font-semibold text-violet-400 transition hover:text-violet-300"
                 >
                   {isSignUp
                     ? "Entrar"
@@ -1293,7 +1125,7 @@ function PasswordField({
               ? "Ocultar senha"
               : "Mostrar senha"
           }
-          className="absolute right-0 top-0 flex h-14 w-14 items-center justify-center text-slate-500 transition hover:text-white"
+          className="interactive-scale absolute right-0 top-0 flex h-14 w-14 items-center justify-center text-slate-500 transition hover:text-white"
         >
           {show ? (
             <EyeOff className="h-5 w-5" />
@@ -1303,5 +1135,35 @@ function PasswordField({
         </button>
       </div>
     </div>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="h-6 w-6 shrink-0"
+    >
+      <path
+        fill="#4285F4"
+        d="M21.35 12.24c0-.79-.07-1.55-.2-2.28H12v4.32h5.23a4.47 4.47 0 0 1-1.94 2.93v2.8h3.14c1.84-1.69 2.92-4.18 2.92-7.17Z"
+      />
+
+      <path
+        fill="#34A853"
+        d="M12 21.7c2.62 0 4.82-.87 6.43-2.35l-3.14-2.8c-.87.58-1.99.92-3.29.92-2.53 0-4.67-1.71-5.44-4.01H3.32v2.89A9.7 9.7 0 0 0 12 21.7Z"
+      />
+
+      <path
+        fill="#FBBC05"
+        d="M6.56 13.46A5.83 5.83 0 0 1 6.25 12c0-.51.09-1 .31-1.46V7.65H3.32A9.7 9.7 0 0 0 2.3 12c0 1.56.37 3.03 1.02 4.35l3.24-2.89Z"
+      />
+
+      <path
+        fill="#EA4335"
+        d="M12 6.53c1.43 0 2.72.49 3.73 1.45l2.8-2.8C16.81 3.57 14.62 2.3 12 2.3a9.7 9.7 0 0 0-8.68 5.35l3.24 2.89C7.33 8.24 9.47 6.53 12 6.53Z"
+      />
+    </svg>
   );
 }
