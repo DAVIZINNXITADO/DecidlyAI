@@ -12,28 +12,31 @@ export function Footer() {
 
         {/* LINKS LEGAIS */}
 
-        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3">
+        <nav
+          aria-label="Links legais"
+          className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2"
+        >
           <Link
             to="/terms"
-            className="transition hover:text-violet-300"
+            className="rounded-lg px-2 py-1.5 transition hover:text-violet-300 focus-visible:text-violet-300"
           >
             Termos de Uso
           </Link>
 
           <Link
             to="/privacy"
-            className="transition hover:text-violet-300"
+            className="rounded-lg px-2 py-1.5 transition hover:text-violet-300 focus-visible:text-violet-300"
           >
             Política de Privacidade
           </Link>
 
           <Link
             to="/cookies"
-            className="transition hover:text-violet-300"
+            className="rounded-lg px-2 py-1.5 transition hover:text-violet-300 focus-visible:text-violet-300"
           >
             Política de Cookies
           </Link>
-        </div>
+        </nav>
       </div>
     </footer>
   );
