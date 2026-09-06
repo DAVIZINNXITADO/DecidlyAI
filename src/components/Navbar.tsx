@@ -10,14 +10,75 @@ export function Navbar() {
     setMobileMenuOpen(false);
   }
 
+  function scrollToSection(sectionId: string) {
+    const section = document.getElementById(sectionId);
+
+    if (!section) {
+      return;
+    }
+
+    section.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+
+    window.history.pushState(
+      null,
+      "",
+      `#${sectionId}`,
+    );
+  }
+
+  function handleSectionClick(sectionId: string) {
+    return (
+      event: React.MouseEvent<HTMLAnchorElement>,
+    ) => {
+      event.preventDefault();
+
+      closeMobileMenu();
+
+      /*
+       * Pequeno atraso no mobile para permitir que
+       * o menu seja fechado antes da rolagem começar.
+       */
+      window.setTimeout(() => {
+        scrollToSection(sectionId);
+      }, 50);
+    };
+  }
+
+  function handleHomeClick() {
+    closeMobileMenu();
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+
+    window.history.pushState(
+      null,
+      "",
+      window.location.pathname,
+    );
+  }
+
   return (
     <nav className="sticky top-0 z-50 border-b border-slate-800/70 bg-slate-950/80 backdrop-blur-xl">
       <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-6">
-        {/* LOGO COM CÉREBRO */}
+
+        {/* LOGO */}
 
         <Link
           to="/"
-          onClick={closeMobileMenu}
+          onClick={(event) => {
+            if (window.location.pathname === "/") {
+              event.preventDefault();
+              handleHomeClick();
+              return;
+            }
+
+            closeMobileMenu();
+          }}
           className="flex items-center gap-3 transition-opacity hover:opacity-80"
         >
           <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl">
@@ -42,29 +103,35 @@ export function Navbar() {
         {/* MENU DESKTOP */}
 
         <div className="hidden items-center gap-8 text-sm font-medium text-slate-300 md:flex">
-          <Link
-            to="/"
-            hash="como-funciona"
-            className="transition hover:text-white"
+          <a
+            href="#como-funciona"
+            onClick={handleSectionClick(
+              "como-funciona",
+            )}
+            className="cursor-pointer transition hover:text-white"
           >
             Como funciona
-          </Link>
+          </a>
 
-          <Link
-            to="/"
-            hash="recursos"
-            className="transition hover:text-white"
+          <a
+            href="#recursos"
+            onClick={handleSectionClick(
+              "recursos",
+            )}
+            className="cursor-pointer transition hover:text-white"
           >
             Recursos
-          </Link>
+          </a>
 
-          <Link
-            to="/"
-            hash="planos"
-            className="transition hover:text-white"
+          <a
+            href="#planos"
+            onClick={handleSectionClick(
+              "planos",
+            )}
+            className="cursor-pointer transition hover:text-white"
           >
             Planos
-          </Link>
+          </a>
         </div>
 
         {/* BOTÕES DESKTOP */}
@@ -115,32 +182,36 @@ export function Navbar() {
       {mobileMenuOpen ? (
         <div className="border-t border-slate-800 bg-slate-950 px-6 py-5 md:hidden">
           <div className="mx-auto flex max-w-6xl flex-col gap-2">
-            <Link
-              to="/"
-              hash="como-funciona"
-              onClick={closeMobileMenu}
-              className="rounded-xl px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white"
+
+            <a
+              href="#como-funciona"
+              onClick={handleSectionClick(
+                "como-funciona",
+              )}
+              className="cursor-pointer rounded-xl px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white"
             >
               Como funciona
-            </Link>
+            </a>
 
-            <Link
-              to="/"
-              hash="recursos"
-              onClick={closeMobileMenu}
-              className="rounded-xl px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white"
+            <a
+              href="#recursos"
+              onClick={handleSectionClick(
+                "recursos",
+              )}
+              className="cursor-pointer rounded-xl px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white"
             >
               Recursos
-            </Link>
+            </a>
 
-            <Link
-              to="/"
-              hash="planos"
-              onClick={closeMobileMenu}
-              className="rounded-xl px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white"
+            <a
+              href="#planos"
+              onClick={handleSectionClick(
+                "planos",
+              )}
+              className="cursor-pointer rounded-xl px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white"
             >
               Planos
-            </Link>
+            </a>
 
             <div className="mt-3 grid grid-cols-2 gap-3">
               <Link
