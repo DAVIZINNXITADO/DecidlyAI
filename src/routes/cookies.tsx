@@ -5,8 +5,7 @@ import {
   LockKeyhole,
   Settings,
   ShieldCheck,
-} from "lucide-react";
-import { AppShell } from "@/components/AppShell";
+} 
 
 export const Route = createFileRoute("/cookies")({
   component: Cookies,
