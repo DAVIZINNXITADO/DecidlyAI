@@ -310,10 +310,10 @@ function LoginPage() {
 
         const buttonWidth =
           Math.max(
-            200,
+            240,
             Math.min(
               containerWidth,
-              400,
+              520,
             ),
           );
 
@@ -774,23 +774,23 @@ function LoginPage() {
 
   return (
     <AppShell>
-      <main className="relative min-h-[calc(100vh-10rem)] overflow-hidden px-5 py-10 text-white">
+      <main className="relative min-h-[calc(100vh-8rem)] overflow-hidden px-4 py-8 text-white sm:px-6 md:px-8">
         {/* FUNDO */}
 
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-violet-600/10 blur-[140px]" />
+          <div className="absolute left-1/2 top-0 h-[600px] w-[850px] -translate-x-1/2 rounded-full bg-violet-600/10 blur-[160px]" />
 
-          <div className="absolute -bottom-40 -left-40 h-[500px] w-[500px] rounded-full bg-purple-700/10 blur-[140px]" />
+          <div className="absolute -bottom-40 -left-40 h-[550px] w-[550px] rounded-full bg-purple-700/10 blur-[150px]" />
 
-          <div className="absolute -bottom-40 -right-40 h-[500px] w-[500px] rounded-full bg-violet-500/10 blur-[140px]" />
+          <div className="absolute -bottom-40 -right-40 h-[550px] w-[550px] rounded-full bg-violet-500/10 blur-[150px]" />
         </div>
 
         {/* VOLTAR */}
 
-        <div className="relative mx-auto w-full max-w-6xl">
+        <div className="relative z-10 mx-auto w-full max-w-6xl">
           <Link
             to="/"
-            className="absolute left-0 top-0 z-10 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-slate-900 hover:text-white"
+            className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-slate-900 hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" />
 
@@ -798,22 +798,26 @@ function LoginPage() {
           </Link>
         </div>
 
-        <div className="relative mx-auto flex min-h-[calc(100vh-12rem)] w-full max-w-md flex-col items-center justify-center py-10">
+        {/* ÁREA CENTRAL */}
+
+        <div className="relative z-10 mx-auto flex min-h-[calc(100vh-13rem)] w-full max-w-xl flex-col items-center justify-center py-10">
           {/* LOGO */}
 
           <Link
             to="/"
-            className="mb-8 flex items-center justify-center transition-opacity hover:opacity-80"
+            className="mb-10 flex items-center justify-center gap-3 transition-opacity hover:opacity-80"
           >
-            <img
-              src="/DIcon.ico"
-              alt="DecidlyAI"
-              className="h-11 w-11 shrink-0 translate-y-[-2.25px] object-contain"
-            />
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-lg shadow-black/20">
+              <img
+                src="/DIcon.ico"
+                alt="DecidlyAI"
+                className="h-full w-full object-cover"
+              />
+            </div>
 
-            <span className="-ml-[5.1px] flex items-center text-3xl font-bold leading-none tracking-tight">
+            <span className="text-3xl font-bold leading-none tracking-tight sm:text-4xl">
               <span className="text-white">
-                ecidly
+                Decidly
               </span>
 
               <span className="text-violet-400">
@@ -824,17 +828,16 @@ function LoginPage() {
 
           {/* CARD */}
 
-          <section className="w-full rounded-[2rem] border border-slate-800 bg-slate-900/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
+          <section className="w-full rounded-[2rem] border border-slate-800 bg-slate-900/70 p-7 shadow-2xl backdrop-blur-xl sm:p-10">
             {isRecover ? (
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">
+                <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
                   Recuperar senha
                 </h1>
 
-                <p className="mt-3 text-base leading-relaxed text-slate-400">
-                  Digite seu e-mail e enviaremos
-                  um link para você criar uma nova
-                  senha.
+                <p className="mt-4 text-base leading-relaxed text-slate-400 sm:text-lg">
+                  Digite seu e-mail e enviaremos um
+                  link para você criar uma nova senha.
                 </p>
 
                 {feedback ? (
@@ -844,7 +847,7 @@ function LoginPage() {
                 ) : null}
 
                 <form
-                  className="mt-6 space-y-5"
+                  className="mt-8 space-y-6"
                   onSubmit={(event) => {
                     event.preventDefault();
 
@@ -874,7 +877,7 @@ function LoginPage() {
                         placeholder="seuemail@exemplo.com"
                         autoComplete="email"
                         maxLength={160}
-                        className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+                        className="h-14 w-full rounded-2xl border border-slate-700 bg-slate-950 px-5 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
                       />
                     </div>
                   </div>
@@ -882,7 +885,7 @@ function LoginPage() {
                   <button
                     type="submit"
                     disabled={verifyLoading}
-                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {verifyLoading ? (
                       <>
@@ -903,21 +906,23 @@ function LoginPage() {
                   onClick={() =>
                     changeMode("login")
                   }
-                  className="mt-6 w-full text-center text-sm font-medium text-violet-400 transition hover:text-violet-300"
+                  className="mt-7 w-full text-center text-sm font-medium text-violet-400 transition hover:text-violet-300"
                 >
                   Voltar para o login
                 </button>
               </div>
             ) : (
               <>
+                {/* CABEÇALHO */}
+
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight">
+                  <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
                     {isSignUp
                       ? "Criar conta"
                       : "Entrar"}
                   </h1>
 
-                  <p className="mt-3 text-base leading-relaxed text-slate-400">
+                  <p className="mt-4 text-base leading-relaxed text-slate-400 sm:text-lg">
                     {isSignUp
                       ? "Crie sua conta e comece a tomar decisões com mais clareza."
                       : "Bem-vindo de volta! Acesse sua conta para continuar."}
@@ -926,7 +931,7 @@ function LoginPage() {
 
                 {/* GOOGLE */}
 
-                <div className="mt-8">
+                <div className="mt-9">
                   <div
                     ref={googleButtonRef}
                     className={`flex min-h-12 w-full justify-center ${
@@ -939,23 +944,25 @@ function LoginPage() {
 
                   {!googleReady &&
                   !googleLoading ? (
-                    <div className="mt-2 text-center text-xs text-slate-500">
+                    <div className="mt-3 text-center text-xs text-slate-500">
                       Carregando Google...
                     </div>
                   ) : null}
 
                   {googleLoading ? (
-                    <div className="mt-3 flex items-center justify-center gap-2 text-sm text-slate-400">
+                    <div className="mt-4 flex items-center justify-center gap-2 text-sm text-slate-400">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       Conectando...
                     </div>
                   ) : null}
                 </div>
 
-                <div className="my-7 flex items-center gap-4">
+                {/* DIVISOR */}
+
+                <div className="my-9 flex items-center gap-4">
                   <div className="h-px flex-1 bg-slate-800" />
 
-                  <span className="text-[11px] font-medium tracking-wider text-slate-500">
+                  <span className="whitespace-nowrap text-[11px] font-medium tracking-wider text-slate-500">
                     OU CONTINUE COM E-MAIL
                   </span>
 
@@ -963,7 +970,7 @@ function LoginPage() {
                 </div>
 
                 {feedback ? (
-                  <div className="mb-6">
+                  <div className="mb-7">
                     <FeedbackBox
                       feedback={feedback}
                     />
@@ -971,7 +978,7 @@ function LoginPage() {
                 ) : null}
 
                 <form
-                  className="space-y-5"
+                  className="space-y-6"
                   onSubmit={handleSubmit}
                 >
                   {isSignUp ? (
@@ -1068,7 +1075,7 @@ function LoginPage() {
                       loading ||
                       googleLoading
                     }
-                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {loading ? (
                       <>
@@ -1087,7 +1094,7 @@ function LoginPage() {
                   </button>
                 </form>
 
-                <p className="mt-7 text-center text-sm text-slate-400">
+                <p className="mt-8 text-center text-sm text-slate-400">
                   {isSignUp
                     ? "Já possui uma conta? "
                     : "Ainda não possui uma conta? "}
@@ -1111,7 +1118,7 @@ function LoginPage() {
 
                 {/* AVISO LEGAL */}
 
-                <p className="mt-6 text-center text-xs leading-relaxed text-slate-500">
+                <p className="mt-7 text-center text-xs leading-relaxed text-slate-500">
                   Ao continuar, você concorda com os{" "}
 
                   <Link
@@ -1160,7 +1167,7 @@ function FeedbackBox({
 }) {
   return (
     <div
-      className={`mt-6 rounded-xl border p-4 text-sm leading-relaxed ${
+      className={`mt-7 rounded-2xl border p-5 text-sm leading-relaxed ${
         feedback.type === "error"
           ? "border-red-500/30 bg-red-500/10 text-red-300"
           : "border-violet-500/30 bg-violet-500/10 text-violet-200"
@@ -1215,7 +1222,7 @@ function InputField({
           }
           placeholder={placeholder}
           maxLength={160}
-          className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+          className="h-14 w-full rounded-2xl border border-slate-700 bg-slate-950 px-5 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
         />
       </div>
     </div>
@@ -1275,7 +1282,7 @@ function PasswordField({
           placeholder="Digite sua senha"
           autoComplete={autoComplete}
           maxLength={1000}
-          className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 pl-12 pr-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+          className="h-14 w-full rounded-2xl border border-slate-700 bg-slate-950 px-5 pl-12 pr-14 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
         />
 
         <button
@@ -1291,7 +1298,7 @@ function PasswordField({
               ? "Ocultar senha"
               : "Mostrar senha"
           }
-          className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-slate-500 transition hover:text-white"
+          className="absolute right-0 top-0 flex h-14 w-14 items-center justify-center text-slate-500 transition hover:text-white"
         >
           {show ? (
             <EyeOff className="h-5 w-5" />
