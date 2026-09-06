@@ -173,34 +173,33 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
-/* --------------------------------------------------
+/* ==================================================
    NAVEGAÇÃO SUAVE
-   -------------------------------------------------- */
+   ================================================== */
 
 html {
   scroll-behavior: smooth;
 }
 
 /*
- * Impede que uma seção acessada por link interno
- * fique escondida atrás da navbar fixa/sticky.
- *
- * O valor poderá ser ajustado depois caso a altura
- * real da navbar seja diferente.
+ * Compensa a altura da navbar sticky para que,
+ * ao navegar para uma seção, seu conteúdo não fique
+ * escondido atrás da navbar.
  */
-section[id],
-[id="como-funciona"],
-[id="recursos"],
-[id="planos"] {
+section[id] {
   scroll-margin-top: 6rem;
 }
 
-/* --------------------------------------------------
-   TRANSIÇÕES LEVES E PROFISSIONAIS
-   -------------------------------------------------- */
+/* ==================================================
+   MICROINTERAÇÕES LEVES
+   ================================================== */
 
-button,
+/*
+ * Transições apenas em propriedades adequadas para
+ * manter uma boa sensação visual sem pesar a página.
+ */
 a,
+button,
 input,
 textarea,
 select {
@@ -214,23 +213,97 @@ select {
 }
 
 /*
- * Evita a sensação de clique instantâneo em botões.
- * O movimento é pequeno para não prejudicar a performance
- * nem deixar o site com animações exageradas.
+ * Remove o destaque azul padrão em alguns navegadores
+ * mobile e melhora a sensação de toque.
  */
-button:not(:disabled),
-a {
+a,
+button {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* --------------------------------------------------
-   ACESSIBILIDADE
-   -------------------------------------------------- */
+/*
+ * Feedback discreto ao pressionar botões e links
+ * que possuem aparência de botão.
+ *
+ * O movimento é mínimo para não parecer exagerado.
+ */
+button:not(:disabled):active {
+  transform: scale(0.98);
+}
 
 /*
- * Pessoas que configuraram o sistema para reduzir
- * movimentos não devem receber animações ou scroll suave.
+ * Links e elementos clicáveis mantêm uma interação
+ * visual suave sem animações contínuas.
  */
+a {
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.18em;
+}
+
+/*
+ * Focus acessível para navegação por teclado.
+ */
+:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 3px;
+}
+
+/* ==================================================
+   PERFORMANCE DE ANIMAÇÃO
+   ================================================== */
+
+/*
+ * Classes utilitárias opcionais para elementos que
+ * receberão microanimações nos componentes.
+ *
+ * Elas usam principalmente transform e opacity,
+ * que são propriedades mais adequadas para animações.
+ */
+
+.interactive-lift {
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.interactive-lift:hover {
+  transform: translateY(-2px);
+}
+
+.interactive-lift:active {
+  transform: translateY(0) scale(0.99);
+}
+
+.interactive-scale {
+  transition:
+    transform 180ms ease,
+    opacity 180ms ease;
+}
+
+.interactive-scale:hover {
+  transform: scale(1.02);
+}
+
+.interactive-scale:active {
+  transform: scale(0.98);
+}
+
+/*
+ * Evita problemas de animação em dispositivos que
+ * não possuem hover, como a maioria dos celulares.
+ */
+@media (hover: none) {
+  .interactive-lift:hover,
+  .interactive-scale:hover {
+    transform: none;
+  }
+}
+
+/* ==================================================
+   ACESSIBILIDADE E REDUÇÃO DE MOVIMENTO
+   ================================================== */
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -246,9 +319,9 @@ a {
   }
 }
 
-/* --------------------------------------------------
+/* ==================================================
    BASE
-   -------------------------------------------------- */
+   ================================================== */
 
 @layer base {
   * {
@@ -262,6 +335,7 @@ a {
 }
 
 /* Oculta o badge do Lovable */
+
 #lovable-badge {
   display: none !important;
 }
