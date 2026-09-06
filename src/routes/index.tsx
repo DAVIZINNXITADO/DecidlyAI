@@ -57,7 +57,7 @@ function Index() {
         {/* HERO */}
 
         <section className="mx-auto max-w-6xl px-6 pb-24 pt-20 text-center md:pb-32 md:pt-28">
-          <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-2 text-sm text-violet-300">
+          <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-2 text-sm text-violet-300 transition hover:border-violet-400/40 hover:bg-violet-500/15">
             <Sparkles className="h-4 w-4" />
 
             Inteligência para decisões mais claras
@@ -80,11 +80,11 @@ function Index() {
           <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
             <Link
               to="/login"
-              className="flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-7 py-4 font-semibold text-white shadow-lg shadow-violet-950/40 transition hover:bg-violet-500"
+              className="interactive-lift group flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-7 py-4 font-semibold text-white shadow-lg shadow-violet-950/40 transition hover:bg-violet-500 hover:shadow-violet-900/40"
             >
               Começar gratuitamente
 
-              <ArrowRight className="h-5 w-5" />
+              <ArrowRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-1" />
             </Link>
 
             <a
@@ -92,7 +92,7 @@ function Index() {
               onClick={(event) =>
                 scrollToSection(event, "planos")
               }
-              className="flex items-center justify-center rounded-xl border border-slate-700 px-7 py-4 font-semibold text-slate-200 transition hover:border-violet-500 hover:text-white"
+              className="interactive-lift flex items-center justify-center rounded-xl border border-slate-700 px-7 py-4 font-semibold text-slate-200 transition hover:border-violet-500 hover:bg-violet-500/5 hover:text-white"
             >
               Ver planos
             </a>
@@ -100,9 +100,9 @@ function Index() {
 
           {/* EXEMPLO */}
 
-          <div className="mx-auto mt-20 max-w-3xl rounded-[2rem] border border-slate-800 bg-slate-900/60 p-6 text-left shadow-2xl backdrop-blur-xl md:p-10">
+          <div className="interactive-lift mx-auto mt-20 max-w-3xl rounded-[2rem] border border-slate-800 bg-slate-900/60 p-6 text-left shadow-2xl backdrop-blur-xl transition-shadow hover:border-violet-500/20 hover:shadow-violet-950/30 md:p-10">
             <div className="flex items-center gap-3 border-b border-slate-800 pb-6">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/15 text-violet-400">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/15 text-violet-400 transition-transform duration-200 group-hover:scale-105">
                 <Brain className="h-6 w-6" />
               </div>
 
@@ -127,7 +127,7 @@ function Index() {
               </h2>
 
               <div className="mt-7 grid gap-4 md:grid-cols-2">
-                <div className="rounded-2xl border border-violet-500/40 bg-violet-500/10 p-5">
+                <div className="rounded-2xl border border-violet-500/40 bg-violet-500/10 p-5 transition hover:border-violet-400/60 hover:bg-violet-500/15">
                   <div className="flex items-center gap-2 text-violet-300">
                     <TrendingUp className="h-5 w-5" />
 
@@ -143,7 +143,7 @@ function Index() {
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-slate-700 bg-slate-950/40 p-5">
+                <div className="rounded-2xl border border-slate-700 bg-slate-950/40 p-5 transition hover:border-slate-600 hover:bg-slate-950/60">
                   <div className="flex items-center gap-2 text-slate-200">
                     <CircleHelp className="h-5 w-5" />
 
@@ -285,13 +285,13 @@ function Index() {
             </div>
 
             <div className="mx-auto mt-14 max-w-md">
-              <div className="rounded-[2rem] border border-violet-500/30 bg-slate-950/70 p-8 shadow-2xl">
+              <div className="interactive-lift rounded-[2rem] border border-violet-500/30 bg-slate-950/70 p-8 shadow-2xl transition hover:border-violet-400/50 hover:shadow-violet-950/30">
                 <div className="flex items-center justify-between">
                   <h3 className="text-2xl font-bold">
                     Gratuito
                   </h3>
 
-                  <span className="rounded-full bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-300">
+                  <span className="rounded-full bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-300 transition hover:bg-violet-500/20">
                     Para começar
                   </span>
                 </div>
@@ -328,7 +328,7 @@ function Index() {
         {/* CTA FINAL */}
 
         <section className="mx-auto max-w-6xl px-6 py-24 md:py-32">
-          <div className="relative overflow-hidden rounded-[2rem] border border-violet-500/30 bg-violet-600/10 px-6 py-16 text-center shadow-2xl md:px-12 md:py-20">
+          <div className="relative overflow-hidden rounded-[2rem] border border-violet-500/30 bg-violet-600/10 px-6 py-16 text-center shadow-2xl transition hover:border-violet-400/40 md:px-12 md:py-20">
             <div className="pointer-events-none absolute inset-0">
               <div className="absolute left-1/2 top-1/2 h-[350px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-500/10 blur-[100px]" />
             </div>
@@ -350,9 +350,12 @@ function Index() {
               <a
                 href="#como-funciona"
                 onClick={(event) =>
-                  scrollToSection(event, "como-funciona")
+                  scrollToSection(
+                    event,
+                    "como-funciona",
+                  )
                 }
-                className="mx-auto mt-8 flex w-fit items-center justify-center gap-2 rounded-xl border border-slate-600 px-7 py-4 font-semibold text-slate-200 transition hover:border-violet-500 hover:text-white"
+                className="interactive-lift mx-auto mt-8 flex w-fit items-center justify-center gap-2 rounded-xl border border-slate-600 px-7 py-4 font-semibold text-slate-200 transition hover:border-violet-500 hover:bg-violet-500/5 hover:text-white"
               >
                 Ver como funciona
               </a>
@@ -376,7 +379,7 @@ function Step({
   description: string;
 }) {
   return (
-    <div className="relative rounded-2xl border border-slate-800 bg-slate-950/70 p-7">
+    <div className="interactive-lift relative rounded-2xl border border-slate-800 bg-slate-950/70 p-7 transition hover:border-violet-500/30 hover:bg-slate-900/70">
       <span className="text-sm font-bold tracking-wider text-violet-400">
         {number}
       </span>
@@ -402,8 +405,8 @@ function Feature({
   description: string;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-7 transition hover:-translate-y-1 hover:border-violet-500/30">
-      <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-violet-500/15 text-violet-400">
+    <div className="interactive-lift group rounded-2xl border border-slate-800 bg-slate-900/50 p-7 transition hover:border-violet-500/40 hover:bg-slate-900/70 hover:shadow-lg hover:shadow-violet-950/20">
+      <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-violet-500/15 text-violet-400 transition-transform duration-200 group-hover:scale-105">
         {icon}
       </div>
 
