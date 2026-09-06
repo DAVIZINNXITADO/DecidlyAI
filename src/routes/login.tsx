@@ -218,8 +218,8 @@ function LoginPage() {
   /*
    * GOOGLE IDENTITY SERVICES
    *
-   * O botão oficial é renderizado invisível.
-   * O botão visual que o usuário vê é customizado.
+   * O botão visual é nosso.
+   * O botão oficial fica invisível por cima.
    */
 
   useEffect(() => {
@@ -337,23 +337,12 @@ function LoginPage() {
           container,
           {
             type: "standard",
-
-            /*
-             * Não importa visualmente porque
-             * o botão oficial fica invisível.
-             */
             theme: "filled_black",
-
             size: "large",
-
             shape: "pill",
-
             text: "continue_with",
-
             logo_alignment: "left",
-
             width: containerWidth,
-
             locale: "pt-BR",
           },
         );
@@ -956,45 +945,39 @@ function LoginPage() {
                 </p>
               </div>
 
-              {/* GOOGLE */}
-
               <div className="mt-9">
                 <div className="google-auth-container relative h-[58px] w-full">
-                  {/* BOTÃO VISUAL */}
-
                   <div
-                    className={`pointer-events-none absolute inset-0 flex items-center justify-center gap-3 rounded-full border border-slate-700 bg-slate-950 px-6 text-[17px] font-semibold text-slate-100 transition duration-200 ${
+                    className={`pointer-events-none absolute inset-0 flex items-center justify-center gap-3 rounded-full border bg-slate-950 px-6 text-[17px] font-semibold transition-all duration-200 ${
                       googleLoading
-                        ? "opacity-60"
-                        : ""
+                        ? "border-violet-300 bg-violet-600 text-white shadow-lg shadow-violet-950/40"
+                        : "border-slate-700 text-slate-100"
                     }`}
                   >
-                    <GoogleIcon />
+                    <img
+                      src="/isos/googleicon.svg"
+                      alt=""
+                      className="h-6 w-6 shrink-0"
+                    />
 
                     <span>
-                      {googleLoading
-                        ? "Entrando com o Google..."
-                        : "Continuar com o Google"}
+                      Continuar com o Google
                     </span>
                   </div>
-
-                  {/* BOTÃO OFICIAL INVISÍVEL */}
 
                   <div
                     ref={googleButtonRef}
                     aria-label="Continuar com o Google"
                     className={`botao-google-real absolute inset-0 z-10 h-full w-full ${
-                      googleReady
+                      googleReady && !googleLoading
                         ? "opacity-0"
                         : "pointer-events-none opacity-0"
                     }`}
                   />
 
-                  {/* LOADING */}
-
                   {!googleReady ? (
-                    <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-full bg-slate-950/70">
-                      <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
+                    <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-full bg-slate-950/60">
+                      <Loader2 className="h-5 w-5 animate-spin text-violet-400" />
                     </div>
                   ) : null}
                 </div>
@@ -1185,7 +1168,34 @@ function LoginPage() {
         </section>
       </div>
 
-      {/* ESTILO DO BOTÃO OFICIAL INVISÍVEL */}
+      {/* OVERLAY DE AUTENTICAÇÃO COM GOOGLE */}
+
+      {googleLoading ? (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center px-6">
+          {/* Blur e escurecimento */}
+
+          <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-md" />
+
+          {/* Card */}
+
+          <div className="relative flex w-full max-w-sm flex-col items-center rounded-[2rem] border border-violet-300/70 bg-slate-900/95 px-8 py-10 text-center shadow-2xl shadow-violet-950/40 backdrop-blur-xl">
+            {/* Loader */}
+
+            <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-violet-400/30 bg-violet-500/10">
+              <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
+            </div>
+
+            <h2 className="text-xl font-semibold text-white">
+              Autenticando com o Google
+            </h2>
+
+            <p className="mt-3 text-sm leading-relaxed text-slate-400">
+              Aguarde um momento enquanto
+              verificamos sua conta.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       <style>{`
         .botao-google-real,
@@ -1202,38 +1212,6 @@ function LoginPage() {
         }
       `}</style>
     </main>
-  );
-}
-
-function GoogleIcon() {
-  return (
-    <svg
-      width="23"
-      height="23"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      className="shrink-0"
-    >
-      <path
-        fill="#4285F4"
-        d="M21.35 12.27c0-.79-.07-1.55-.21-2.27H12v4.3h5.22a4.46 4.46 0 0 1-1.94 2.93v2.79h3.14c1.84-1.69 2.93-4.18 2.93-7.75Z"
-      />
-
-      <path
-        fill="#34A853"
-        d="M12 21.75c2.62 0 4.82-.87 6.42-2.36l-3.14-2.79c-.87.58-1.99.92-3.28.92-2.52 0-4.65-1.7-5.41-3.99H3.35v2.88A9.75 9.75 0 0 0 12 21.75Z"
-      />
-
-      <path
-        fill="#FBBC05"
-        d="M6.59 13.53A5.87 5.87 0 0 1 6.29 12c0-.53.09-1.04.3-1.53V7.59H3.35A9.75 9.75 0 0 0 2.25 12c0 1.58.38 3.08 1.1 4.41l3.24-2.88Z"
-      />
-
-      <path
-        fill="#EA4335"
-        d="M12 6.48c1.42 0 2.7.49 3.7 1.45l2.78-2.78C16.81 3.6 14.62 2.25 12 2.25a9.75 9.75 0 0 0-8.65 5.34l3.24 2.88c.76-2.29 2.89-3.99 5.41-3.99Z"
-      />
-    </svg>
   );
 }
 
