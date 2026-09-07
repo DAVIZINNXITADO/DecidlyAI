@@ -15,37 +15,25 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  function scrollToSection(
-    event: React.MouseEvent<HTMLAnchorElement>,
-    sectionId: string,
-  ) {
-    event.preventDefault();
+  function scrollToSection(sectionId: string) {
+    const target = document.getElementById(sectionId);
 
-    const section = document.getElementById(sectionId);
-
-    if (!section) {
+    if (!target) {
       return;
     }
 
-    section.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
+    const targetTop =
+      target.getBoundingClientRect().top +
+      window.scrollY;
 
-    window.history.pushState(
-      null,
-      "",
-      `#${sectionId}`,
-    );
+    window.scrollTo({
+      top: targetTop,
+      behavior: "smooth",
+    });
   }
 
   return (
     <AppShell>
-      {/* 
-       * IMPORTANTE:
-       * overflow-x-hidden impede vazamento horizontal
-       * sem interferir na rolagem vertical.
-       */}
       <main className="relative overflow-x-hidden bg-slate-950 text-white">
         {/* BACKGROUND */}
 
@@ -109,15 +97,13 @@ function Index() {
                 <ArrowRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-1" />
               </Link>
 
-              <a
-                href="#planos"
-                onClick={(event) =>
-                  scrollToSection(event, "planos")
-                }
+              <button
+                type="button"
+                onClick={() => scrollToSection("planos")}
                 className="interactive-lift flex items-center justify-center rounded-xl border border-slate-700 px-7 py-4 font-semibold text-slate-200 transition hover:border-violet-500 hover:bg-violet-500/5 hover:text-white"
               >
                 Ver planos
-              </a>
+              </button>
             </div>
 
             {/* EXEMPLO */}
@@ -187,12 +173,12 @@ function Index() {
 
           {/* COMO FUNCIONA */}
 
-          <section
-            id="como-funciona"
-            className="scroll-mt-24 border-y border-slate-800 bg-slate-900/40"
-          >
+          <section className="border-y border-slate-800 bg-slate-900/40">
             <div className="mx-auto max-w-6xl px-6 py-24 md:py-32">
-              <div className="text-center">
+              <div
+                id="como-funciona"
+                className="text-center"
+              >
                 <p className="text-sm font-semibold tracking-wider text-violet-400">
                   COMO FUNCIONA
                 </p>
@@ -236,12 +222,12 @@ function Index() {
 
           {/* RECURSOS */}
 
-          <section
-            id="recursos"
-            className="scroll-mt-24"
-          >
+          <section>
             <div className="mx-auto max-w-6xl px-6 py-24 md:py-32">
-              <div className="text-center">
+              <div
+                id="recursos"
+                className="text-center"
+              >
                 <p className="text-sm font-semibold tracking-wider text-violet-400">
                   RECURSOS
                 </p>
@@ -286,12 +272,12 @@ function Index() {
 
           {/* PLANOS */}
 
-          <section
-            id="planos"
-            className="scroll-mt-24 border-y border-slate-800 bg-slate-900/40"
-          >
+          <section className="border-y border-slate-800 bg-slate-900/40">
             <div className="mx-auto max-w-6xl px-6 py-24 md:py-32">
-              <div className="text-center">
+              <div
+                id="planos"
+                className="text-center"
+              >
                 <p className="text-sm font-semibold tracking-wider text-violet-400">
                   PLANOS
                 </p>
@@ -376,18 +362,15 @@ function Index() {
                   forma de organizar suas escolhas.
                 </p>
 
-                <a
-                  href="#como-funciona"
-                  onClick={(event) =>
-                    scrollToSection(
-                      event,
-                      "como-funciona",
-                    )
+                <button
+                  type="button"
+                  onClick={() =>
+                    scrollToSection("como-funciona")
                   }
                   className="interactive-lift mx-auto mt-8 flex w-fit items-center justify-center gap-2 rounded-xl border border-slate-600 px-7 py-4 font-semibold text-slate-200 transition hover:border-violet-500 hover:bg-violet-500/5 hover:text-white"
                 >
                   Ver como funciona
-                </a>
+                </button>
               </div>
             </div>
           </section>
