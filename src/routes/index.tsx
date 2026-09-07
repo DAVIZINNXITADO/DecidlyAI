@@ -41,7 +41,12 @@ function Index() {
 
   return (
     <AppShell>
-      <main className="relative overflow-hidden bg-slate-950 text-white">
+      {/* 
+       * IMPORTANTE:
+       * overflow-x-hidden impede vazamento horizontal
+       * sem interferir na rolagem vertical.
+       */}
+      <main className="relative overflow-x-hidden bg-slate-950 text-white">
         {/* BACKGROUND */}
 
         <div
