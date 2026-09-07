@@ -14,6 +14,11 @@ type Message = {
   content: string;
 };
 
+// Para teste temporário.
+// O valor precisa ser exatamente igual ao
+// DECIDLYAI_DEV_CODE configurado nos Secrets.
+const DEV_CODE = "";
+
 function AiTest() {
   const [message, setMessage] = useState("");
 
@@ -39,16 +44,22 @@ function AiTest() {
 
     setError("");
 
-    const updatedMessages = [
+    // Criamos o histórico completo incluindo
+    // a nova mensagem antes de enviar.
+    const updatedMessages: Message[] = [
       ...messages,
       {
-        role: "user" as const,
+        role: "user",
         content: trimmedMessage,
       },
     ];
 
-    setMessages(updatedMessages);
+    // Mostra a mensagem imediatamente na tela.
+    setMessages(
+      updatedMessages,
+    );
 
+    // Limpa o campo.
     setMessage("");
 
     setIsLoading(true);
@@ -62,21 +73,37 @@ function AiTest() {
           "decidly-ai-personality",
           {
             body: {
-              message: trimmedMessage,
+              // Mensagem atual.
+              message:
+                trimmedMessage,
 
+              // Histórico completo da conversa.
               history:
                 updatedMessages,
+
+              // Código do modo desenvolvedor.
+              devCode:
+                DEV_CODE,
             },
           },
         );
 
-      if (functionError) {
+      if (
+        functionError
+      ) {
+        console.error(
+          "Erro da Edge Function:",
+          functionError,
+        );
+
         throw new Error(
           "Não foi possível conectar ao DecidlyAI.",
         );
       }
 
-      if (data?.error) {
+      if (
+        data?.error
+      ) {
         throw new Error(
           data.error,
         );
@@ -85,25 +112,35 @@ function AiTest() {
       if (
         typeof data?.response !==
           "string" ||
-        data.response.trim()
+        data.response
+          .trim()
           .length === 0
       ) {
+        console.error(
+          "Resposta inválida:",
+          data,
+        );
+
         throw new Error(
           "O DecidlyAI não retornou uma resposta válida.",
         );
       }
 
+      // Adiciona a resposta da IA ao histórico.
       setMessages(
         (current) => [
           ...current,
           {
-            role: "assistant",
+            role:
+              "assistant",
             content:
               data.response,
           },
         ],
       );
-    } catch (err) {
+    } catch (
+      err
+    ) {
       const errorMessage =
         err instanceof Error
           ? err.message
@@ -113,7 +150,9 @@ function AiTest() {
         errorMessage,
       );
     } finally {
-      setIsLoading(false);
+      setIsLoading(
+        false,
+      );
     }
   }
 
@@ -126,7 +165,8 @@ function AiTest() {
     if (
       (event.ctrlKey ||
         event.metaKey) &&
-      event.key === "Enter"
+      event.key ===
+        "Enter"
     ) {
       event.preventDefault();
 
@@ -166,9 +206,9 @@ function AiTest() {
                 !isLoading && (
                   <div className="flex min-h-[350px] items-center justify-center">
                     <p className="max-w-md text-center leading-relaxed text-slate-500">
-                      Comece enviando uma dúvida,
+                      😄 Comece enviando uma dúvida,
                       decisão ou qualquer mensagem
-                      para testar a IA.
+                      para testar o DecidlyAI.
                     </p>
                   </div>
                 )}
@@ -179,7 +219,7 @@ function AiTest() {
                   index,
                 ) => (
                   <div
-                    key={index}
+                    key={`${chatMessage.role}-${index}`}
                     className={
                       chatMessage.role ===
                         "user"
@@ -191,8 +231,8 @@ function AiTest() {
                       className={
                         chatMessage.role ===
                           "user"
-                          ? "max-w-[85%] rounded-2xl rounded-br-md bg-violet-600 px-5 py-4 text-white"
-                          : "max-w-[85%] rounded-2xl rounded-bl-md border border-slate-800 bg-slate-950 px-5 py-4 leading-relaxed text-slate-300"
+                          ? "max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-violet-600 px-5 py-4 text-white"
+                          : "max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-bl-md border border-slate-800 bg-slate-950 px-5 py-4 leading-relaxed text-slate-300"
                       }
                     >
                       {
@@ -221,7 +261,9 @@ function AiTest() {
 
               <div className="flex flex-col gap-3 sm:flex-row">
                 <textarea
-                  value={message}
+                  value={
+                    message
+                  }
 
                   onChange={
                     (event) =>
@@ -254,7 +296,8 @@ function AiTest() {
 
                   disabled={
                     isLoading ||
-                    message.trim()
+                    message
+                      .trim()
                       .length === 0
                   }
 
