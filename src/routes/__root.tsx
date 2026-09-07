@@ -12,13 +12,13 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
-const SITE_URL = "https://decidlyia.lovable.app/";
+const SITE_URL = "https://decidlyai.lovable.app/";
 
 const websiteSchema = {
   "@context": "https://schema.org",
   "@type": "WebSite",
   name: "DecidlyAI",
-  alternateName: ["Decidly AI", "decidlyia"],
+  alternateName: ["Decidly AI", "DecidlyAI"],
   url: SITE_URL,
 };
 
