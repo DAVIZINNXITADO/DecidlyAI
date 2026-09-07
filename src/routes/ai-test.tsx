@@ -43,7 +43,7 @@ function AiTest() {
     try {
       const { data, error: functionError } =
         await supabase.functions.invoke(
-          "decidly-ai",
+          "decidly-ai-personality",
           {
             body: {
               message: trimmedMessage,
