@@ -1,13 +1,12 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { createFileRoute } from "@tanstack/react-router";
 import {
-  ArrowLeft,
   Cookie,
   Database,
   LockKeyhole,
   Settings,
   ShieldCheck,
 } from "lucide-react";
+import { AppShell } from "@/components/AppShell";
 
 export const Route = createFileRoute("/cookies")({
   component: Cookies,
@@ -15,329 +14,232 @@ export const Route = createFileRoute("/cookies")({
 
 function Cookies() {
   return (
-    <div className="min-h-screen bg-[#070b1a] text-white">
-      {/* FUNDO */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-violet-600/10 blur-[140px]" />
+    <AppShell>
+      <div className="mx-auto max-w-4xl">
+        {/* CABEÇALHO */}
 
-        <div className="absolute bottom-0 right-0 h-[400px] w-[400px] rounded-full bg-purple-600/5 blur-[120px]" />
-      </div>
-
-      <div className="relative">
-        {/* HEADER */}
-        <header className="border-b border-slate-800/80 bg-[#070b1a]/80 backdrop-blur-xl">
-          <div className="mx-auto flex h-20 max-w-6xl items-center px-6">
-            <Link
-              to="/"
-              className="inline-flex items-center gap-2 text-sm font-medium text-slate-400 transition hover:text-white"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Voltar para o início
-            </Link>
+        <div className="border-b border-slate-800 pb-10">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-500/15 text-violet-400">
+            <Cookie className="h-7 w-7" />
           </div>
-        </header>
+
+          <p className="mt-6 text-sm font-semibold tracking-wider text-violet-400">
+            LEGAL
+          </p>
+
+          <h1 className="mt-3 text-4xl font-bold tracking-tight text-white md:text-5xl">
+            Política de Cookies
+          </h1>
+
+          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-slate-400">
+            Esta Política de Cookies explica como o DecidlyAI utiliza cookies e
+            tecnologias semelhantes para fornecer, manter e melhorar nossa
+            plataforma.
+          </p>
+
+          <div className="mt-5 space-y-1 text-sm text-slate-500">
+            <p>Data de criação: 06/09/2026</p>
+            <p>Última alteração: 06/09/2026</p>
+          </div>
+        </div>
 
         {/* CONTEÚDO */}
-        <main className="mx-auto max-w-4xl px-6 py-16 md:py-24">
-          {/* CABEÇALHO */}
-          <div className="border-b border-slate-800 pb-10">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-500/15 text-violet-400">
-              <Cookie className="h-7 w-7" />
-            </div>
 
-            <p className="mt-6 text-sm font-semibold tracking-wider text-violet-400">
-              LEGAL
+        <div className="mt-12 space-y-12">
+          <CookieSection
+            number="01"
+            title="O que são cookies?"
+            icon={<Cookie className="h-5 w-5" />}
+          >
+            <p>
+              Cookies são pequenos arquivos de dados que podem ser armazenados
+              no seu dispositivo quando você visita um site ou utiliza uma
+              plataforma online.
             </p>
 
-            <h1 className="mt-3 text-4xl font-bold tracking-tight text-white md:text-5xl">
-              Política de Cookies
-            </h1>
+            <p>
+              Eles podem ser utilizados para lembrar determinadas informações,
+              manter sessões de usuários e ajudar no funcionamento adequado dos
+              serviços.
+            </p>
+          </CookieSection>
 
-            <p className="mt-5 max-w-2xl text-lg leading-relaxed text-slate-400">
-              Esta Política de Cookies explica como o DecidlyAI utiliza cookies
-              e tecnologias semelhantes para fornecer, manter e melhorar nossa
+          <CookieSection
+            number="02"
+            title="Como o DecidlyAI utiliza cookies"
+            icon={<Settings className="h-5 w-5" />}
+          >
+            <p>
+              O DecidlyAI pode utilizar cookies e tecnologias semelhantes para
+              garantir o funcionamento adequado da plataforma.
+            </p>
+
+            <p>
+              Essas tecnologias podem ser utilizadas, por exemplo, para manter
+              sua sessão, lembrar determinadas preferências e ajudar a fornecer
+              uma experiência mais estável e segura.
+            </p>
+          </CookieSection>
+
+          <CookieSection
+            number="03"
+            title="Cookies essenciais"
+            icon={<ShieldCheck className="h-5 w-5" />}
+          >
+            <p>
+              Alguns cookies e tecnologias semelhantes são necessários para o
+              funcionamento básico do DecidlyAI.
+            </p>
+
+            <p>
+              Esses recursos podem ser utilizados para permitir funcionalidades
+              essenciais, manter sessões de autenticação e ajudar a proteger a
+              segurança da plataforma.
+            </p>
+
+            <p>
+              Por serem necessários para o funcionamento do serviço,
+              determinados cookies essenciais podem continuar sendo utilizados
+              mesmo quando você recusa cookies não essenciais.
+            </p>
+          </CookieSection>
+
+          <CookieSection
+            number="04"
+            title="Cookies de autenticação"
+            icon={<LockKeyhole className="h-5 w-5" />}
+          >
+            <p>
+              O DecidlyAI utiliza serviços de autenticação para permitir que
+              usuários criem contas e acessem suas sessões com segurança.
+            </p>
+
+            <p>
+              Cookies ou tecnologias semelhantes podem ser utilizados para
+              manter sua sessão autenticada e permitir o funcionamento correto
+              dos recursos da sua conta.
+            </p>
+
+            <p>
+              Esses recursos são importantes para que você possa permanecer
+              conectado e utilizar as funcionalidades da plataforma.
+            </p>
+          </CookieSection>
+
+          <CookieSection
+            number="05"
+            title="Serviços de terceiros"
+            icon={<Database className="h-5 w-5" />}
+          >
+            <p>
+              O DecidlyAI utiliza serviços de terceiros para fornecer
+              determinadas funcionalidades importantes para a plataforma.
+            </p>
+
+            <p>
+              Atualmente, isso pode incluir o Google para autenticação e o
+              Supabase para autenticação e infraestrutura de suporte à
               plataforma.
             </p>
 
-            {/* DATAS */}
-            <div className="mt-6 flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:gap-6">
-              <p>
-                Data de criação:{" "}
-                <span className="font-medium text-slate-400">
-                  06/09/2026
-                </span>
-              </p>
+            <p>
+              Esses serviços podem utilizar suas próprias tecnologias, cookies
+              ou mecanismos semelhantes conforme necessário para fornecer suas
+              funcionalidades.
+            </p>
 
-              <p>
-                Última alteração:{" "}
-                <span className="font-medium text-slate-400">
-                  06/09/2026
-                </span>
-              </p>
-            </div>
-          </div>
+            <p>
+              Recomendamos que você consulte as políticas dos respectivos
+              serviços quando desejar obter mais informações sobre como eles
+              utilizam dados e tecnologias semelhantes.
+            </p>
+          </CookieSection>
 
-          {/* CONTEÚDO */}
-          <div className="mt-12 space-y-12">
-            <CookieSection
-              number="01"
-              title="O que são cookies?"
-              icon={<Cookie className="h-5 w-5" />}
+          <CookieSection number="06" title="Consentimento">
+            <p>
+              Quando aplicável, o DecidlyAI poderá solicitar sua escolha em
+              relação ao uso de cookies não essenciais.
+            </p>
+
+            <p>
+              Você poderá aceitar ou recusar determinadas categorias de cookies
+              não essenciais por meio do aviso de cookies disponibilizado na
+              plataforma.
+            </p>
+
+            <p>
+              A recusa de cookies não essenciais não impede a utilização dos
+              cookies e tecnologias estritamente necessários para o
+              funcionamento do serviço.
+            </p>
+          </CookieSection>
+
+          <CookieSection
+            number="07"
+            title="Como armazenamos sua escolha"
+          >
+            <p>
+              Quando você escolhe aceitar ou recusar cookies não essenciais,
+              sua preferência pode ser armazenada localmente no seu navegador
+              para que o aviso não seja exibido novamente a cada visita.
+            </p>
+
+            <p>
+              Essa preferência pode permanecer armazenada até que você limpe os
+              dados do navegador ou que alterações futuras no sistema de
+              consentimento tornem necessário solicitar uma nova escolha.
+            </p>
+          </CookieSection>
+
+          <CookieSection
+            number="08"
+            title="Gerenciamento de cookies"
+          >
+            <p>
+              A maioria dos navegadores permite que você visualize, gerencie ou
+              exclua cookies diretamente nas configurações do navegador.
+            </p>
+
+            <p>
+              A remoção ou bloqueio de determinados cookies pode afetar o
+              funcionamento de algumas funcionalidades que dependem de
+              tecnologias essenciais para manter sua sessão ou preferências.
+            </p>
+          </CookieSection>
+
+          <CookieSection
+            number="09"
+            title="Alterações nesta Política de Cookies"
+          >
+            <p>
+              Esta Política de Cookies poderá ser atualizada periodicamente
+              para refletir alterações no funcionamento do DecidlyAI, em suas
+              tecnologias ou em requisitos legais aplicáveis.
+            </p>
+
+            <p>
+              Quando esta política for atualizada, a data de última alteração
+              exibida no início desta página também poderá ser modificada.
+            </p>
+          </CookieSection>
+
+          <CookieSection number="10" title="Contato">
+            <p>
+              Caso você tenha dúvidas sobre esta Política de Cookies ou sobre o
+              uso de cookies e tecnologias semelhantes pelo DecidlyAI, entre em
+              contato conosco:
+            </p>
+
+            <a
+              href="mailto:decidlyia@outlook.com"
+              className="inline-flex font-medium text-violet-400 transition hover:text-violet-300"
             >
-              <p>
-                Cookies são pequenos arquivos de dados que podem ser
-                armazenados no seu dispositivo quando você visita um site ou
-                utiliza uma plataforma online.
-              </p>
-
-              <p>
-                Eles podem ser utilizados para lembrar determinadas
-                informações, manter sessões de usuários e ajudar no
-                funcionamento adequado dos serviços.
-              </p>
-            </CookieSection>
-
-            <CookieSection
-              number="02"
-              title="Como o DecidlyAI utiliza cookies"
-              icon={<Settings className="h-5 w-5" />}
-            >
-              <p>
-                O DecidlyAI pode utilizar cookies e tecnologias semelhantes
-                para garantir o funcionamento adequado da plataforma.
-              </p>
-
-              <p>
-                Essas tecnologias podem ser utilizadas, por exemplo, para
-                manter sua sessão, lembrar determinadas preferências e ajudar
-                a fornecer uma experiência mais estável e segura.
-              </p>
-            </CookieSection>
-
-            <CookieSection
-              number="03"
-              title="Cookies essenciais"
-              icon={<ShieldCheck className="h-5 w-5" />}
-            >
-              <p>
-                Alguns cookies e tecnologias semelhantes são necessários para
-                o funcionamento básico do DecidlyAI.
-              </p>
-
-              <p>
-                Esses recursos podem ser utilizados para permitir
-                funcionalidades essenciais, manter sessões de autenticação e
-                ajudar a proteger a segurança da plataforma.
-              </p>
-
-              <p>
-                Por serem necessários para o funcionamento do serviço,
-                determinados cookies essenciais podem continuar sendo utilizados
-                mesmo quando você recusa cookies não essenciais.
-              </p>
-            </CookieSection>
-
-            <CookieSection
-              number="04"
-              title="Cookies de autenticação"
-              icon={<LockKeyhole className="h-5 w-5" />}
-            >
-              <p>
-                O DecidlyAI utiliza serviços de autenticação para permitir que
-                usuários criem contas e acessem suas sessões com segurança.
-              </p>
-
-              <p>
-                Cookies ou tecnologias semelhantes podem ser utilizados para
-                manter sua sessão autenticada e permitir o funcionamento correto
-                dos recursos da sua conta.
-              </p>
-
-              <p>
-                Esses recursos são importantes para que você possa permanecer
-                conectado e utilizar as funcionalidades da plataforma.
-              </p>
-            </CookieSection>
-
-            <CookieSection
-              number="05"
-              title="Serviços de terceiros"
-              icon={<Database className="h-5 w-5" />}
-            >
-              <p>
-                O DecidlyAI utiliza serviços de terceiros para fornecer
-                determinadas funcionalidades importantes para a plataforma.
-              </p>
-
-              <p>
-                Atualmente, isso pode incluir o Google para autenticação e o
-                Supabase para autenticação e infraestrutura de suporte à
-                plataforma.
-              </p>
-
-              <p>
-                Esses serviços podem utilizar suas próprias tecnologias,
-                cookies ou mecanismos semelhantes conforme necessário para
-                fornecer suas funcionalidades.
-              </p>
-
-              <p>
-                Recomendamos que você consulte as políticas dos respectivos
-                serviços quando desejar obter mais informações sobre como eles
-                utilizam dados e tecnologias semelhantes.
-              </p>
-            </CookieSection>
-
-            <CookieSection number="06" title="Consentimento">
-              <p>
-                Quando aplicável, o DecidlyAI poderá solicitar sua escolha em
-                relação ao uso de cookies não essenciais.
-              </p>
-
-              <p>
-                Você poderá aceitar ou recusar determinadas categorias de
-                cookies não essenciais por meio do aviso de cookies
-                disponibilizado na plataforma.
-              </p>
-
-              <p>
-                A recusa de cookies não essenciais não impede a utilização dos
-                cookies e tecnologias estritamente necessários para o
-                funcionamento do serviço.
-              </p>
-            </CookieSection>
-
-            <CookieSection
-              number="07"
-              title="Como armazenamos sua escolha"
-            >
-              <p>
-                Quando você escolhe aceitar ou recusar cookies não essenciais,
-                sua preferência pode ser armazenada localmente no seu navegador
-                para que o aviso não seja exibido novamente a cada visita.
-              </p>
-
-              <p>
-                Essa preferência pode permanecer armazenada até que você limpe
-                os dados do navegador ou que alterações futuras no sistema de
-                consentimento tornem necessário solicitar uma nova escolha.
-              </p>
-            </CookieSection>
-
-            <CookieSection
-              number="08"
-              title="Gerenciamento de cookies"
-            >
-              <p>
-                A maioria dos navegadores permite que você visualize, gerencie
-                ou exclua cookies diretamente nas configurações do navegador.
-              </p>
-
-              <p>
-                A remoção ou bloqueio de determinados cookies pode afetar o
-                funcionamento de algumas funcionalidades que dependem de
-                tecnologias essenciais para manter sua sessão ou preferências.
-              </p>
-            </CookieSection>
-
-            <CookieSection
-              number="09"
-              title="Alterações nesta Política de Cookies"
-            >
-              <p>
-                Esta Política de Cookies poderá ser atualizada periodicamente
-                para refletir alterações no funcionamento do DecidlyAI, em suas
-                tecnologias ou em requisitos legais aplicáveis.
-              </p>
-
-              <p>
-                Quando esta política for atualizada, a data de última alteração
-                exibida no início desta página também poderá ser modificada.
-              </p>
-            </CookieSection>
-
-            <CookieSection number="10" title="Contato">
-              <p>
-                Caso você tenha dúvidas sobre esta Política de Cookies ou sobre
-                o uso de cookies e tecnologias semelhantes pelo DecidlyAI,
-                entre em contato conosco:
-              </p>
-
-              <a
-                href="mailto:decidlyia@outlook.com"
-                className="inline-flex font-medium text-violet-400 transition hover:text-violet-300"
-              >
-                decidedlyia@outlook.com
-              </a>
-            </CookieSection>
-          </div>
-        </main>
-
-        {/* RODAPÉ */}
-        <footer className="border-t border-slate-800/80 bg-[#080d1d]">
-          <div className="mx-auto max-w-6xl px-6 py-12">
-            <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
-              {/* MARCA */}
-              <div>
-                <Link
-                  to="/"
-                  className="text-xl font-bold tracking-tight text-white"
-                >
-                  Decidly<span className="text-violet-400">AI</span>
-                </Link>
-
-                <p className="mt-3 max-w-sm text-sm leading-relaxed text-slate-500">
-                  Tecnologia para ajudar você a tomar decisões com mais clareza
-                  e confiança.
-                </p>
-              </div>
-
-              {/* LINKS */}
-              <div className="grid grid-cols-2 gap-x-12 gap-y-3 text-sm sm:grid-cols-4">
-                <Link
-                  to="/"
-                  className="text-slate-400 transition hover:text-violet-400"
-                >
-                  Início
-                </Link>
-
-                <Link
-                  to="/privacy"
-                  className="text-slate-400 transition hover:text-violet-400"
-                >
-                  Privacidade
-                </Link>
-
-                <Link
-                  to="/terms"
-                  className="text-slate-400 transition hover:text-violet-400"
-                >
-                  Termos de Uso
-                </Link>
-
-                <Link
-                  to="/cookies"
-                  className="text-violet-400 transition hover:text-violet-300"
-                >
-                  Cookies
-                </Link>
-              </div>
-            </div>
-
-            <div className="mt-10 flex flex-col gap-4 border-t border-slate-800 pt-6 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-              <p>
-                © {new Date().getFullYear()} DecidlyAI. Todos os direitos
-                reservados.
-              </p>
-
-              <p className="text-slate-600">
-                Feito para decisões mais inteligentes.
-              </p>
-            </div>
-          </div>
-        </footer>
+              decidedlyia@outlook.com
+            </a>
+          </CookieSection>
+        </div>
       </div>
-    </div>
+    </AppShell>
   );
 }
 
@@ -349,8 +251,8 @@ function CookieSection({
 }: {
   number: string;
   title: string;
-  icon?: ReactNode;
-  children: ReactNode;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
 }) {
   return (
     <section className="border-b border-slate-800 pb-12 last:border-0">
@@ -367,9 +269,7 @@ function CookieSection({
               </div>
             ) : null}
 
-            <h2 className="text-2xl font-semibold text-white">
-              {title}
-            </h2>
+            <h2 className="text-2xl font-semibold text-white">{title}</h2>
           </div>
 
           <div className="mt-5 space-y-4 leading-relaxed text-slate-400">
