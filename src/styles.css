@@ -174,30 +174,30 @@
 }
 
 /* ==================================================
-   NAVEGAÇÃO SUAVE
+   ROLAGEM E COMPORTAMENTO MOBILE
    ================================================== */
 
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
+  overflow-x: hidden;
 }
 
-/*
- * Compensa a altura da navbar sticky para que,
- * ao navegar para uma seção, seu conteúdo não fique
- * escondido atrás da navbar.
- */
-section[id] {
-  scroll-margin-top: 6rem;
+html,
+body {
+  min-height: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
+
+body {
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* ==================================================
    MICROINTERAÇÕES LEVES
    ================================================== */
 
-/*
- * Transições apenas em propriedades adequadas para
- * manter uma boa sensação visual sem pesar a página.
- */
 a,
 button,
 input,
@@ -212,37 +212,20 @@ select {
     transform 180ms ease;
 }
 
-/*
- * Remove o destaque azul padrão em alguns navegadores
- * mobile e melhora a sensação de toque.
- */
 a,
 button {
   -webkit-tap-highlight-color: transparent;
 }
 
-/*
- * Feedback discreto ao pressionar botões e links
- * que possuem aparência de botão.
- *
- * O movimento é mínimo para não parecer exagerado.
- */
 button:not(:disabled):active {
   transform: scale(0.98);
 }
 
-/*
- * Links e elementos clicáveis mantêm uma interação
- * visual suave sem animações contínuas.
- */
 a {
   text-decoration-thickness: 0.08em;
   text-underline-offset: 0.18em;
 }
 
-/*
- * Focus acessível para navegação por teclado.
- */
 :focus-visible {
   outline: 2px solid var(--color-ring);
   outline-offset: 3px;
@@ -251,14 +234,6 @@ a {
 /* ==================================================
    PERFORMANCE DE ANIMAÇÃO
    ================================================== */
-
-/*
- * Classes utilitárias opcionais para elementos que
- * receberão microanimações nos componentes.
- *
- * Elas usam principalmente transform e opacity,
- * que são propriedades mais adequadas para animações.
- */
 
 .interactive-lift {
   transition:
@@ -289,10 +264,6 @@ a {
   transform: scale(0.98);
 }
 
-/*
- * Evita problemas de animação em dispositivos que
- * não possuem hover, como a maioria dos celulares.
- */
 @media (hover: none) {
   .interactive-lift:hover,
   .interactive-scale:hover {
