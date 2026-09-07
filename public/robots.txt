@@ -15,5 +15,5 @@ Allow: /
 User-agent: *
 Allow: /
 
-# Sitemap do site
-Sitemap: https://decidlyia.lovable.app/sitemap.xml
+# Sitemap oficial
+Sitemap: https://decidlyai.lovable.app/sitemap.xml
