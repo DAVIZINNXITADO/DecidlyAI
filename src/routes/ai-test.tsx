@@ -21,6 +21,10 @@ type TemporaryMemory = {
 type AiResponse = {
   response?: string;
   error?: string;
+
+  temporaryMemory?: {
+    facts?: string[];
+  };
 };
 
 const MAX_CONTEXT_MESSAGES = 8;
@@ -28,16 +32,19 @@ const MAX_CONTEXT_MESSAGES = 8;
 function AiTest() {
   const [message, setMessage] = useState("");
 
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] =
+    useState<Message[]>([]);
 
   const [temporaryMemory, setTemporaryMemory] =
     useState<TemporaryMemory>({
       facts: [],
     });
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] =
+    useState(false);
 
-  const [error, setError] = useState("");
+  const [error, setError] =
+    useState("");
 
   function getRecentHistory(
     currentMessages: Message[],
@@ -47,15 +54,6 @@ function AiTest() {
     );
   }
 
-  /*
-   * Esta função NÃO salva nada permanentemente.
-   *
-   * Ela apenas mantém algumas informações simples
-   * enquanto esta página estiver aberta.
-   *
-   * O ideal é que o index.ts também possa devolver
-   * informações relevantes para atualizar essa memória.
-   */
   function updateTemporaryMemory(
     newFacts: string[],
   ) {
@@ -75,7 +73,9 @@ function AiTest() {
       const uniqueFacts = [
         ...new Set(
           mergedFacts
-            .map((fact) => fact.trim())
+            .map((fact) =>
+              fact.trim(),
+            )
             .filter(
               (fact) =>
                 fact.length > 0,
@@ -84,8 +84,9 @@ function AiTest() {
       ];
 
       /*
-       * Limite para impedir que a própria memória
-       * cresça infinitamente e comece a gastar tokens.
+       * Limite de memória temporária.
+       * Isso ajuda a não gastar tokens
+       * desnecessariamente.
        */
       const limitedFacts =
         uniqueFacts.slice(-12);
@@ -109,6 +110,10 @@ function AiTest() {
 
     setError("");
 
+    /*
+     * Adiciona imediatamente a mensagem
+     * na tela.
+     */
     const updatedMessages: Message[] = [
       ...messages,
       {
@@ -127,56 +132,116 @@ function AiTest() {
 
     try {
       /*
-       * Verifica se existe uma sessão.
-       *
-       * Não enviamos ID manualmente.
-       * O Supabase Functions Invoke usa
-       * a sessão autenticada.
+       * ==================================
+       * TESTE DE AUTENTICAÇÃO
+       * ==================================
        */
+
       const {
         data: sessionData,
         error: sessionError,
       } =
         await supabase.auth.getSession();
 
-      if (sessionError) {
+      console.log(
+        "===== TESTE DE SESSÃO =====",
+      );
+
+      console.log(
+        "Sessão atual:",
+        sessionData.session,
+      );
+
+      console.log(
+        "Usuário atual:",
+        sessionData.session?.user,
+      );
+
+      console.log(
+        "Erro da sessão:",
+        sessionError,
+      );
+
+      console.log(
+        "===========================",
+      );
+
+      if (
+        sessionError
+      ) {
         throw new Error(
           "Não foi possível verificar sua sessão.",
         );
       }
 
-      if (!sessionData.session) {
+      if (
+        !sessionData.session
+      ) {
         throw new Error(
           "Você precisa estar logado para usar o DecidlyAI.",
         );
       }
 
       /*
-       * Economia de tokens:
-       *
-       * A tela mantém todas as mensagens,
-       * mas a IA recebe apenas as últimas.
+       * ==================================
+       * TOKEN DO USUÁRIO
+       * ==================================
        */
+
+      const accessToken =
+        sessionData.session
+          .access_token;
+
+      if (
+        !accessToken
+      ) {
+        throw new Error(
+          "Sua sessão não possui um token de acesso válido.",
+        );
+      }
+
+      console.log(
+        "Token encontrado:",
+        true,
+      );
+
+      /*
+       * ==================================
+       * ECONOMIA DE TOKENS
+       *
+       * A IA recebe apenas as últimas
+       * mensagens.
+       * ==================================
+       */
+
       const recentHistory =
         getRecentHistory(
           updatedMessages,
         );
 
       console.log(
-        "Histórico recente enviado:",
+        "Histórico enviado:",
         recentHistory,
       );
 
       console.log(
-        "Memória temporária enviada:",
+        "Memória temporária:",
         temporaryMemory,
       );
+
+      /*
+       * ==================================
+       * CHAMADA DA EDGE FUNCTION
+       * ==================================
+       */
 
       const {
         data,
         error: functionError,
       } =
-        await supabase.functions.invoke<AiResponse>(
+        await supabase.functions.invoke<
+          AiResponse
+        >(
           "decidly-ai-personality",
           {
             body: {
@@ -189,36 +254,114 @@ function AiTest() {
               temporaryMemory:
                 temporaryMemory,
             },
+
+            headers: {
+              Authorization:
+                `Bearer ${accessToken}`,
+            },
           },
         );
 
       console.log(
-        "Resposta completa do DecidlyAI:",
+        "===== RESPOSTA DA EDGE FUNCTION =====",
+      );
+
+      console.log(
+        "Data:",
         data,
       );
 
-      if (functionError) {
+      console.log(
+        "Function Error:",
+        functionError,
+      );
+
+      console.log(
+        "======================================",
+      );
+
+      /*
+       * ==================================
+       * LÊ O ERRO REAL DA EDGE FUNCTION
+       * ==================================
+       */
+
+      if (
+        functionError
+      ) {
         console.error(
-          "Erro completo da Edge Function:",
+          "Erro completo:",
           functionError,
         );
 
+        console.error(
+          "Contexto:",
+          functionError.context,
+        );
+
+        let backendMessage =
+          "A Edge Function retornou um erro.";
+
+        try {
+          if (
+            functionError.context
+          ) {
+            const errorBody =
+              await functionError.context.json();
+
+            console.error(
+              "Resposta de erro do backend:",
+              errorBody,
+            );
+
+            if (
+              typeof errorBody?.error ===
+              "string"
+            ) {
+              backendMessage =
+                errorBody.error;
+            }
+          }
+        } catch (
+          parseError
+        ) {
+          console.error(
+            "Não foi possível interpretar o erro:",
+            parseError,
+          );
+        }
+
         throw new Error(
-          functionError.message ||
-            "Não foi possível conectar ao DecidlyAI.",
+          backendMessage,
         );
       }
 
-      if (data?.error) {
+      /*
+       * ==================================
+       * ERRO DEVOLVIDO PELO BACKEND
+       * ==================================
+       */
+
+      if (
+        data?.error
+      ) {
         throw new Error(
           data.error,
         );
       }
 
+      /*
+       * ==================================
+       * VALIDA RESPOSTA
+       * ==================================
+       */
+
       if (
         typeof data?.response !==
           "string" ||
-        data.response.trim().length === 0
+        data.response
+          .trim()
+          .length === 0
       ) {
         console.error(
           "Resposta inválida:",
@@ -229,6 +372,12 @@ function AiTest() {
           "O DecidlyAI não retornou uma resposta válida.",
         );
       }
+
+      /*
+       * ==================================
+       * ADICIONA RESPOSTA DA IA
+       * ==================================
+       */
 
       setMessages(
         (current) => [
@@ -242,25 +391,17 @@ function AiTest() {
       );
 
       /*
-       * Caso futuramente o index.ts devolva:
+       * ==================================
+       * ATUALIZA MEMÓRIA TEMPORÁRIA
        *
-       * temporaryMemory: {
-       *   facts: [...]
-       * }
-       *
-       * o frontend pode atualizar a memória
-       * temporária sem usar banco de dados.
+       * Não usa banco.
+       * Não salva permanentemente.
+       * Desaparece ao recarregar a página.
+       * ==================================
        */
 
-      const responseWithMemory =
-        data as AiResponse & {
-          temporaryMemory?: {
-            facts?: string[];
-          };
-        };
-
       const newFacts =
-        responseWithMemory
+        data
           ?.temporaryMemory
           ?.facts;
 
@@ -274,9 +415,11 @@ function AiTest() {
         );
       }
 
-    } catch (err) {
+    } catch (
+      err
+    ) {
       console.error(
-        "Erro ao enviar mensagem:",
+        "===== ERRO FINAL =====",
         err,
       );
 
@@ -297,7 +440,10 @@ function AiTest() {
   }
 
   function handleKeyDown(
-    event: React.KeyboardEvent<HTMLTextAreaElement>,
+    event:
+      React.KeyboardEvent<
+        HTMLTextAreaElement
+      >,
   ) {
     if (
       (
@@ -315,27 +461,34 @@ function AiTest() {
   return (
     <AppShell>
       <div className="min-h-screen bg-slate-950 text-white">
+
         <div className="mx-auto w-full max-w-4xl px-6 py-16 md:py-24">
 
           <div className="text-center">
 
             <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-2 text-sm text-violet-300">
+
               <Sparkles className="h-4 w-4" />
 
               Ambiente de teste
+
             </div>
 
             <h1 className="mt-6 text-4xl font-bold tracking-tight md:text-5xl">
+
               Teste do{" "}
 
               <span className="text-violet-400">
                 DecidlyAI
               </span>
+
             </h1>
 
             <p className="mx-auto mt-4 max-w-xl leading-relaxed text-slate-400">
+
               Envie uma mensagem e teste
               o cérebro do DecidlyAI.
+
             </p>
 
           </div>
@@ -350,12 +503,15 @@ function AiTest() {
                 <div className="flex min-h-[350px] items-center justify-center">
 
                   <p className="max-w-md text-center leading-relaxed text-slate-500">
+
                     😄 Comece enviando uma dúvida,
                     uma decisão ou qualquer mensagem
                     para testar o DecidlyAI.
+
                   </p>
 
                 </div>
+
               )}
 
               {messages.map(
@@ -366,6 +522,7 @@ function AiTest() {
 
                   <div
                     key={`${chatMessage.role}-${index}`}
+
                     className={
                       chatMessage.role ===
                         "user"
@@ -382,10 +539,15 @@ function AiTest() {
                           : "max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-bl-md border border-slate-800 bg-slate-950 px-5 py-4 leading-relaxed text-slate-300"
                       }
                     >
-                      {chatMessage.content}
+
+                      {
+                        chatMessage.content
+                      }
+
                     </div>
 
                   </div>
+
                 ),
               )}
 
@@ -394,10 +556,13 @@ function AiTest() {
                 <div className="flex justify-start">
 
                   <div className="rounded-2xl rounded-bl-md border border-slate-800 bg-slate-950 px-5 py-4 text-slate-400">
+
                     DecidlyAI está pensando... 😄
+
                   </div>
 
                 </div>
+
               )}
 
             </div>
@@ -407,8 +572,11 @@ function AiTest() {
               {error && (
 
                 <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+
                   {error}
+
                 </div>
+
               )}
 
               <div className="flex flex-col gap-3 sm:flex-row">
@@ -446,7 +614,9 @@ function AiTest() {
 
                   disabled={
                     isLoading ||
-                    message.trim().length === 0
+                    message
+                      .trim()
+                      .length === 0
                   }
 
                   className="flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-6 py-4 font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50 sm:self-end"
@@ -469,6 +639,7 @@ function AiTest() {
           </div>
 
         </div>
+
       </div>
     </AppShell>
   );
