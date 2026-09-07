@@ -87,12 +87,12 @@ export function AppShell({
           {/* BOTÃO BLOG NO MEIO */}
 
           <div className="mt-8 flex justify-center">
-            <Link
-              to="/blog"
-              className="rounded-xl border border-slate-800 bg-slate-900 px-5 py-2.5 text-sm font-medium text-slate-300 transition hover:border-violet-500/50 hover:bg-violet-500/10 hover:text-violet-300"
-            >
-              Blog
-            </Link>
+            <a
+  href="https://URL-DO-SEU-BLOG.com"
+  className="rounded-xl border border-slate-800 bg-slate-900 px-5 py-2.5 text-sm font-medium text-slate-300 transition hover:border-violet-500/50 hover:bg-violet-500/10 hover:text-violet-300"
+>
+  Blog
+</a>
           </div>
 
           {/* LINHA */}
