@@ -12,6 +12,7 @@ import {
   Loader2,
   Mail,
   User,
+  ShieldCheck,
 } from "lucide-react";
 import {
   useEffect,
@@ -74,6 +75,28 @@ declare global {
         };
       };
     };
+
+    turnstile?: {
+      render: (
+        container: HTMLElement,
+        options: {
+          sitekey: string;
+          theme?: "light" | "dark" | "auto";
+          size?: "normal" | "compact";
+          callback?: (token: string) => void;
+          "expired-callback"?: () => void;
+          "error-callback"?: () => void;
+        },
+      ) => string | number;
+
+      reset: (
+        widgetId?: string | number,
+      ) => void;
+
+      remove: (
+        widgetId?: string | number,
+      ) => void;
+    };
   }
 }
 
@@ -99,6 +122,9 @@ type Feedback = {
 const GOOGLE_CLIENT_ID =
   "895354448430-qs5ilh31kgp5qqlb0c6s6abiag9s8vti.apps.googleusercontent.com";
 
+const TURNSTILE_SITE_KEY =
+  "0x4AAAAAAErVWNfAdys_3TD5";
+
 function LoginPage() {
   const navigate = useNavigate();
 
@@ -107,6 +133,12 @@ function LoginPage() {
 
   const googleInitializedRef =
     useRef(false);
+
+  const turnstileContainerRef =
+    useRef<HTMLDivElement>(null);
+
+  const turnstileWidgetIdRef =
+    useRef<string | number | null>(null);
 
   const [mode, setMode] =
     useState<Mode>("login");
@@ -161,6 +193,21 @@ function LoginPage() {
     setVerifyLoading,
   ] = useState(false);
 
+  const [
+    captchaToken,
+    setCaptchaToken,
+  ] = useState("");
+
+  const [
+    captchaLoading,
+    setCaptchaLoading,
+  ] = useState(false);
+
+  const [
+    captchaError,
+    setCaptchaError,
+  ] = useState(false);
+
   const [feedback, setFeedback] =
     useState<Feedback>(null);
 
@@ -170,8 +217,29 @@ function LoginPage() {
   const isRecover =
     mode === "recover";
 
+  const needsCaptcha =
+    isSignUp || isRecover;
+
   function clearFeedback() {
     setFeedback(null);
+  }
+
+  function resetCaptcha() {
+    setCaptchaToken("");
+    setCaptchaError(false);
+
+    if (
+      window.turnstile &&
+      turnstileWidgetIdRef.current !== null
+    ) {
+      try {
+        window.turnstile.reset(
+          turnstileWidgetIdRef.current,
+        );
+      } catch {
+        // Ignora erros ao resetar o widget.
+      }
+    }
   }
 
   function changeMode(
@@ -183,6 +251,9 @@ function LoginPage() {
 
     setPassword("");
     setConfirmPassword("");
+
+    setCaptchaToken("");
+    setCaptchaError(false);
   }
 
   function updateUsername(
@@ -215,6 +286,212 @@ function LoginPage() {
     });
   }
 
+  /*
+   * CLOUDFLARE TURNSTILE
+   */
+
+  useEffect(() => {
+    if (!needsCaptcha) {
+      setCaptchaToken("");
+      setCaptchaError(false);
+
+      return;
+    }
+
+    let cancelled = false;
+
+    function renderTurnstile() {
+      if (
+        cancelled ||
+        !window.turnstile ||
+        !turnstileContainerRef.current
+      ) {
+        return;
+      }
+
+      const container =
+        turnstileContainerRef.current;
+
+      container.innerHTML = "";
+
+      setCaptchaLoading(true);
+      setCaptchaError(false);
+      setCaptchaToken("");
+
+      try {
+        const widgetId =
+          window.turnstile.render(
+            container,
+            {
+              sitekey:
+                TURNSTILE_SITE_KEY,
+
+              theme: "dark",
+
+              size: "normal",
+
+              callback: (
+                token: string,
+              ) => {
+                if (cancelled) {
+                  return;
+                }
+
+                setCaptchaToken(
+                  token,
+                );
+
+                setCaptchaLoading(
+                  false,
+                );
+
+                setCaptchaError(
+                  false,
+                );
+              },
+
+              "expired-callback":
+                () => {
+                  if (cancelled) {
+                    return;
+                  }
+
+                  setCaptchaToken(
+                    "",
+                  );
+
+                  setCaptchaError(
+                    true,
+                  );
+
+                  setCaptchaLoading(
+                    false,
+                  );
+                },
+
+              "error-callback":
+                () => {
+                  if (cancelled) {
+                    return;
+                  }
+
+                  setCaptchaToken(
+                    "",
+                  );
+
+                  setCaptchaError(
+                    true,
+                  );
+
+                  setCaptchaLoading(
+                    false,
+                  );
+                },
+            },
+          );
+
+        turnstileWidgetIdRef.current =
+          widgetId;
+      } catch {
+        if (!cancelled) {
+          setCaptchaLoading(false);
+
+          setCaptchaError(true);
+
+          setCaptchaToken("");
+        }
+      }
+    }
+
+    function loadTurnstile() {
+      if (window.turnstile) {
+        renderTurnstile();
+
+        return;
+      }
+
+      const existingScript =
+        document.getElementById(
+          "cloudflare-turnstile-script",
+        );
+
+      if (existingScript) {
+        existingScript.addEventListener(
+          "load",
+          renderTurnstile,
+          {
+            once: true,
+          },
+        );
+
+        return;
+      }
+
+      const script =
+        document.createElement(
+          "script",
+        );
+
+      script.id =
+        "cloudflare-turnstile-script";
+
+      script.src =
+        "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+
+      script.async = true;
+      script.defer = true;
+
+      script.onload =
+        renderTurnstile;
+
+      script.onerror = () => {
+        if (cancelled) {
+          return;
+        }
+
+        setCaptchaLoading(false);
+
+        setCaptchaError(true);
+
+        setCaptchaToken("");
+      };
+
+      document.head.appendChild(
+        script,
+      );
+    }
+
+    loadTurnstile();
+
+    return () => {
+      cancelled = true;
+
+      if (
+        window.turnstile &&
+        turnstileWidgetIdRef.current !==
+          null
+      ) {
+        try {
+          window.turnstile.remove(
+            turnstileWidgetIdRef.current,
+          );
+        } catch {
+          // Ignora erros na desmontagem.
+        }
+
+        turnstileWidgetIdRef.current =
+          null;
+      }
+    };
+  }, [
+    needsCaptcha,
+    mode,
+  ]);
+
+  /*
+   * GOOGLE LOGIN
+   */
+
   useEffect(() => {
     if (isRecover) {
       return;
@@ -227,7 +504,9 @@ function LoginPage() {
       | undefined;
 
     let resizeTimeout:
-      | ReturnType<typeof setTimeout>
+      | ReturnType<
+          typeof setTimeout
+        >
       | undefined;
 
     async function handleGoogleCredential(
@@ -249,7 +528,8 @@ function LoginPage() {
         const { error } =
           await supabase.auth.signInWithIdToken({
             provider: "google",
-            token: response.credential,
+            token:
+              response.credential,
           });
 
         if (error) {
@@ -335,7 +615,8 @@ function LoginPage() {
             shape: "pill",
             text: "continue_with",
             logo_alignment: "left",
-            width: containerWidth,
+            width:
+              containerWidth,
             locale: "pt-BR",
           },
         );
@@ -454,6 +735,10 @@ function LoginPage() {
     navigate,
   ]);
 
+  /*
+   * LOGIN
+   */
+
   async function handleSignIn() {
     clearFeedback();
 
@@ -550,6 +835,10 @@ function LoginPage() {
     }
   }
 
+  /*
+   * CRIAR CONTA
+   */
+
   async function handleSignUp() {
     clearFeedback();
 
@@ -640,10 +929,19 @@ function LoginPage() {
     }
 
     if (
-      password !== confirmPassword
+      password !==
+      confirmPassword
     ) {
       showError(
         "As senhas não são iguais.",
+      );
+
+      return;
+    }
+
+    if (!captchaToken) {
+      showError(
+        "Conclua a verificação de segurança antes de continuar.",
       );
 
       return;
@@ -659,11 +957,18 @@ function LoginPage() {
         await supabase.auth.signUp({
           email: cleanEmail,
           password,
+
           options: {
             emailRedirectTo:
               `${window.location.origin}/login`,
+
+            captchaToken:
+              captchaToken,
+
             data: {
-              name: cleanName,
+              name:
+                cleanName,
+
               username:
                 cleanUsername,
             },
@@ -673,6 +978,8 @@ function LoginPage() {
       if (error) {
         const errorMessage =
           error.message.toLowerCase();
+
+        resetCaptcha();
 
         if (
           errorMessage.includes(
@@ -689,6 +996,18 @@ function LoginPage() {
           return;
         }
 
+        if (
+          errorMessage.includes(
+            "captcha",
+          )
+        ) {
+          showError(
+            "A verificação de segurança expirou ou falhou. Tente novamente.",
+          );
+
+          return;
+        }
+
         showError(
           error.message,
         );
@@ -700,6 +1019,8 @@ function LoginPage() {
         showError(
           "Não foi possível concluir a criação da conta.",
         );
+
+        resetCaptcha();
 
         return;
       }
@@ -720,6 +1041,8 @@ function LoginPage() {
         to: "/",
       });
     } catch {
+      resetCaptcha();
+
       showError(
         "Não foi possível conectar ao servidor. Tente novamente.",
       );
@@ -727,6 +1050,10 @@ function LoginPage() {
       setLoading(false);
     }
   }
+
+  /*
+   * RECUPERAR SENHA
+   */
 
   async function handleRecoverySubmit() {
     clearFeedback();
@@ -747,6 +1074,14 @@ function LoginPage() {
       return;
     }
 
+    if (!captchaToken) {
+      showError(
+        "Conclua a verificação de segurança antes de continuar.",
+      );
+
+      return;
+    }
+
     setVerifyLoading(true);
 
     try {
@@ -756,10 +1091,30 @@ function LoginPage() {
           {
             redirectTo:
               `${window.location.origin}/reset-password`,
+
+            captchaToken:
+              captchaToken,
           },
         );
 
       if (error) {
+        resetCaptcha();
+
+        const errorMessage =
+          error.message.toLowerCase();
+
+        if (
+          errorMessage.includes(
+            "captcha",
+          )
+        ) {
+          showError(
+            "A verificação de segurança expirou ou falhou. Tente novamente.",
+          );
+
+          return;
+        }
+
         showError(
           error.message,
         );
@@ -770,7 +1125,11 @@ function LoginPage() {
       showSuccess(
         "Pronto! Se existir uma conta com este e-mail, enviaremos um link para criar uma nova senha.",
       );
+
+      resetCaptcha();
     } catch {
+      resetCaptcha();
+
       showError(
         "Não foi possível enviar o e-mail de recuperação.",
       );
@@ -862,8 +1221,9 @@ function LoginPage() {
               </h1>
 
               <p className="mt-4 text-base leading-relaxed text-slate-400 sm:text-lg">
-                Digite seu e-mail e enviaremos um
-                link para você criar uma nova senha.
+                Digite seu e-mail e
+                enviaremos um link para
+                você criar uma nova senha.
               </p>
 
               {feedback ? (
@@ -892,14 +1252,27 @@ function LoginPage() {
                   }
                 />
 
+                <CaptchaBox
+                  loading={captchaLoading}
+                  error={captchaError}
+                  containerRef={
+                    turnstileContainerRef
+                  }
+                />
+
                 <button
                   type="submit"
-                  disabled={verifyLoading}
+                  disabled={
+                    verifyLoading ||
+                    captchaLoading ||
+                    !captchaToken
+                  }
                   className="interactive-lift group flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {verifyLoading ? (
                     <>
                       <Loader2 className="h-5 w-5 animate-spin" />
+
                       Enviando...
                     </>
                   ) : (
@@ -962,7 +1335,8 @@ function LoginPage() {
                     ref={googleButtonRef}
                     aria-label="Continuar com o Google"
                     className={`botao-google-real absolute inset-0 z-10 h-full w-full ${
-                      googleReady && !googleLoading
+                      googleReady &&
+                      !googleLoading
                         ? "opacity-0"
                         : "pointer-events-none opacity-0"
                     }`}
@@ -1016,7 +1390,9 @@ function LoginPage() {
                     id="username"
                     label="Nome de usuário"
                     value={username}
-                    onChange={updateUsername}
+                    onChange={
+                      updateUsername
+                    }
                     placeholder="Escolha seu nome de usuário"
                     icon={
                       <User className="h-5 w-5" />
@@ -1054,7 +1430,9 @@ function LoginPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      setVerifyEmail(email);
+                      setVerifyEmail(
+                        email,
+                      );
 
                       changeMode(
                         "recover",
@@ -1067,22 +1445,47 @@ function LoginPage() {
                 ) : null}
 
                 {isSignUp ? (
-                  <PasswordField
-                    id="confirm-password"
-                    label="Confirmar senha"
-                    value={confirmPassword}
-                    onChange={setConfirmPassword}
-                    show={showConfirmPassword}
-                    setShow={setShowConfirmPassword}
-                    autoComplete="new-password"
-                  />
+                  <>
+                    <PasswordField
+                      id="confirm-password"
+                      label="Confirmar senha"
+                      value={
+                        confirmPassword
+                      }
+                      onChange={
+                        setConfirmPassword
+                      }
+                      show={
+                        showConfirmPassword
+                      }
+                      setShow={
+                        setShowConfirmPassword
+                      }
+                      autoComplete="new-password"
+                    />
+
+                    <CaptchaBox
+                      loading={
+                        captchaLoading
+                      }
+                      error={
+                        captchaError
+                      }
+                      containerRef={
+                        turnstileContainerRef
+                      }
+                    />
+                  </>
                 ) : null}
 
                 <button
                   type="submit"
                   disabled={
                     loading ||
-                    googleLoading
+                    googleLoading ||
+                    (isSignUp &&
+                      (!captchaToken ||
+                        captchaLoading))
                   }
                   className="interactive-lift group flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 hover:shadow-violet-950/50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -1127,7 +1530,8 @@ function LoginPage() {
               </p>
 
               <p className="mt-7 text-center text-xs leading-relaxed text-slate-500">
-                Ao continuar, você concorda com os{" "}
+                Ao continuar, você
+                concorda com os{" "}
 
                 <Link
                   to="/terms"
@@ -1171,12 +1575,14 @@ function LoginPage() {
             </div>
 
             <h2 className="text-xl font-semibold text-white">
-              Autenticando com o Google
+              Autenticando com o
+              Google
             </h2>
 
             <p className="mt-3 text-sm leading-relaxed text-slate-400">
-              Aguarde um momento enquanto
-              verificamos sua conta.
+              Aguarde um momento
+              enquanto verificamos sua
+              conta.
             </p>
           </div>
         </div>
@@ -1197,6 +1603,47 @@ function LoginPage() {
         }
       `}</style>
     </main>
+  );
+}
+
+function CaptchaBox({
+  loading,
+  error,
+  containerRef,
+}: {
+  loading: boolean;
+  error: boolean;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+      <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-300">
+        <ShieldCheck className="h-4 w-4 text-violet-400" />
+
+        Verificação de segurança
+      </div>
+
+      <div
+        ref={containerRef}
+        className="flex min-h-[65px] items-center justify-center"
+      />
+
+      {loading ? (
+        <div className="mt-3 flex items-center justify-center gap-2 text-xs text-slate-500">
+          <Loader2 className="h-4 w-4 animate-spin" />
+
+          Carregando verificação...
+        </div>
+      ) : null}
+
+      {error ? (
+        <p className="mt-3 text-center text-xs text-red-400">
+          Não foi possível carregar a
+          verificação. Atualize a página
+          e tente novamente.
+        </p>
+      ) : null}
+    </div>
   );
 }
 
