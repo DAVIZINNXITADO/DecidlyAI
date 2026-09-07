@@ -2,6 +2,23 @@ import { Link } from "@tanstack/react-router";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 
+function scrollToSection(sectionId: string) {
+  const target = document.getElementById(sectionId);
+
+  if (!target) {
+    return;
+  }
+
+  const targetTop =
+    target.getBoundingClientRect().top +
+    window.scrollY;
+
+  window.scrollTo({
+    top: targetTop,
+    behavior: "smooth",
+  });
+}
+
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] =
     useState(false);
@@ -10,41 +27,18 @@ export function Navbar() {
     setMobileMenuOpen(false);
   }
 
-  function scrollToSection(sectionId: string) {
-    const section = document.getElementById(sectionId);
-
-    if (!section) {
-      return;
-    }
-
-    section.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-
-    window.history.pushState(
-      null,
-      "",
-      `#${sectionId}`,
-    );
-  }
-
   function handleSectionClick(sectionId: string) {
-    return (
-      event: React.MouseEvent<HTMLAnchorElement>,
-    ) => {
-      event.preventDefault();
+    closeMobileMenu();
 
-      closeMobileMenu();
-
-      /*
-       * Pequeno atraso no mobile para permitir que
-       * o menu feche antes da rolagem começar.
-       */
-      window.setTimeout(() => {
+    /*
+     * No mobile, esperamos o React remover o menu
+     * antes de medir a posição da seção.
+     */
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
         scrollToSection(sectionId);
-      }, 50);
-    };
+      });
+    });
   }
 
   function handleHomeClick() {
@@ -54,18 +48,11 @@ export function Navbar() {
       top: 0,
       behavior: "smooth",
     });
-
-    window.history.pushState(
-      null,
-      "",
-      window.location.pathname,
-    );
   }
 
   return (
     <nav className="sticky top-0 z-50 border-b border-slate-800/70 bg-slate-950/80 backdrop-blur-xl transition-colors duration-200">
       <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-6">
-
         {/* LOGO */}
 
         <Link
@@ -82,7 +69,7 @@ export function Navbar() {
           className="interactive-scale flex items-center gap-3 rounded-xl transition-opacity hover:opacity-90"
           aria-label="Voltar para o início"
         >
-          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl transition-transform duration-200 group-hover:scale-105">
+          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl">
             <img
               src="/favicon.ico"
               alt="DecidlyAI"
@@ -104,35 +91,35 @@ export function Navbar() {
         {/* MENU DESKTOP */}
 
         <div className="hidden items-center gap-8 text-sm font-medium text-slate-300 md:flex">
-          <a
-            href="#como-funciona"
-            onClick={handleSectionClick(
-              "como-funciona",
-            )}
+          <button
+            type="button"
+            onClick={() =>
+              handleSectionClick("como-funciona")
+            }
             className="rounded-lg px-1 py-2 transition-colors hover:text-white focus-visible:text-white"
           >
             Como funciona
-          </a>
+          </button>
 
-          <a
-            href="#recursos"
-            onClick={handleSectionClick(
-              "recursos",
-            )}
+          <button
+            type="button"
+            onClick={() =>
+              handleSectionClick("recursos")
+            }
             className="rounded-lg px-1 py-2 transition-colors hover:text-white focus-visible:text-white"
           >
             Recursos
-          </a>
+          </button>
 
-          <a
-            href="#planos"
-            onClick={handleSectionClick(
-              "planos",
-            )}
+          <button
+            type="button"
+            onClick={() =>
+              handleSectionClick("planos")
+            }
             className="rounded-lg px-1 py-2 transition-colors hover:text-white focus-visible:text-white"
           >
             Planos
-          </a>
+          </button>
         </div>
 
         {/* BOTÕES DESKTOP */}
@@ -183,36 +170,37 @@ export function Navbar() {
       {mobileMenuOpen ? (
         <div className="border-t border-slate-800 bg-slate-950/95 px-6 py-5 backdrop-blur-xl md:hidden">
           <div className="mx-auto flex max-w-6xl flex-col gap-2">
-
-            <a
-              href="#como-funciona"
-              onClick={handleSectionClick(
-                "como-funciona",
-              )}
-              className="rounded-xl px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white active:scale-[0.99]"
+            <button
+              type="button"
+              onClick={() =>
+                handleSectionClick(
+                  "como-funciona",
+                )
+              }
+              className="rounded-xl px-4 py-3 text-left text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white"
             >
               Como funciona
-            </a>
+            </button>
 
-            <a
-              href="#recursos"
-              onClick={handleSectionClick(
-                "recursos",
-              )}
-              className="rounded-xl px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white active:scale-[0.99]"
+            <button
+              type="button"
+              onClick={() =>
+                handleSectionClick("recursos")
+              }
+              className="rounded-xl px-4 py-3 text-left text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white"
             >
               Recursos
-            </a>
+            </button>
 
-            <a
-              href="#planos"
-              onClick={handleSectionClick(
-                "planos",
-              )}
-              className="rounded-xl px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white active:scale-[0.99]"
+            <button
+              type="button"
+              onClick={() =>
+                handleSectionClick("planos")
+              }
+              className="rounded-xl px-4 py-3 text-left text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white"
             >
               Planos
-            </a>
+            </button>
 
             <div className="mt-3 grid grid-cols-2 gap-3">
               <Link
