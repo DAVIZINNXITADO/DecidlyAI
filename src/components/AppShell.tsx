@@ -10,84 +10,106 @@ export function AppShell({
 }: AppShellProps) {
   return (
     <div className="flex min-h-screen flex-col bg-slate-950">
-      {/* CONTEÚDO */}
-
       <main className="flex-1">
         {children}
       </main>
 
-      {/* FOOTER */}
-
-      <footer className="border-t border-slate-800 bg-slate-950">
-        <div className="mx-auto max-w-5xl px-6 py-12 md:px-8">
+      <footer className="border-t border-slate-800/80 bg-slate-950">
+        <div className="mx-auto w-full max-w-6xl px-6 py-10 md:px-8">
           {/* LINKS */}
 
-          <div className="grid grid-cols-2 gap-x-12 gap-y-5 text-sm md:gap-x-24">
-            {/* ESQUERDA */}
+          <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 text-sm text-slate-400">
+            {/* LINHA 1 */}
 
-            <div className="flex flex-col gap-5">
-              <Link
-                to="/terms"
-                className="w-fit text-slate-400 transition hover:text-violet-300"
-              >
-                Termos de Uso
-              </Link>
-
-              <Link
-                to="/privacy"
-                className="w-fit text-slate-400 transition hover:text-violet-300"
-              >
-                Política de Privacidade
-              </Link>
-
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
               <Link
                 to="/cookies"
-                className="w-fit text-slate-400 transition hover:text-violet-300"
+                className="transition-colors hover:text-violet-300"
               >
-                Política de Cookies
+                Cookies
               </Link>
-            </div>
 
-            {/* DIREITA */}
+              <span className="text-slate-700">•</span>
 
-            <div className="flex flex-col items-end gap-5">
+              <a
+                href="https://URL-DO-STATUS.com"
+                className="transition-colors hover:text-violet-300"
+              >
+                Estado do Sistema
+              </a>
+
+              <span className="text-slate-700">•</span>
+
               <a
                 href="mailto:decidlyia@outlook.com?subject=Suporte%20DecidlyAI"
-                className="w-fit text-slate-400 transition hover:text-violet-300"
+                className="transition-colors hover:text-violet-300"
               >
                 Suporte
               </a>
+            </div>
+
+            {/* LINHA 2 */}
+
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
+              <Link
+                to="/privacy"
+                className="transition-colors hover:text-violet-300"
+              >
+                Privacidade
+              </Link>
+
+              <span className="text-slate-700">•</span>
 
               <a
-                href="mailto:decidlyia@outlook.com?subject=Feedback%20DecidlyAI"
-                className="w-fit text-slate-400 transition hover:text-violet-300"
+                href="#planos"
+                className="transition-colors hover:text-violet-300"
               >
-                Enviar feedback
+                Ver planos
               </a>
 
+              <span className="text-slate-700">•</span>
+
               <a
-                href="mailto:decidlyia@outlook.com?subject=Relat%C3%B3rio%20de%20problema%20DecidlyAI"
-                className="w-fit text-slate-400 transition hover:text-violet-300"
+                href="#creditos"
+                className="transition-colors hover:text-violet-300"
               >
-                Reportar um problema
+                Créditos
               </a>
             </div>
-          </div>
 
-          {/* BLOG CENTRALIZADO */}
+            {/* LINHA 3 */}
 
-          <div className="mt-10 flex justify-center">
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
+              <Link
+                to="/terms"
+                className="transition-colors hover:text-violet-300"
+              >
+                Termos
+              </Link>
+
+              <span className="text-slate-700">•</span>
+
+              <Link
+                to="/cookies"
+                className="transition-colors hover:text-violet-300"
+              >
+                Preferências de cookies
+              </Link>
+            </div>
+
+            {/* BLOG */}
+
             <a
               href="https://URL-DO-SEU-BLOG.com"
-              className="text-sm font-medium text-slate-400 transition hover:text-violet-300"
+              className="mt-2 transition-colors hover:text-violet-300"
             >
-              Blog
+              • Nosso Blog •
             </a>
           </div>
 
           {/* DIVISOR */}
 
-          <div className="my-10 h-px bg-slate-800" />
+          <div className="my-9 h-px bg-slate-800/80" />
 
           {/* COPYRIGHT */}
 
