@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Send, Sparkles } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/lib/supabase";
@@ -21,9 +23,10 @@ type Subscription = {
 };
 
 function formatAiError(errorMessage: string): string {
-  const message = errorMessage
-    .trim()
-    .toLowerCase();
+  const message =
+    errorMessage
+      .trim()
+      .toLowerCase();
 
   if (
     message.includes("crédito") ||
@@ -56,8 +59,12 @@ function formatAiError(errorMessage: string): string {
   }
 
   if (
-    message.includes("não retornou uma resposta válida") ||
-    message.includes("resposta vazia")
+    message.includes(
+      "não retornou uma resposta válida",
+    ) ||
+    message.includes(
+      "resposta vazia",
+    )
   ) {
     return "⚠️ Tive uma dificuldade ao gerar minha resposta desta vez. Pode tentar me perguntar novamente?";
   }
@@ -73,19 +80,28 @@ function formatAiError(errorMessage: string): string {
 }
 
 function AiTest() {
-  const [message, setMessage] =
-    useState("");
+  const [
+    message,
+    setMessage,
+  ] = useState("");
 
-  const [messages, setMessages] =
-    useState<Message[]>([]);
+  const [
+    messages,
+    setMessages,
+  ] = useState<Message[]>([]);
 
-  const [isLoading, setIsLoading] =
-    useState(false);
+  const [
+    isLoading,
+    setIsLoading,
+  ] = useState(false);
 
-  const [modelLabel, setModelLabel] =
-    useState<"Free" | "VIP" | null>(
-      null,
-    );
+  const [
+    modelLabel,
+    setModelLabel,
+  ] =
+    useState<
+      "Free" | "VIP" | null
+    >(null);
 
   async function getAiFunction() {
     const {
@@ -94,7 +110,9 @@ function AiTest() {
       },
       error: userError,
     } =
-      await supabase.auth.getUser();
+      await supabase
+        .auth
+        .getUser();
 
     if (
       userError ||
@@ -123,7 +141,8 @@ function AiTest() {
         .order(
           "created_at",
           {
-            ascending: false,
+            ascending:
+              false,
           },
         )
         .limit(1)
@@ -172,8 +191,10 @@ function AiTest() {
     const isVip =
       plan === "vip" &&
       (
-        status === "active" ||
-        status === "ativo"
+        status ===
+          "active" ||
+        status ===
+          "ativo"
       ) &&
       !hasExpired;
 
@@ -205,11 +226,14 @@ function AiTest() {
       return;
     }
 
-    const updatedMessages: Message[] =
+    const updatedMessages:
+      Message[] =
       [
         ...messages,
         {
-          role: "user",
+          role:
+            "user",
+
           content:
             trimmedMessage,
         },
@@ -233,27 +257,30 @@ function AiTest() {
 
       const {
         data,
-        error: functionError,
+        error:
+          functionError,
       } =
-        await supabase.functions.invoke(
-          functionName,
-          {
-            body: {
-              message:
-                trimmedMessage,
+        await supabase
+          .functions
+          .invoke(
+            functionName,
+            {
+              body: {
+                message:
+                  trimmedMessage,
 
-              history:
-                history,
+                history:
+                  history,
+              },
             },
-          },
-        );
+          );
 
       if (
         functionError
       ) {
         throw new Error(
           functionError.message ||
-          "Não foi possível conectar ao DecidlyAI.",
+            "Não foi possível conectar ao DecidlyAI.",
         );
       }
 
@@ -278,7 +305,9 @@ function AiTest() {
       }
 
       setMessages(
-        (current) => [
+        (
+          current,
+        ) => [
           ...current,
           {
             role:
@@ -289,7 +318,6 @@ function AiTest() {
           },
         ],
       );
-
     } catch (
       err
     ) {
@@ -303,10 +331,10 @@ function AiTest() {
           errorMessage,
         );
 
-      // Em vez de popup vermelho,
-      // o erro aparece como uma mensagem da IA.
       setMessages(
-        (current) => [
+        (
+          current,
+        ) => [
           ...current,
           {
             role:
@@ -317,7 +345,6 @@ function AiTest() {
           },
         ],
       );
-
     } finally {
       setIsLoading(
         false,
@@ -326,16 +353,18 @@ function AiTest() {
   }
 
   function handleKeyDown(
-    event: React.KeyboardEvent<
-      HTMLTextAreaElement
-    >,
+    event:
+      React.KeyboardEvent<
+        HTMLTextAreaElement
+      >,
   ) {
     if (
       (
         event.ctrlKey ||
         event.metaKey
       ) &&
-      event.key === "Enter"
+      event.key ===
+        "Enter"
     ) {
       event.preventDefault();
 
@@ -426,12 +455,37 @@ function AiTest() {
                       className={
                         chatMessage.role ===
                           "user"
-                          ? "max-w-[85%] rounded-2xl rounded-br-md bg-violet-600 px-5 py-4 text-white"
-                          : "max-w-[85%] rounded-2xl rounded-bl-md border border-slate-800 bg-slate-950 px-5 py-4 leading-relaxed text-slate-300"
+                          ? "max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-violet-600 px-5 py-4 text-white"
+                          : "max-w-[85%] overflow-hidden rounded-2xl rounded-bl-md border border-slate-800 bg-slate-950 px-5 py-4 leading-relaxed text-slate-300"
                       }
                     >
 
-                      {chatMessage.content}
+                      {chatMessage.role ===
+                      "assistant" ? (
+
+                        <div className="max-w-full overflow-x-auto">
+
+                          <div className="prose prose-invert max-w-none break-words prose-headings:mt-5 prose-headings:mb-3 prose-headings:text-slate-100 prose-p:my-3 prose-p:leading-relaxed prose-strong:text-white prose-ul:my-3 prose-ol:my-3 prose-li:my-1 prose-table:my-4 prose-table:text-sm prose-th:px-3 prose-th:py-2 prose-th:text-left prose-td:px-3 prose-td:py-2 prose-hr:border-slate-700">
+
+                            <ReactMarkdown
+                              remarkPlugins={[
+                                remarkGfm,
+                              ]}
+                            >
+                              {
+                                chatMessage.content
+                              }
+                            </ReactMarkdown>
+
+                          </div>
+
+                        </div>
+
+                      ) : (
+
+                        chatMessage.content
+
+                      )}
 
                     </div>
 
@@ -464,7 +518,9 @@ function AiTest() {
                   value={message}
 
                   onChange={
-                    (event) =>
+                    (
+                      event,
+                    ) =>
                       setMessage(
                         event.target.value,
                       )
@@ -494,7 +550,8 @@ function AiTest() {
 
                   disabled={
                     isLoading ||
-                    message.trim().length === 0
+                    message.trim()
+                      .length === 0
                   }
 
                   className="flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-6 py-4 font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50 sm:self-end"
