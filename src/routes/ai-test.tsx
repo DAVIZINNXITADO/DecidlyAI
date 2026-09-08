@@ -20,76 +20,129 @@ type Subscription = {
   expires_at: string | null;
 };
 
+function formatAiError(errorMessage: string): string {
+  const message = errorMessage
+    .trim()
+    .toLowerCase();
+
+  if (
+    message.includes("crédito") ||
+    message.includes("credit")
+  ) {
+    return "⚠️ No momento não consigo responder porque seus créditos acabaram. Quando houver créditos disponíveis novamente, pode me chamar para continuar a conversa.";
+  }
+
+  if (
+    message.includes("autenticado") ||
+    message.includes("sessão") ||
+    message.includes("login")
+  ) {
+    return "⚠️ Parece que não consigo confirmar sua sessão no momento. Faça login novamente e tente falar comigo outra vez.";
+  }
+
+  if (
+    message.includes("conectar") ||
+    message.includes("network") ||
+    message.includes("fetch")
+  ) {
+    return "⚠️ Estou com uma dificuldade temporária para me conectar ao sistema. Tente enviar sua mensagem novamente em alguns instantes.";
+  }
+
+  if (
+    message.includes("timeout") ||
+    message.includes("tempo")
+  ) {
+    return "⚠️ Demorei mais do que o esperado para processar sua solicitação. Pode tentar enviar a mensagem novamente?";
+  }
+
+  if (
+    message.includes("não retornou uma resposta válida") ||
+    message.includes("resposta vazia")
+  ) {
+    return "⚠️ Tive uma dificuldade ao gerar minha resposta desta vez. Pode tentar me perguntar novamente?";
+  }
+
+  if (
+    errorMessage.length > 0 &&
+    errorMessage.length < 300
+  ) {
+    return `⚠️ ${errorMessage}`;
+  }
+
+  return "⚠️ Tive um problema temporário para processar sua mensagem. Tente novamente em alguns instantes.";
+}
+
 function AiTest() {
-  const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [modelLabel, setModelLabel] = useState<
-    "Free" | "VIP" | null
-  >(null);
+  const [message, setMessage] =
+    useState("");
+
+  const [messages, setMessages] =
+    useState<Message[]>([]);
+
+  const [isLoading, setIsLoading] =
+    useState(false);
+
+  const [modelLabel, setModelLabel] =
+    useState<"Free" | "VIP" | null>(
+      null,
+    );
 
   async function getAiFunction() {
-    // -----------------------------------------------------
-    // PEGA USUÁRIO LOGADO
-    // -----------------------------------------------------
-
     const {
       data: {
         user,
       },
       error: userError,
-    } = await supabase.auth.getUser();
+    } =
+      await supabase.auth.getUser();
 
-    if (userError || !user) {
+    if (
+      userError ||
+      !user
+    ) {
       throw new Error(
         "Você precisa estar autenticado para usar o DecidlyAI.",
       );
     }
 
-    // -----------------------------------------------------
-    // BUSCA ASSINATURA
-    // -----------------------------------------------------
-
     const {
       data: subscription,
       error: subscriptionError,
-    } = await supabase
-      .from("subscription")
-      .select(`
-        plan,
-        status,
-        expires_at
-      `)
-      .eq(
-        "user_id",
-        user.id,
-      )
-      .order(
-        "created_at",
-        {
-          ascending: false,
-        },
-      )
-      .limit(1)
-      .maybeSingle<Subscription>();
+    } =
+      await supabase
+        .from("subscription")
+        .select(`
+          plan,
+          status,
+          expires_at
+        `)
+        .eq(
+          "user_id",
+          user.id,
+        )
+        .order(
+          "created_at",
+          {
+            ascending: false,
+          },
+        )
+        .limit(1)
+        .maybeSingle<Subscription>();
 
-    if (subscriptionError) {
+    if (
+      subscriptionError
+    ) {
       console.error(
         "Erro ao buscar assinatura:",
         subscriptionError,
       );
 
-      // Por segurança, se der erro ao buscar o plano,
-      // não libera VIP.
-      setModelLabel("Free");
+      setModelLabel(
+        "Free",
+      );
 
       return "decidly-ai-free";
     }
-
-    // -----------------------------------------------------
-    // VERIFICA VIP
-    // -----------------------------------------------------
 
     const now =
       new Date();
@@ -124,17 +177,19 @@ function AiTest() {
       ) &&
       !hasExpired;
 
-    // -----------------------------------------------------
-    // ESCOLHE A FUNÇÃO
-    // -----------------------------------------------------
-
-    if (isVip) {
-      setModelLabel("VIP");
+    if (
+      isVip
+    ) {
+      setModelLabel(
+        "VIP",
+      );
 
       return "decidly-ai";
     }
 
-    setModelLabel("Free");
+    setModelLabel(
+      "Free",
+    );
 
     return "decidly-ai-free";
   }
@@ -150,14 +205,13 @@ function AiTest() {
       return;
     }
 
-    setError("");
-
     const updatedMessages: Message[] =
       [
         ...messages,
         {
           role: "user",
-          content: trimmedMessage,
+          content:
+            trimmedMessage,
         },
       ];
 
@@ -169,25 +223,13 @@ function AiTest() {
     setIsLoading(true);
 
     try {
-      // ---------------------------------------------------
-      // DESCOBRE FREE OU VIP
-      // ---------------------------------------------------
-
       const functionName =
         await getAiFunction();
 
-      // ---------------------------------------------------
-      // ECONOMIA DE CONTEXTO
-      //
-      // Mantém apenas as últimas mensagens.
-      // ---------------------------------------------------
-
       const history =
-        updatedMessages.slice(-12);
-
-      // ---------------------------------------------------
-      // CHAMA A EDGE FUNCTION
-      // ---------------------------------------------------
+        updatedMessages.slice(
+          -12,
+        );
 
       const {
         data,
@@ -206,14 +248,18 @@ function AiTest() {
           },
         );
 
-      if (functionError) {
+      if (
+        functionError
+      ) {
         throw new Error(
           functionError.message ||
-            "Não foi possível conectar ao DecidlyAI.",
+          "Não foi possível conectar ao DecidlyAI.",
         );
       }
 
-      if (data?.error) {
+      if (
+        data?.error
+      ) {
         throw new Error(
           data.error,
         );
@@ -222,7 +268,9 @@ function AiTest() {
       if (
         typeof data?.response !==
           "string" ||
-        data.response.trim().length === 0
+        data.response
+          .trim()
+          .length === 0
       ) {
         throw new Error(
           "O DecidlyAI não retornou uma resposta válida.",
@@ -233,36 +281,44 @@ function AiTest() {
         (current) => [
           ...current,
           {
-            role: "assistant",
+            role:
+              "assistant",
+
             content:
               data.response,
           },
         ],
       );
 
-    } catch (err) {
-
+    } catch (
+      err
+    ) {
       const errorMessage =
         err instanceof Error
           ? err.message
           : "Ocorreu um erro inesperado.";
 
-      setError(
-        errorMessage,
-      );
+      const aiErrorMessage =
+        formatAiError(
+          errorMessage,
+        );
 
-      // Remove a mensagem do usuário se a IA
-      // não conseguiu responder.
+      // Em vez de popup vermelho,
+      // o erro aparece como uma mensagem da IA.
       setMessages(
-        (current) =>
-          current.slice(
-            0,
-            -1,
-          ),
+        (current) => [
+          ...current,
+          {
+            role:
+              "assistant",
+
+            content:
+              aiErrorMessage,
+          },
+        ],
       );
 
     } finally {
-
       setIsLoading(
         false,
       );
@@ -290,9 +346,8 @@ function AiTest() {
   return (
     <AppShell>
       <div className="min-h-screen bg-slate-950 text-white">
-        <div className="mx-auto w-full max-w-4xl px-6 py-16 md:py-24">
 
-          {/* CABEÇALHO */}
+        <div className="mx-auto w-full max-w-4xl px-6 py-16 md:py-24">
 
           <div className="text-center">
 
@@ -311,22 +366,24 @@ function AiTest() {
             </div>
 
             <h1 className="mt-6 text-4xl font-bold tracking-tight md:text-5xl">
+
               Teste do{" "}
 
               <span className="text-violet-400">
                 DecidlyAI
               </span>
+
             </h1>
 
             <p className="mx-auto mt-4 max-w-xl leading-relaxed text-slate-400">
-              Envie uma mensagem e teste o cérebro do
-              {" "}
+
+              Envie uma mensagem e teste o cérebro do{" "}
+
               DecidlyAI.
+
             </p>
 
           </div>
-
-          {/* CHAT */}
 
           <div className="mt-12 overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/50 shadow-2xl shadow-black/20">
 
@@ -334,15 +391,19 @@ function AiTest() {
 
               {messages.length === 0 &&
                 !isLoading && (
+
                   <div className="flex min-h-[350px] items-center justify-center">
 
                     <p className="max-w-md text-center leading-relaxed text-slate-500">
+
                       Comece enviando uma dúvida,
                       decisão ou qualquer mensagem
                       para testar a IA.
+
                     </p>
 
                   </div>
+
                 )}
 
               {messages.map(
@@ -350,6 +411,7 @@ function AiTest() {
                   chatMessage,
                   index,
                 ) => (
+
                   <div
                     key={index}
                     className={
@@ -374,10 +436,12 @@ function AiTest() {
                     </div>
 
                   </div>
+
                 ),
               )}
 
               {isLoading && (
+
                 <div className="flex justify-start">
 
                   <div className="rounded-2xl rounded-bl-md border border-slate-800 bg-slate-950 px-5 py-4 text-slate-400">
@@ -387,21 +451,12 @@ function AiTest() {
                   </div>
 
                 </div>
+
               )}
 
             </div>
 
-            {/* INPUT */}
-
             <div className="border-t border-slate-800 bg-slate-950/70 p-4 md:p-5">
-
-              {error && (
-                <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-
-                  {error}
-
-                </div>
-              )}
 
               <div className="flex flex-col gap-3 sm:flex-row">
 
@@ -454,7 +509,9 @@ function AiTest() {
               </div>
 
               <p className="mt-3 text-xs text-slate-500">
+
                 Ctrl + Enter para enviar
+
               </p>
 
             </div>
@@ -462,6 +519,7 @@ function AiTest() {
           </div>
 
         </div>
+
       </div>
     </AppShell>
   );
