@@ -14,87 +14,129 @@ type Message = {
   content: string;
 };
 
-type TemporaryMemory = {
-  facts: string[];
+type Subscription = {
+  plan: string | null;
+  status: string | null;
+  expires_at: string | null;
 };
-
-type AiResponse = {
-  response?: string;
-  error?: string;
-
-  temporaryMemory?: {
-    facts?: string[];
-  };
-};
-
-const MAX_CONTEXT_MESSAGES = 8;
 
 function AiTest() {
   const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [modelLabel, setModelLabel] = useState<
+    "Free" | "VIP" | null
+  >(null);
 
-  const [messages, setMessages] =
-    useState<Message[]>([]);
+  async function getAiFunction() {
+    // -----------------------------------------------------
+    // PEGA USUÁRIO LOGADO
+    // -----------------------------------------------------
 
-  const [temporaryMemory, setTemporaryMemory] =
-    useState<TemporaryMemory>({
-      facts: [],
-    });
+    const {
+      data: {
+        user,
+      },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-  const [isLoading, setIsLoading] =
-    useState(false);
-
-  const [error, setError] =
-    useState("");
-
-  function getRecentHistory(
-    currentMessages: Message[],
-  ) {
-    return currentMessages.slice(
-      -MAX_CONTEXT_MESSAGES,
-    );
-  }
-
-  function updateTemporaryMemory(
-    newFacts: string[],
-  ) {
-    if (
-      !Array.isArray(newFacts) ||
-      newFacts.length === 0
-    ) {
-      return;
+    if (userError || !user) {
+      throw new Error(
+        "Você precisa estar autenticado para usar o DecidlyAI.",
+      );
     }
 
-    setTemporaryMemory((current) => {
-      const mergedFacts = [
-        ...current.facts,
-        ...newFacts,
-      ];
+    // -----------------------------------------------------
+    // BUSCA ASSINATURA
+    // -----------------------------------------------------
 
-      const uniqueFacts = [
-        ...new Set(
-          mergedFacts
-            .map((fact) =>
-              fact.trim(),
-            )
-            .filter(
-              (fact) =>
-                fact.length > 0,
-            ),
-        ),
-      ];
+    const {
+      data: subscription,
+      error: subscriptionError,
+    } = await supabase
+      .from("subscription")
+      .select(`
+        plan,
+        status,
+        expires_at
+      `)
+      .eq(
+        "user_id",
+        user.id,
+      )
+      .order(
+        "created_at",
+        {
+          ascending: false,
+        },
+      )
+      .limit(1)
+      .maybeSingle<Subscription>();
 
-      /*
-       * Limite de memória temporária.
-       * Isso ajuda a não gastar tokens
-       * desnecessariamente.
-       */
-      const limitedFacts =
-        uniqueFacts.slice(-12);
+    if (subscriptionError) {
+      console.error(
+        "Erro ao buscar assinatura:",
+        subscriptionError,
+      );
 
-      return {
-        facts: limitedFacts,
-      };
-    });
+      // Por segurança, se der erro ao buscar o plano,
+      // não libera VIP.
+      setModelLabel("Free");
+
+      return "decidly-ai-free";
+    }
+
+    // -----------------------------------------------------
+    // VERIFICA VIP
+    // -----------------------------------------------------
+
+    const now =
+      new Date();
+
+    const plan =
+      subscription?.plan
+        ?.trim()
+        .toLowerCase();
+
+    const status =
+      subscription?.status
+        ?.trim()
+        .toLowerCase();
+
+    const expiresAt =
+      subscription?.expires_at
+        ? new Date(
+            subscription.expires_at,
+          )
+        : null;
+
+    const hasExpired =
+      expiresAt !== null &&
+      expiresAt.getTime() <
+        now.getTime();
+
+    const isVip =
+      plan === "vip" &&
+      (
+        status === "active" ||
+        status === "ativo"
+      ) &&
+      !hasExpired;
+
+    // -----------------------------------------------------
+    // ESCOLHE A FUNÇÃO
+    // -----------------------------------------------------
+
+    if (isVip) {
+      setModelLabel("VIP");
+
+      return "decidly-ai";
+    }
+
+    setModelLabel("Free");
+
+    return "decidly-ai-free";
   }
 
   async function sendMessage() {
@@ -110,274 +152,82 @@ function AiTest() {
 
     setError("");
 
-    /*
-     * Adiciona imediatamente a mensagem
-     * na tela.
-     */
-    const updatedMessages: Message[] = [
-      ...messages,
-      {
-        role: "user",
-        content: trimmedMessage,
-      },
-    ];
+    const updatedMessages: Message[] =
+      [
+        ...messages,
+        {
+          role: "user",
+          content: trimmedMessage,
+        },
+      ];
 
     setMessages(
       updatedMessages,
     );
 
     setMessage("");
-
     setIsLoading(true);
 
     try {
-      /*
-       * ==================================
-       * TESTE DE AUTENTICAÇÃO
-       * ==================================
-       */
+      // ---------------------------------------------------
+      // DESCOBRE FREE OU VIP
+      // ---------------------------------------------------
 
-      const {
-        data: sessionData,
-        error: sessionError,
-      } =
-        await supabase.auth.getSession();
+      const functionName =
+        await getAiFunction();
 
-      console.log(
-        "===== TESTE DE SESSÃO =====",
-      );
+      // ---------------------------------------------------
+      // ECONOMIA DE CONTEXTO
+      //
+      // Mantém apenas as últimas mensagens.
+      // ---------------------------------------------------
 
-      console.log(
-        "Sessão atual:",
-        sessionData.session,
-      );
+      const history =
+        updatedMessages.slice(-12);
 
-      console.log(
-        "Usuário atual:",
-        sessionData.session?.user,
-      );
-
-      console.log(
-        "Erro da sessão:",
-        sessionError,
-      );
-
-      console.log(
-        "===========================",
-      );
-
-      if (
-        sessionError
-      ) {
-        throw new Error(
-          "Não foi possível verificar sua sessão.",
-        );
-      }
-
-      if (
-        !sessionData.session
-      ) {
-        throw new Error(
-          "Você precisa estar logado para usar o DecidlyAI.",
-        );
-      }
-
-      /*
-       * ==================================
-       * TOKEN DO USUÁRIO
-       * ==================================
-       */
-
-      const accessToken =
-        sessionData.session
-          .access_token;
-
-      if (
-        !accessToken
-      ) {
-        throw new Error(
-          "Sua sessão não possui um token de acesso válido.",
-        );
-      }
-
-      console.log(
-        "Token encontrado:",
-        true,
-      );
-
-      /*
-       * ==================================
-       * ECONOMIA DE TOKENS
-       *
-       * A IA recebe apenas as últimas
-       * mensagens.
-       * ==================================
-       */
-
-      const recentHistory =
-        getRecentHistory(
-          updatedMessages,
-        );
-
-      console.log(
-        "Histórico enviado:",
-        recentHistory,
-      );
-
-      console.log(
-        "Memória temporária:",
-        temporaryMemory,
-      );
-
-      /*
-       * ==================================
-       * CHAMADA DA EDGE FUNCTION
-       * ==================================
-       */
+      // ---------------------------------------------------
+      // CHAMA A EDGE FUNCTION
+      // ---------------------------------------------------
 
       const {
         data,
         error: functionError,
       } =
-        await supabase.functions.invoke<
-          AiResponse
-        >(
-          "decidly-ai-personality",
+        await supabase.functions.invoke(
+          functionName,
           {
             body: {
               message:
                 trimmedMessage,
 
               history:
-                recentHistory,
-
-              temporaryMemory:
-                temporaryMemory,
-            },
-
-            headers: {
-              Authorization:
-                `Bearer ${accessToken}`,
+                history,
             },
           },
         );
 
-      console.log(
-        "===== RESPOSTA DA EDGE FUNCTION =====",
-      );
-
-      console.log(
-        "Data:",
-        data,
-      );
-
-      console.log(
-        "Function Error:",
-        functionError,
-      );
-
-      console.log(
-        "======================================",
-      );
-
-      /*
-       * ==================================
-       * LÊ O ERRO REAL DA EDGE FUNCTION
-       * ==================================
-       */
-
-      if (
-        functionError
-      ) {
-        console.error(
-          "Erro completo:",
-          functionError,
-        );
-
-        console.error(
-          "Contexto:",
-          functionError.context,
-        );
-
-        let backendMessage =
-          "A Edge Function retornou um erro.";
-
-        try {
-          if (
-            functionError.context
-          ) {
-            const errorBody =
-              await functionError.context.json();
-
-            console.error(
-              "Resposta de erro do backend:",
-              errorBody,
-            );
-
-            if (
-              typeof errorBody?.error ===
-              "string"
-            ) {
-              backendMessage =
-                errorBody.error;
-            }
-          }
-        } catch (
-          parseError
-        ) {
-          console.error(
-            "Não foi possível interpretar o erro:",
-            parseError,
-          );
-        }
-
+      if (functionError) {
         throw new Error(
-          backendMessage,
+          functionError.message ||
+            "Não foi possível conectar ao DecidlyAI.",
         );
       }
 
-      /*
-       * ==================================
-       * ERRO DEVOLVIDO PELO BACKEND
-       * ==================================
-       */
-
-      if (
-        data?.error
-      ) {
+      if (data?.error) {
         throw new Error(
           data.error,
         );
       }
 
-      /*
-       * ==================================
-       * VALIDA RESPOSTA
-       * ==================================
-       */
-
       if (
         typeof data?.response !==
           "string" ||
-        data.response
-          .trim()
-          .length === 0
+        data.response.trim().length === 0
       ) {
-        console.error(
-          "Resposta inválida:",
-          data,
-        );
-
         throw new Error(
           "O DecidlyAI não retornou uma resposta válida.",
         );
       }
-
-      /*
-       * ==================================
-       * ADICIONA RESPOSTA DA IA
-       * ==================================
-       */
 
       setMessages(
         (current) => [
@@ -385,43 +235,12 @@ function AiTest() {
           {
             role: "assistant",
             content:
-              data.response!,
+              data.response,
           },
         ],
       );
 
-      /*
-       * ==================================
-       * ATUALIZA MEMÓRIA TEMPORÁRIA
-       *
-       * Não usa banco.
-       * Não salva permanentemente.
-       * Desaparece ao recarregar a página.
-       * ==================================
-       */
-
-      const newFacts =
-        data
-          ?.temporaryMemory
-          ?.facts;
-
-      if (
-        Array.isArray(
-          newFacts,
-        )
-      ) {
-        updateTemporaryMemory(
-          newFacts,
-        );
-      }
-
-    } catch (
-      err
-    ) {
-      console.error(
-        "===== ERRO FINAL =====",
-        err,
-      );
+    } catch (err) {
 
       const errorMessage =
         err instanceof Error
@@ -432,7 +251,18 @@ function AiTest() {
         errorMessage,
       );
 
+      // Remove a mensagem do usuário se a IA
+      // não conseguiu responder.
+      setMessages(
+        (current) =>
+          current.slice(
+            0,
+            -1,
+          ),
+      );
+
     } finally {
+
       setIsLoading(
         false,
       );
@@ -440,10 +270,9 @@ function AiTest() {
   }
 
   function handleKeyDown(
-    event:
-      React.KeyboardEvent<
-        HTMLTextAreaElement
-      >,
+    event: React.KeyboardEvent<
+      HTMLTextAreaElement
+    >,
   ) {
     if (
       (
@@ -461,8 +290,9 @@ function AiTest() {
   return (
     <AppShell>
       <div className="min-h-screen bg-slate-950 text-white">
-
         <div className="mx-auto w-full max-w-4xl px-6 py-16 md:py-24">
+
+          {/* CABEÇALHO */}
 
           <div className="text-center">
 
@@ -472,26 +302,31 @@ function AiTest() {
 
               Ambiente de teste
 
+              {modelLabel && (
+                <span className="ml-1 opacity-80">
+                  • {modelLabel}
+                </span>
+              )}
+
             </div>
 
             <h1 className="mt-6 text-4xl font-bold tracking-tight md:text-5xl">
-
               Teste do{" "}
 
               <span className="text-violet-400">
                 DecidlyAI
               </span>
-
             </h1>
 
             <p className="mx-auto mt-4 max-w-xl leading-relaxed text-slate-400">
-
-              Envie uma mensagem e teste
-              o cérebro do DecidlyAI.
-
+              Envie uma mensagem e teste o cérebro do
+              {" "}
+              DecidlyAI.
             </p>
 
           </div>
+
+          {/* CHAT */}
 
           <div className="mt-12 overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/50 shadow-2xl shadow-black/20">
 
@@ -499,30 +334,24 @@ function AiTest() {
 
               {messages.length === 0 &&
                 !isLoading && (
+                  <div className="flex min-h-[350px] items-center justify-center">
 
-                <div className="flex min-h-[350px] items-center justify-center">
+                    <p className="max-w-md text-center leading-relaxed text-slate-500">
+                      Comece enviando uma dúvida,
+                      decisão ou qualquer mensagem
+                      para testar a IA.
+                    </p>
 
-                  <p className="max-w-md text-center leading-relaxed text-slate-500">
-
-                    😄 Comece enviando uma dúvida,
-                    uma decisão ou qualquer mensagem
-                    para testar o DecidlyAI.
-
-                  </p>
-
-                </div>
-
-              )}
+                  </div>
+                )}
 
               {messages.map(
                 (
                   chatMessage,
                   index,
                 ) => (
-
                   <div
-                    key={`${chatMessage.role}-${index}`}
-
+                    key={index}
                     className={
                       chatMessage.role ===
                         "user"
@@ -535,24 +364,20 @@ function AiTest() {
                       className={
                         chatMessage.role ===
                           "user"
-                          ? "max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-violet-600 px-5 py-4 text-white"
-                          : "max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-bl-md border border-slate-800 bg-slate-950 px-5 py-4 leading-relaxed text-slate-300"
+                          ? "max-w-[85%] rounded-2xl rounded-br-md bg-violet-600 px-5 py-4 text-white"
+                          : "max-w-[85%] rounded-2xl rounded-bl-md border border-slate-800 bg-slate-950 px-5 py-4 leading-relaxed text-slate-300"
                       }
                     >
 
-                      {
-                        chatMessage.content
-                      }
+                      {chatMessage.content}
 
                     </div>
 
                   </div>
-
                 ),
               )}
 
               {isLoading && (
-
                 <div className="flex justify-start">
 
                   <div className="rounded-2xl rounded-bl-md border border-slate-800 bg-slate-950 px-5 py-4 text-slate-400">
@@ -562,21 +387,20 @@ function AiTest() {
                   </div>
 
                 </div>
-
               )}
 
             </div>
 
+            {/* INPUT */}
+
             <div className="border-t border-slate-800 bg-slate-950/70 p-4 md:p-5">
 
               {error && (
-
                 <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
 
                   {error}
 
                 </div>
-
               )}
 
               <div className="flex flex-col gap-3 sm:flex-row">
@@ -584,10 +408,11 @@ function AiTest() {
                 <textarea
                   value={message}
 
-                  onChange={(event) =>
-                    setMessage(
-                      event.target.value,
-                    )
+                  onChange={
+                    (event) =>
+                      setMessage(
+                        event.target.value,
+                      )
                   }
 
                   onKeyDown={
@@ -614,9 +439,7 @@ function AiTest() {
 
                   disabled={
                     isLoading ||
-                    message
-                      .trim()
-                      .length === 0
+                    message.trim().length === 0
                   }
 
                   className="flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-6 py-4 font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50 sm:self-end"
@@ -639,7 +462,6 @@ function AiTest() {
           </div>
 
         </div>
-
       </div>
     </AppShell>
   );
