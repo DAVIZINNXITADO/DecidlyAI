@@ -84,7 +84,8 @@ type SpeechRecognitionInstance = {
     | null;
 };
 
-type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
+type SpeechRecognitionConstructor =
+  new () => SpeechRecognitionInstance;
 
 declare global {
   interface Window {
@@ -110,7 +111,8 @@ function Workspace() {
 
   const sidebarRef = useRef<HTMLDivElement | null>(null);
   const chatRef = useRef<HTMLDivElement | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const textareaRef =
+    useRef<HTMLTextAreaElement | null>(null);
 
   const recognitionRef =
     useRef<SpeechRecognitionInstance | null>(null);
@@ -585,11 +587,13 @@ function Workspace() {
           : "Não foi possível obter uma resposta agora.",
       );
     } finally {
+      /*
+       * NÃO damos foco ao textarea aqui.
+       *
+       * Isso impede o teclado do celular
+       * de abrir novamente quando a IA termina.
+       */
       setIsLoading(false);
-
-      requestAnimationFrame(() => {
-        textareaRef.current?.focus();
-      });
     }
   };
 
@@ -701,17 +705,15 @@ function Workspace() {
         new SpeechRecognition();
 
       /*
-       * Usa automaticamente o idioma
-       * configurado no navegador.
+       * Usa o idioma do navegador.
+       * Não existe seletor ocupando espaço.
        */
       recognition.lang =
         navigator.language ||
         "pt-BR";
 
       /*
-       * Uma fala por ativação.
-       * Evita que o mesmo resultado
-       * seja repetido indefinidamente.
+       * Uma ativação por vez.
        */
       recognition.continuous = false;
       recognition.interimResults = false;
@@ -724,14 +726,11 @@ function Workspace() {
         event,
       ) => {
         /*
-         * IMPORTANTE:
+         * Só pega o resultado correspondente
+         * ao resultIndex atual.
          *
-         * Usamos resultIndex em vez de
-         * percorrer todos os resultados.
-         *
-         * Isso corrige o problema:
-         *
-         * hi hi hi hi hi
+         * Isso evita:
+         * "hi hi hi hi hi"
          */
         const index =
           event.resultIndex;
@@ -814,6 +813,11 @@ function Workspace() {
         recognitionRef.current =
           null;
 
+        /*
+         * Aqui podemos devolver o foco
+         * somente quando o usuário terminou
+         * de falar pelo microfone.
+         */
         requestAnimationFrame(() => {
           textareaRef.current?.focus();
           resizeTextarea();
@@ -910,9 +914,11 @@ function Workspace() {
           endSidebarDrag
         }
       >
+
         <div className="flex h-full flex-col">
 
           <div className="flex items-center justify-between px-4 py-4">
+
             <div className="flex items-center gap-2">
 
               <img
@@ -938,6 +944,7 @@ function Workspace() {
             >
               <X size={20} />
             </button>
+
           </div>
 
           <div className="px-3">
@@ -1017,6 +1024,7 @@ function Workspace() {
           </div>
 
         </div>
+
       </div>
 
       {/* =====================================================
@@ -1052,26 +1060,28 @@ function Workspace() {
       </button>
 
       {/* =====================================================
-          TOP BAR
+          LOGO/NOME — SOMENTE NA TELA INICIAL
           ===================================================== */}
 
-      <header className="pointer-events-none fixed left-0 right-0 top-0 z-40 flex h-16 items-center justify-center">
+      {messages.length === 0 && (
+        <header className="pointer-events-none fixed left-0 right-0 top-0 z-40 flex h-16 items-center justify-center">
 
-        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
 
-          <img
-            src="/appicon.png"
-            alt="DecidlyAI"
-            className="h-7 w-7 rounded-lg"
-          />
+            <img
+              src="/appicon.png"
+              alt="DecidlyAI"
+              className="h-7 w-7 rounded-lg"
+            />
 
-          <span className="text-sm font-semibold">
-            DecidlyAI
-          </span>
+            <span className="text-sm font-semibold">
+              DecidlyAI
+            </span>
 
-        </div>
+          </div>
 
-      </header>
+        </header>
+      )}
 
       {/* =====================================================
           CHAT
@@ -1081,6 +1091,7 @@ function Workspace() {
         ref={chatRef}
         className="h-[100dvh] overflow-y-auto overscroll-contain px-4 pb-32 pt-24"
       >
+
         <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col">
 
           {messages.length ===
@@ -1176,6 +1187,7 @@ function Workspace() {
           )}
 
         </div>
+
       </main>
 
       {/* =====================================================
@@ -1200,7 +1212,7 @@ function Workspace() {
             <div className="flex items-end gap-2">
 
               {/* =================================================
-                  TEXTAREA
+                  TEXTAREA SEM BORDA
                   ================================================= */}
 
               <textarea
@@ -1263,7 +1275,7 @@ function Workspace() {
               />
 
               {/* =================================================
-                  MICROPHONE
+                  MICROFONE
                   ================================================= */}
 
               <button
@@ -1297,11 +1309,6 @@ function Workspace() {
                     ? "Parar microfone"
                     : "Usar microfone"
                 }
-                title={
-                  isListening
-                    ? "Parar microfone"
-                    : "Usar microfone"
-                }
               >
 
                 {isListening ? (
@@ -1319,12 +1326,14 @@ function Workspace() {
               </button>
 
               {/* =================================================
-                  SEND
+                  BOTÃO ENVIAR ROXO
                   ================================================= */}
 
               <button
                 type="button"
-                onClick={sendMessage}
+                onClick={
+                  sendMessage
+                }
                 disabled={
                   !input.trim() ||
                   isLoading
