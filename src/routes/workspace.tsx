@@ -171,6 +171,7 @@ function Workspace() {
    * ============================================================
    */
 
+
   useEffect(() => {
     if (
       typeof window === "undefined" ||
@@ -179,10 +180,11 @@ function Workspace() {
       return;
     }
 
-    const viewport = window.visualViewport;
+    const viewport =
+      window.visualViewport;
 
     const updateKeyboard = () => {
-      const keyboardHeight = Math.max(
+      const height = Math.max(
         0,
         Math.round(
           window.innerHeight -
@@ -191,17 +193,7 @@ function Workspace() {
         ),
       );
 
-      setKeyboardOffset(keyboardHeight);
-
-      requestAnimationFrame(() => {
-        if (
-          chatRef.current &&
-          keyboardHeight > 0
-        ) {
-          chatRef.current.scrollTop =
-            chatRef.current.scrollHeight;
-        }
-      });
+      setKeyboardOffset(height);
     };
 
     updateKeyboard();
