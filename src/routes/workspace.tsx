@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   useCallback,
   useEffect,
@@ -105,9 +105,11 @@ function Workspace() {
 
   const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
   const [preferredName, setPreferredName] = useState("");
   const [accountOpen, setAccountOpen] = useState(false);
   const [thinkingLabel, setThinkingLabel] = useState("Organizando sua decisão...");
+  const navigate = useNavigate();
   const [keyboardOffset, setKeyboardOffset] = useState(0);
 
   const [listening, setListening] = useState(false);
@@ -241,6 +243,7 @@ function Workspace() {
 
       if (mounted) {
         setUserId(user?.id ?? null);
+        setUserEmail(user?.email ?? "");
         const metadata = user?.user_metadata as
           | { name?: string; full_name?: string; display_name?: string }
           | undefined;
@@ -267,6 +270,7 @@ function Workspace() {
             setUserId(
               session?.user?.id ?? null,
             );
+            setUserEmail(session?.user?.email ?? "");
             const metadata = session?.user?.user_metadata as
               | { name?: string; full_name?: string; display_name?: string }
               | undefined;
@@ -2559,7 +2563,8 @@ function Workspace() {
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Sua conta</p>
                 <h2 className="mt-2 text-2xl font-semibold">Como prefere ser chamado?</h2>
-                <p className="mt-2 text-sm leading-6 text-white/45">Esse nome personaliza suas conversas. Ele não aparece como uma mensagem no chat.</p>
+                <p className="mt-2 text-sm text-white/35">{userEmail || "Conta autenticada"}</p>
+                <p className="mt-3 text-sm leading-6 text-white/45">Esse nome personaliza suas conversas. Ele não aparece como uma mensagem no chat.</p>
               </div>
               <button type="button" onClick={() => setAccountOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-xl text-white/45 hover:bg-white/[0.06] hover:text-white" aria-label="Fechar conta"><X size={18} /></button>
             </div>
@@ -2575,6 +2580,7 @@ function Workspace() {
               <button type="button" onClick={() => setAccountOpen(false)} className="rounded-xl px-4 py-3 text-sm text-white/55 hover:bg-white/[0.06] hover:text-white">Cancelar</button>
               <button type="button" onClick={() => { window.localStorage.setItem("decidly-preferred-name", preferredName.trim()); setAccountOpen(false); }} className="rounded-xl bg-violet-500 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-400">Salvar preferência</button>
             </div>
+            <button type="button" onClick={() => { void supabase.auth.signOut(); navigate({ to: "/login" }); }} className="mt-5 w-full rounded-xl border border-red-400/20 px-4 py-3 text-sm text-red-300 hover:bg-red-400/[0.08]">Sair da conta</button>
           </div>
         </div>
       )}
@@ -2876,8 +2882,9 @@ function Workspace() {
             )}
 
             {error && (
-              <div className="mt-5 rounded-xl bg-red-500/[0.06] px-4 py-3 text-sm text-red-200/80">
-                {error}
+              <div className="mt-5 flex items-center justify-between gap-4 rounded-xl border border-red-400/15 bg-red-500/[0.06] px-4 py-3 text-sm text-red-200/80">
+                <span>{error}</span>
+                <button type="button" onClick={() => setError("")} className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium text-red-200 hover:bg-red-400/10">Fechar</button>
               </div>
             )}
 

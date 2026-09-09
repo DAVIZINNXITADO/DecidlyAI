@@ -252,7 +252,7 @@ function ConversationPage() {
       if (!auth.user) throw new Error("Não autenticado");
 
       const { data: subscription } = await supabase
-        .from("subscriptions")
+        .from("subscription")
         .select("plan,status,expires_at")
         .eq("user_id", auth.user.id)
         .order("created_at", { ascending: false })
