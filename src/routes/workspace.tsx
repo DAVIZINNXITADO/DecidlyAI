@@ -1,631 +1,238 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { useEffect, useRef, useState } from "react"
-import {
-  ArrowUp,
-  ChevronRight,
-  Menu,
-  Plus,
-  Search,
-  Sparkles,
-  X,
-} from "lucide-react"
-import { supabase } from "@/lib/supabase"
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import { Menu, Plus, Search, Sparkles, X } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
-export const Route = createFileRoute("/workspace")({
-  component: Workspace,
-})
-
+export const Route = createFileRoute("/workspace")({ component: Workspace });
 type Conversation = {
-  id: string
-  user_id: string
-  title: string
-  created_at: string
-  updated_at: string
-}
-
-const SIDEBAR_WIDTH = 320
+  id: string;
+  user_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+};
+const WIDTH = 320;
 
 function Workspace() {
-  const navigate = useNavigate()
-
-  const [userId, setUserId] = useState<string | null>(null)
-  const [input, setInput] = useState("")
-  const [conversations, setConversations] = useState<Conversation[]>([])
-  const [search, setSearch] = useState("")
-  const [creating, setCreating] = useState(false)
-
-  const sidebarRef = useRef<HTMLElement | null>(null)
-  const backdropRef = useRef<HTMLDivElement | null>(null)
-
-  const sidebarProgress = useRef(0)
-  const dragStartX = useRef(0)
-  const startProgress = useRef(0)
-  const dragging = useRef(false)
-  const raf = useRef<number | null>(null)
-
-  const setSidebarVisual = (progress: number) => {
-    sidebarProgress.current = progress
-
-    if (raf.current !== null) {
-      cancelAnimationFrame(raf.current)
-    }
-
+  const navigate = useNavigate();
+  const [userId, setUserId] = useState<string | null>(null);
+  const [input, setInput] = useState("");
+  const [items, setItems] = useState<Conversation[]>([]);
+  const [query, setQuery] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
+  const sidebar = useRef<HTMLElement>(null);
+  const backdrop = useRef<HTMLDivElement>(null);
+  const p = useRef(0);
+  const start = useRef(0);
+  const startP = useRef(0);
+  const dragging = useRef(false);
+  const raf = useRef<number | null>(null);
+  const paint = (value: number) => {
+    p.current = Math.max(0, Math.min(1, value));
+    if (raf.current !== null) cancelAnimationFrame(raf.current);
     raf.current = requestAnimationFrame(() => {
-      if (sidebarRef.current) {
-        sidebarRef.current.style.transform =
-          `translate3d(${
-            -SIDEBAR_WIDTH +
-            SIDEBAR_WIDTH * progress
-          }px, 0, 0)`
+      if (sidebar.current)
+        sidebar.current.style.transform = `translate3d(${-WIDTH + WIDTH * p.current}px,0,0)`;
+      if (backdrop.current) {
+        backdrop.current.style.opacity = String(p.current * 0.72);
+        backdrop.current.style.pointerEvents = p.current > 0.01 ? "auto" : "none";
       }
-
-      if (backdropRef.current) {
-        backdropRef.current.style.opacity =
-          String(progress * 0.75)
-
-        backdropRef.current.style.pointerEvents =
-          progress > 0.01 ? "auto" : "none"
-      }
-    })
-  }
-
-  const finishSidebar = (open: boolean) => {
-    dragging.current = false
-
-    const target = open ? 1 : 0
-
-    sidebarProgress.current = target
-
-    if (sidebarRef.current) {
-      sidebarRef.current.style.transition =
-        "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)"
-
-      sidebarRef.current.style.transform =
-        `translate3d(${
-          -SIDEBAR_WIDTH +
-          SIDEBAR_WIDTH * target
-        }px, 0, 0)`
-    }
-
-    if (backdropRef.current) {
-      backdropRef.current.style.transition =
-        "opacity 260ms ease"
-
-      backdropRef.current.style.opacity =
-        String(target * 0.75)
-
-      backdropRef.current.style.pointerEvents =
-        target ? "auto" : "none"
-    }
-
+    });
+  };
+  const settle = (value: boolean) => {
+    setOpen(value);
+    if (sidebar.current)
+      sidebar.current.style.transition = "transform 260ms cubic-bezier(.22,1,.36,1)";
+    if (backdrop.current) backdrop.current.style.transition = "opacity 260ms ease";
+    paint(value ? 1 : 0);
     window.setTimeout(() => {
-      if (sidebarRef.current) {
-        sidebarRef.current.style.transition = "none"
-      }
-
-      if (backdropRef.current) {
-        backdropRef.current.style.transition = "none"
-      }
-    }, 280)
-  }
-
-  const openSidebar = () => {
-    finishSidebar(true)
-  }
-
-  const closeSidebar = () => {
-    finishSidebar(false)
-  }
-
-  const startDrag = (
-    clientX: number,
-    pointerTarget?: HTMLElement,
-  ) => {
-    if (pointerTarget) {
-      try {
-        pointerTarget.setPointerCapture(
-          Number((pointerTarget as any).__pointerId),
-        )
-      } catch {
-        // Ignora
-      }
-    }
-
-    dragging.current = true
-    dragStartX.current = clientX
-    startProgress.current =
-      sidebarProgress.current
-
-    if (sidebarRef.current) {
-      sidebarRef.current.style.transition = "none"
-    }
-
-    if (backdropRef.current) {
-      backdropRef.current.style.transition = "none"
-    }
-  }
-
-  const moveDrag = (clientX: number) => {
-    if (!dragging.current) return
-
-    const delta =
-      clientX - dragStartX.current
-
-    let progress =
-      startProgress.current +
-      delta / SIDEBAR_WIDTH
-
-    progress = Math.max(
-      0,
-      Math.min(1, progress),
-    )
-
-    setSidebarVisual(progress)
-  }
-
-  const endDrag = () => {
-    if (!dragging.current) return
-
-    const progress =
-      sidebarProgress.current
-
-    finishSidebar(progress > 0.5)
-  }
-
+      if (sidebar.current) sidebar.current.style.transition = "none";
+      if (backdrop.current) backdrop.current.style.transition = "none";
+    }, 280);
+  };
   useEffect(() => {
-    const load = async () => {
-      const { data } =
-        await supabase.auth.getUser()
-
+    let alive = true;
+    void (async () => {
+      const { data } = await supabase.auth.getUser();
       if (!data.user) {
-        navigate({
-          to: "/login",
-        })
-        return
+        await navigate({ to: "/login" });
+        return;
       }
-
-      setUserId(data.user.id)
-
-      const { data: list } =
-        await supabase
-          .from("conversations")
-          .select("*")
-          .eq("user_id", data.user.id)
-          .order("updated_at", {
-            ascending: false,
-          })
-
-      if (list) {
-        setConversations(
-          list as Conversation[],
-        )
-      }
-    }
-
-    load()
-  }, [navigate])
-
-  const createConversation = async (
-    firstMessage?: string,
-  ) => {
-    if (!userId || creating) return
-
-    const message = firstMessage?.trim() ?? ""
-
-    setCreating(true)
-
-    const id = crypto.randomUUID()
-
-    const title = message
-      ? message.length > 55
-        ? `${message.slice(0, 55)}...`
-        : message
-      : "Nova decisão"
-
-    const { error } =
-      await supabase
+      if (!alive) return;
+      setUserId(data.user.id);
+      const { data: rows } = await supabase
         .from("conversations")
-        .insert({
-          id,
-          user_id: userId,
-          title,
-        })
-
-    if (error) {
-      setCreating(false)
-      return
+        .select("*")
+        .eq("user_id", data.user.id)
+        .order("updated_at", { ascending: false });
+      if (alive && rows) setItems(rows as Conversation[]);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [navigate]);
+  const create = async () => {
+    const text = input.trim();
+    if (!userId || !text || busy) return;
+    setBusy(true);
+    const id = crypto.randomUUID();
+    const { error } = await supabase
+      .from("conversations")
+      .insert({ id, user_id: userId, title: text.length > 70 ? `${text.slice(0, 70)}…` : text });
+    if (!error) {
+      sessionStorage.setItem(`decidly-pending-${id}`, text);
+      setInput("");
+      await navigate({ to: "/workspace/$conversationId", params: { conversationId: id } });
     }
-
-    if (message) {
-      sessionStorage.setItem(
-        `decidly-pending-${id}`,
-        message,
-      )
+    setBusy(false);
+  };
+  const filtered = items.filter((item) => item.title.toLowerCase().includes(query.toLowerCase()));
+  const begin = (event: React.PointerEvent<HTMLElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragging.current = true;
+    start.current = event.clientX;
+    startP.current = p.current;
+    if (sidebar.current) sidebar.current.style.transition = "none";
+  };
+  const move = (event: React.PointerEvent<HTMLElement>) => {
+    if (dragging.current) paint(startP.current + (event.clientX - start.current) / WIDTH);
+  };
+  const end = () => {
+    if (dragging.current) {
+      dragging.current = false;
+      settle(p.current > 0.5);
     }
-
-    navigate({
-      to: "/workspace/$conversationId",
-      params: {
-        conversationId: id,
-      },
-    })
-
-    setInput("")
-    setCreating(false)
-  }
-
-  const handleSend = () => {
-    const message = input.trim()
-
-    if (!message || creating) return
-
-    createConversation(message)
-  }
-
-  const filtered =
-    conversations.filter((conversation) =>
-      conversation.title
-        .toLowerCase()
-        .includes(search.toLowerCase()),
-    )
-
+  };
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-[#090611] text-white">
-
-      {/* =========================================================
-          BACKDROP
-      ========================================================== */}
-
+    <div className="min-h-screen bg-[#0c0912] text-white">
       <div
-        ref={backdropRef}
-        className="fixed inset-0 z-40 bg-black/70 backdrop-blur-[2px]"
-        style={{
-          opacity: 0,
-          pointerEvents: "none",
-        }}
-        onClick={closeSidebar}
+        ref={backdrop}
+        onClick={() => settle(false)}
+        className="pointer-events-none fixed inset-0 z-30 bg-black opacity-0"
       />
-
-      {/* =========================================================
-          SIDEBAR
-      ========================================================== */}
-
       <aside
-        ref={sidebarRef}
-        className="fixed left-0 top-0 z-50 flex h-full flex-col border-r border-white/[0.08] bg-[#0c0816] shadow-[20px_0_70px_rgba(0,0,0,0.45)]"
-        style={{
-          width: SIDEBAR_WIDTH,
-          transform: `translate3d(-${SIDEBAR_WIDTH}px,0,0)`,
-          transition: "none",
-          touchAction: "pan-y",
-          willChange: "transform",
-        }}
-        onPointerDown={(event) => {
-          ;(
-            event.currentTarget as any
-          ).__pointerId = event.pointerId
-
-          startDrag(
-            event.clientX,
-            event.currentTarget,
-          )
-        }}
-        onPointerMove={(event) => {
-          if (!dragging.current) return
-
-          moveDrag(event.clientX)
-        }}
-        onPointerUp={() => {
-          endDrag()
-        }}
-        onPointerCancel={() => {
-          endDrag()
-        }}
+        ref={sidebar}
+        onPointerDown={begin}
+        onPointerMove={move}
+        onPointerUp={end}
+        onPointerCancel={end}
+        className="fixed inset-y-0 left-0 z-40 flex w-[min(90vw,320px)] touch-pan-y flex-col border-r border-white/10 bg-[#120d1b] p-4 shadow-2xl will-change-transform"
+        style={{ transform: `translate3d(-${WIDTH}px,0,0)` }}
       >
-        {/* LOGO */}
-
-        <div className="flex h-[72px] shrink-0 items-center justify-between border-b border-white/[0.06] px-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-700 shadow-lg shadow-purple-950/40">
-              <Sparkles size={17} />
-            </div>
-
-            <div>
-              <div className="text-[15px] font-semibold">
-                DecidlyAI
-              </div>
-
-              <div className="text-[9px] uppercase tracking-[0.18em] text-white/30">
-                Decision intelligence
-              </div>
-            </div>
-          </div>
-
+        <div className="flex items-center justify-between">
+          <strong>DecidlyAI</strong>
           <button
-            onPointerDown={(event) =>
-              event.stopPropagation()
-            }
-            onClick={closeSidebar}
-            className="flex h-9 w-9 items-center justify-center rounded-xl text-white/40 transition hover:bg-white/[0.06] hover:text-white"
+            aria-label="Fechar menu"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => settle(false)}
+            className="rounded-lg p-2 text-white/60 hover:bg-white/10"
           >
             <X size={18} />
           </button>
         </div>
-
-        {/* NOVA DECISÃO */}
-
-        <div className="p-4">
-          <button
-            onPointerDown={(event) =>
-              event.stopPropagation()
-            }
-            onClick={() =>
-              createConversation()
-            }
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-3 text-sm font-semibold shadow-lg shadow-purple-950/30 transition active:scale-[0.98]"
-          >
-            <Plus size={17} />
-            Nova decisão
-          </button>
-        </div>
-
-        {/* BUSCA */}
-
-        <div
-          className="px-4 pb-4"
-          onPointerDown={(event) =>
-            event.stopPropagation()
-          }
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => navigate({ to: "/workspace" })}
+          className="mt-7 flex items-center gap-2 rounded-xl bg-violet-600 px-3 py-2.5 text-sm font-medium hover:bg-violet-500"
         >
-          <div className="relative">
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25"
-            />
-
-            <input
-              value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
-              placeholder="Pesquisar decisões"
-              className="h-10 w-full rounded-xl border border-white/[0.07] bg-white/[0.035] pl-9 pr-3 text-xs text-white outline-none placeholder:text-white/25 focus:border-violet-500/40"
-            />
-          </div>
-        </div>
-
-        {/* HISTÓRICO */}
-
-        <div
-          className="min-h-0 flex-1 overflow-y-auto px-3"
-          onPointerDown={(event) =>
-            event.stopPropagation()
-          }
+          <Plus size={17} /> Nova decisão
+        </button>
+        <label
+          onPointerDown={(e) => e.stopPropagation()}
+          className="mt-5 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[.04] px-3 text-white/50"
         >
-          <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/25">
-            Suas decisões
-          </div>
-
-          {filtered.length === 0 ? (
-            <div className="px-3 py-8 text-center text-xs text-white/25">
-              Nenhuma decisão encontrada.
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {filtered.map(
-                (conversation) => (
-                  <button
-                    key={conversation.id}
-                    onClick={() => {
-                      navigate({
-                        to: "/workspace/$conversationId",
-                        params: {
-                          conversationId:
-                            conversation.id,
-                        },
-                      })
-
-                      closeSidebar()
-                    }}
-                    className="group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-white/[0.05]"
-                  >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.05]">
-                      <Sparkles
-                        size={14}
-                        className="text-violet-300/70"
-                      />
-                    </div>
-
-                    <span className="min-w-0 flex-1 truncate text-xs text-white/65">
-                      {conversation.title}
-                    </span>
-
-                    <ChevronRight
-                      size={14}
-                      className="text-white/15"
-                    />
-                  </button>
-                ),
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* CONTA */}
-
+          <Search size={16} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Pesquisar"
+            className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-white outline-none placeholder:text-white/35"
+          />
+        </label>
         <div
-          className="shrink-0 border-t border-white/[0.06] p-3"
-          onPointerDown={(event) =>
-            event.stopPropagation()
-          }
+          onPointerDown={(e) => e.stopPropagation()}
+          className="mt-6 flex-1 space-y-1 overflow-y-auto"
         >
-          <button
-            onClick={() =>
-              navigate({
-                to: "/",
-              })
-            }
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-white/[0.04]"
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-600 text-xs font-bold">
-              D
-            </div>
-
-            <div>
-              <div className="text-xs font-semibold text-white/70">
-                Minha conta
-              </div>
-
-              <div className="text-[10px] text-white/25">
-                Configurações
-              </div>
-            </div>
-          </button>
+          {filtered.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => {
+                void navigate({
+                  to: "/workspace/$conversationId",
+                  params: { conversationId: item.id },
+                });
+                settle(false);
+              }}
+              className="block w-full truncate rounded-xl px-3 py-2.5 text-left text-sm text-white/70 hover:bg-white/[.06]"
+            >
+              {item.title}
+            </button>
+          ))}
         </div>
+        <div className="border-t border-white/10 pt-4 text-xs text-white/45">Sua conta</div>
       </aside>
-
-      {/* =========================================================
-          ÁREA DE GESTO PELA BORDA
-      ========================================================== */}
-
       <div
-        className="fixed left-0 top-0 z-30 h-full w-5 touch-none"
-        onPointerDown={(event) => {
-          if (sidebarProgress.current > 0) {
-            return
-          }
-
-          ;(
-            event.currentTarget as any
-          ).__pointerId = event.pointerId
-
-          try {
-            event.currentTarget.setPointerCapture(
-              event.pointerId,
-            )
-          } catch {
-            // Ignora
-          }
-
-          dragging.current = true
-          dragStartX.current =
-            event.clientX
-          startProgress.current = 0
-
-          if (sidebarRef.current) {
-            sidebarRef.current.style.transition =
-              "none"
-          }
-        }}
-        onPointerMove={(event) => {
-          if (!dragging.current) return
-
-          moveDrag(event.clientX)
-        }}
-        onPointerUp={() => {
-          endDrag()
-        }}
-        onPointerCancel={() => {
-          endDrag()
-        }}
+        className="fixed left-0 top-0 z-20 h-full w-5 touch-none"
+        onPointerDown={begin}
+        onPointerMove={move}
+        onPointerUp={end}
+        onPointerCancel={end}
       />
-
-      {/* =========================================================
-          CHAT
-      ========================================================== */}
-
-      <main className="flex h-full w-full flex-col">
-
-        {/* HEADER */}
-
-        <header className="flex h-[72px] shrink-0 items-center justify-between px-4 sm:px-6">
+      <main className="relative flex min-h-screen flex-col">
+        <header className="flex items-center gap-3 border-b border-white/[.07] px-5 py-4">
           <button
-            onClick={openSidebar}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.035] text-white/60 transition hover:bg-white/[0.06] hover:text-white active:scale-95"
+            aria-label="Abrir menu"
+            onClick={() => settle(!open)}
+            className="rounded-lg p-2 text-white/65 hover:bg-white/10"
           >
-            <Menu size={19} />
+            <Menu size={20} />
           </button>
-
-          <div className="rounded-full border border-white/[0.06] bg-white/[0.03] px-3 py-1.5 text-[10px] font-medium text-white/30">
-            DecidlyAI
-          </div>
+          <span className="text-sm text-white/65">Nova decisão</span>
         </header>
-
-        {/* CENTRO */}
-
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-5">
-
-          <div className="mb-8 text-center">
-
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[22px] bg-gradient-to-br from-violet-600/25 to-purple-700/20 ring-1 ring-violet-400/10">
-              <Sparkles
-                size={27}
-                className="text-violet-300"
-              />
+        <section className="flex flex-1 items-center justify-center px-5 pb-28">
+          <div className="w-full max-w-2xl text-center">
+            <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-600/20 text-violet-300">
+              <Sparkles size={23} />
             </div>
-
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              Qual decisão você precisa analisar?
-            </h1>
-
-            <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-white/35">
-              Descreva sua situação e o DecidlyAI
-              ajudará você a analisar as opções,
-              riscos e próximos passos.
+            <h1 className="text-2xl font-semibold sm:text-3xl">No que você está pensando?</h1>
+            <p className="mt-3 text-sm text-white/45">
+              Comece uma decisão e organize suas possibilidades com clareza.
             </p>
-          </div>
-
-          {/* INPUT */}
-
-          <div className="w-full max-w-2xl">
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-2 shadow-2xl shadow-black/30 backdrop-blur-xl focus-within:border-violet-400/25">
-
+            <div className="mt-8 rounded-2xl border border-white/10 bg-white/[.04] p-2 text-left">
               <textarea
+                autoFocus
                 value={input}
-                onChange={(event) =>
-                  setInput(event.target.value)
-                }
-                onKeyDown={(event) => {
-                  if (
-                    event.key === "Enter" &&
-                    (event.ctrlKey ||
-                      event.metaKey)
-                  ) {
-                    event.preventDefault()
-                    handleSend()
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    void create();
                   }
                 }}
                 rows={3}
-                placeholder="Conte o que está acontecendo..."
-                className="w-full resize-none bg-transparent px-3 py-2 text-sm leading-6 text-white outline-none placeholder:text-white/25"
+                placeholder="Estou pensando em…"
+                className="w-full resize-none bg-transparent px-3 py-2 text-sm leading-6 text-white outline-none placeholder:text-white/30"
               />
-
               <div className="flex items-center justify-between px-2 pb-1">
-                <span className="text-[10px] text-white/20">
-                  Ctrl + Enter para analisar
-                </span>
-
+                <span className="text-[11px] text-white/30">Ctrl + Enter para enviar</span>
                 <button
-                  onClick={handleSend}
-                  disabled={
-                    !input.trim() ||
-                    creating
-                  }
-                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-600 text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-25"
+                  aria-label="Enviar"
+                  onClick={() => void create()}
+                  disabled={!input.trim() || busy}
+                  className="rounded-xl bg-violet-600 p-2.5 text-white disabled:opacity-30"
                 >
-                  <ArrowUp size={17} />
+                  {busy ? (
+                    <span className="block h-[18px] w-[18px] animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  ) : (
+                    "↑"
+                  )}
                 </button>
               </div>
             </div>
           </div>
-        </div>
-
-        <div className="pb-5 text-center text-[9px] text-white/15">
-          O DecidlyAI pode cometer erros. Revise informações importantes.
-        </div>
+        </section>
       </main>
     </div>
-  )
+  );
 }
-
-export default Workspace

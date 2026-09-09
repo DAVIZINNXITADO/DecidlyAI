@@ -10,15 +10,23 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AiTestRouteImport } from './routes/ai-test'
 import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as WorkspaceRouteImport } from './routes/workspace'
+import { Route as WorkspaceConversationIdRouteImport } from './routes/workspace.$conversationId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiTestRoute = AiTestRouteImport.update({
+  id: '/ai-test',
+  path: '/ai-test',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CookiesRoute = CookiesRouteImport.update({
@@ -46,55 +54,96 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WorkspaceRoute = WorkspaceRouteImport.update({
+  id: '/workspace',
+  path: '/workspace',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkspaceConversationIdRoute = WorkspaceConversationIdRouteImport.update({
+  id: '/$conversationId',
+  path: '/$conversationId',
+  getParentRoute: () => WorkspaceRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/ai-test': typeof AiTestRoute
   '/cookies': typeof CookiesRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
+  '/workspace': typeof WorkspaceRouteWithChildren
+  '/workspace/$conversationId': typeof WorkspaceConversationIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/ai-test': typeof AiTestRoute
   '/cookies': typeof CookiesRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
+  '/workspace': typeof WorkspaceRouteWithChildren
+  '/workspace/$conversationId': typeof WorkspaceConversationIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/ai-test': typeof AiTestRoute
   '/cookies': typeof CookiesRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
+  '/workspace': typeof WorkspaceRouteWithChildren
+  '/workspace/$conversationId': typeof WorkspaceConversationIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/cookies' | '/login' | '/privacy' | '/reset-password' | '/terms'
-  fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/cookies' | '/login' | '/privacy' | '/reset-password' | '/terms'
-  id:
-    | '__root__'
     | '/'
+    | '/ai-test'
     | '/cookies'
     | '/login'
     | '/privacy'
     | '/reset-password'
     | '/terms'
+    | '/workspace'
+    | '/workspace/$conversationId'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/'
+    | '/ai-test'
+    | '/cookies'
+    | '/login'
+    | '/privacy'
+    | '/reset-password'
+    | '/terms'
+    | '/workspace'
+    | '/workspace/$conversationId'
+  id:
+    | '__root__'
+    | '/'
+    | '/ai-test'
+    | '/cookies'
+    | '/login'
+    | '/privacy'
+    | '/reset-password'
+    | '/terms'
+    | '/workspace'
+    | '/workspace/$conversationId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AiTestRoute: typeof AiTestRoute
   CookiesRoute: typeof CookiesRoute
   LoginRoute: typeof LoginRoute
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   TermsRoute: typeof TermsRoute
+  WorkspaceRoute: typeof WorkspaceRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -104,6 +153,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-test': {
+      id: '/ai-test'
+      path: '/ai-test'
+      fullPath: '/ai-test'
+      preLoaderRoute: typeof AiTestRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cookies': {
@@ -141,16 +197,44 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/workspace': {
+      id: '/workspace'
+      path: '/workspace'
+      fullPath: '/workspace'
+      preLoaderRoute: typeof WorkspaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workspace/$conversationId': {
+      id: '/workspace/$conversationId'
+      path: '/$conversationId'
+      fullPath: '/workspace/$conversationId'
+      preLoaderRoute: typeof WorkspaceConversationIdRouteImport
+      parentRoute: typeof WorkspaceRoute
+    }
   }
 }
 
+interface WorkspaceRouteChildren {
+  WorkspaceConversationIdRoute: typeof WorkspaceConversationIdRoute
+}
+
+const WorkspaceRouteChildren: WorkspaceRouteChildren = {
+  WorkspaceConversationIdRoute: WorkspaceConversationIdRoute,
+}
+
+const WorkspaceRouteWithChildren = WorkspaceRoute._addFileChildren(
+  WorkspaceRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AiTestRoute: AiTestRoute,
   CookiesRoute: CookiesRoute,
   LoginRoute: LoginRoute,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   TermsRoute: TermsRoute,
+  WorkspaceRoute: WorkspaceRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
