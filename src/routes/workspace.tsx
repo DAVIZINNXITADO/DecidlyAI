@@ -1893,28 +1893,19 @@ function Workspace() {
           MENU FIXO
           ====================================================== */}
 
-      <button
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-
-          sidebarOpen
-            ? closeSidebar()
-            : openSidebar();
-        }}
-        className="fixed left-4 top-4 z-[130] flex h-11 w-11 items-center justify-center rounded-full bg-[#17101f]/95 text-white/75 shadow-lg backdrop-blur-xl transition hover:bg-[#21152d] hover:text-white"
-        aria-label={
-          sidebarOpen
-            ? "Fechar menu"
-            : "Abrir menu"
-        }
-      >
-        {sidebarOpen ? (
-          <X size={21} />
-        ) : (
-          <Menu size={21} />
-        )}
-      </button>
+    {!sidebarOpen && (
+  <button
+    type="button"
+    onClick={(event) => {
+      event.stopPropagation();
+      openSidebar();
+    }}
+    className="fixed left-4 top-4 z-[130] flex h-11 w-11 items-center justify-center rounded-full bg-[#17101f]/95 text-white/75 shadow-lg backdrop-blur-xl transition hover:bg-[#21152d] hover:text-white"
+    aria-label="Abrir menu"
+  >
+    <Menu size={21} />
+  </button>
+)}
 
       {/* ======================================================
           CONFIGURAÇÕES FIXAS
