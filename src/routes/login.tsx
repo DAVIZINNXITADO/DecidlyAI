@@ -539,7 +539,7 @@ function LoginPage() {
         }
 
         navigate({
-          to: "/",
+          to: "/workspace",
         });
       } catch {
         showError(
@@ -809,7 +809,7 @@ function LoginPage() {
       }
 
       navigate({
-        to: "/",
+        to: "/workspace",
       });
     } catch {
       showError(
@@ -984,7 +984,7 @@ function LoginPage() {
       }
 
       navigate({
-        to: "/",
+        to: "/workspace",
       });
     } catch {
       resetCaptcha();
