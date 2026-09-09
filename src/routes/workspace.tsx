@@ -21,7 +21,6 @@ import {
   useEffect,
   useRef,
   useState,
-  type PointerEvent as ReactPointerEvent,
 } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -46,20 +45,20 @@ type Conversation = {
 
 type VoiceGender = "male" | "female";
 
-type SpeechRecognitionResultEventLike = Event & {
+type RecognitionResultEvent = Event & {
   resultIndex: number;
   results: {
+    length: number;
     [index: number]: {
       isFinal: boolean;
       [index: number]: {
         transcript: string;
       };
     };
-    length: number;
   };
 };
 
-type SpeechRecognitionLike = {
+type Recognition = {
   continuous: boolean;
   interimResults: boolean;
   maxAlternatives: number;
@@ -71,54 +70,102 @@ type SpeechRecognitionLike = {
   onend: (() => void) | null;
   onerror: ((event: Event) => void) | null;
   onresult:
-    | ((event: SpeechRecognitionResultEventLike) => void)
+    | ((event: RecognitionResultEvent) => void)
     | null;
 };
 
-const LANGUAGES = [
-  { value: "pt-BR", label: "Português (Brasil)" },
-  { value: "en-US", label: "English (US)" },
-  { value: "es-ES", label: "Español" },
-  { value: "fr-FR", label: "Français" },
-  { value: "de-DE", label: "Deutsch" },
-  { value: "it-IT", label: "Italiano" },
-  { value: "ja-JP", label: "日本語" },
-  { value: "ko-KR", label: "한국어" },
-  { value: "zh-CN", label: "中文" },
-  { value: "ru-RU", label: "Русский" },
-];
-
 const SIDEBAR_WIDTH = 300;
 
+const LANGUAGES = [
+  {
+    value: "pt-BR",
+    label: "Português (Brasil)",
+  },
+  {
+    value: "en-US",
+    label: "English (US)",
+  },
+  {
+    value: "es-ES",
+    label: "Español",
+  },
+  {
+    value: "fr-FR",
+    label: "Français",
+  },
+  {
+    value: "de-DE",
+    label: "Deutsch",
+  },
+  {
+    value: "it-IT",
+    label: "Italiano",
+  },
+  {
+    value: "ja-JP",
+    label: "日本語",
+  },
+  {
+    value: "ko-KR",
+    label: "한국어",
+  },
+  {
+    value: "zh-CN",
+    label: "中文",
+  },
+  {
+    value: "ru-RU",
+    label: "Русский",
+  },
+];
+
 function Workspace() {
-  const [userId, setUserId] = useState<string | null>(null);
-
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const [conversations, setConversations] = useState<
-    Conversation[]
-  >([]);
-  const [search, setSearch] = useState("");
-
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarProgress, setSidebarProgress] = useState(0);
-
-  const [settingsOpen, setSettingsOpen] = useState(false);
-
-  const [listening, setListening] = useState(false);
-
-  const [likes, setLikes] = useState<
-    Record<string, boolean>
-  >({});
-  const [dislikes, setDislikes] = useState<
-    Record<string, boolean>
-  >({});
-  const [copiedId, setCopiedId] = useState<string | null>(
+  const [userId, setUserId] = useState<string | null>(
     null,
   );
+
+  const [messages, setMessages] = useState<Message[]>(
+    [],
+  );
+
+  const [input, setInput] = useState("");
+
+  const [isLoading, setIsLoading] =
+    useState(false);
+
+  const [error, setError] = useState("");
+
+  const [conversations, setConversations] =
+    useState<Conversation[]>([]);
+
+  const [search, setSearch] = useState("");
+
+  const [sidebarOpen, setSidebarOpen] =
+    useState(false);
+
+  const [sidebarProgress, setSidebarProgress] =
+    useState(0);
+
+  const [settingsOpen, setSettingsOpen] =
+    useState(false);
+
+  const [listening, setListening] =
+    useState(false);
+
+  const [likes, setLikes] =
+    useState<Record<string, boolean>>({});
+
+  const [dislikes, setDislikes] =
+    useState<Record<string, boolean>>({});
+
+  const [copiedId, setCopiedId] =
+    useState<string | null>(null);
+
+  const [readingMessageId, setReadingMessageId] =
+    useState<string | null>(null);
+
+  const [readingCharIndex, setReadingCharIndex] =
+    useState(-1);
 
   const [speechLanguage, setSpeechLanguage] =
     useState("pt-BR");
@@ -130,26 +177,37 @@ function Workspace() {
     SpeechSynthesisVoice[]
   >([]);
 
-  const [readingMessageId, setReadingMessageId] =
-    useState<string | null>(null);
+  const [keyboardOffset, setKeyboardOffset] =
+    useState(0);
 
-  const [readingCharIndex, setReadingCharIndex] =
-    useState(-1);
+  const textareaRef =
+    useRef<HTMLTextAreaElement | null>(null);
 
-  const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const chatRef =
+    useRef<HTMLDivElement | null>(null);
 
-  const textareaRef = useRef<HTMLTextAreaElement | null>(
-    null,
-  );
+  /*
+   * CORREÇÃO DO ERRO:
+   * essas duas refs existem antes de serem usadas.
+   */
+  const sidebarDragRef = useRef({
+    active: false,
+    startX: 0,
+  });
 
-  const chatRef = useRef<HTMLDivElement | null>(null);
+  const edgeDragRef = useRef({
+    active: false,
+    startX: 0,
+  });
 
   const recognitionRef =
-    useRef<SpeechRecognitionLike | null>(null);
+    useRef<Recognition | null>(null);
 
-  const lastTranscriptRef = useRef("");
+  const lastTranscriptRef =
+    useRef("");
 
-  const speechSessionRef = useRef(0);
+  const speechSessionRef =
+    useRef(0);
 
   /*
    * ============================================================
@@ -174,13 +232,16 @@ function Workspace() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (mounted) {
-          setUserId(session?.user?.id ?? null);
-        }
-      },
-    );
+    } =
+      supabase.auth.onAuthStateChange(
+        (_event, session) => {
+          if (mounted) {
+            setUserId(
+              session?.user?.id ?? null,
+            );
+          }
+        },
+      );
 
     return () => {
       mounted = false;
@@ -202,10 +263,11 @@ function Workspace() {
       return;
     }
 
-    const viewport = window.visualViewport;
+    const viewport =
+      window.visualViewport;
 
     const updateKeyboard = () => {
-      const offset = Math.max(
+      const height = Math.max(
         0,
         Math.round(
           window.innerHeight -
@@ -214,7 +276,7 @@ function Workspace() {
         ),
       );
 
-      setKeyboardOffset(offset);
+      setKeyboardOffset(height);
     };
 
     updateKeyboard();
@@ -248,25 +310,26 @@ function Workspace() {
    * ============================================================
    */
 
-  const loadConversations = useCallback(async () => {
-    if (!userId) {
-      setConversations([]);
-      return;
-    }
+  const loadConversations =
+    useCallback(async () => {
+      if (!userId) {
+        setConversations([]);
+        return;
+      }
 
-    const { data } = await supabase
-      .from("conversations")
-      .select(
-        "id,title,created_at,updated_at",
-      )
-      .eq("user_id", userId)
-      .order("updated_at", {
-        ascending: false,
-      })
-      .limit(50);
+      const { data } = await supabase
+        .from("conversations")
+        .select(
+          "id,title,created_at,updated_at",
+        )
+        .eq("user_id", userId)
+        .order("updated_at", {
+          ascending: false,
+        })
+        .limit(50);
 
-    setConversations(data ?? []);
-  }, [userId]);
+      setConversations(data ?? []);
+    }, [userId]);
 
   useEffect(() => {
     void loadConversations();
@@ -278,18 +341,18 @@ function Workspace() {
    * ============================================================
    */
 
-  const openSidebar = () => {
+  const openSidebar = useCallback(() => {
     setSidebarOpen(true);
     setSidebarProgress(1);
-  };
+  }, []);
 
-  const closeSidebar = () => {
+  const closeSidebar = useCallback(() => {
     setSidebarOpen(false);
     setSidebarProgress(0);
-  };
+  }, []);
 
-  const handleSidebarPointerDown = (
-    event: ReactPointerEvent<HTMLDivElement>,
+  const startSidebarDrag = (
+    event: React.PointerEvent<HTMLDivElement>,
   ) => {
     if (
       event.pointerType === "mouse" &&
@@ -298,39 +361,28 @@ function Workspace() {
       return;
     }
 
-    const element = event.currentTarget;
+    sidebarDragRef.current = {
+      active: true,
+      startX: event.clientX,
+    };
 
-    element.setPointerCapture(event.pointerId);
-
-    (
-      element as HTMLDivElement & {
-        dataset: {
-          startX?: string;
-        };
-      }
-    ).dataset.startX = String(event.clientX);
+    event.currentTarget.setPointerCapture(
+      event.pointerId,
+    );
   };
 
-  const handleSidebarPointerMove = (
-    event: ReactPointerEvent<HTMLDivElement>,
+  const moveSidebarDrag = (
+    event: React.PointerEvent<HTMLDivElement>,
   ) => {
-    const element = event.currentTarget;
-
-    const startX = Number(
-      (
-        element as HTMLDivElement & {
-          dataset: {
-            startX?: string;
-          };
-        }
-      ).dataset.startX,
-    );
-
-    if (!Number.isFinite(startX)) {
+    if (
+      !sidebarDragRef.current.active
+    ) {
       return;
     }
 
-    const delta = event.clientX - startX;
+    const delta =
+      event.clientX -
+      sidebarDragRef.current.startX;
 
     const progress = Math.max(
       0,
@@ -343,36 +395,115 @@ function Workspace() {
     setSidebarProgress(progress);
   };
 
-  const handleSidebarPointerUp = (
-    event: ReactPointerEvent<HTMLDivElement>,
+  const endSidebarDrag = (
+    event: React.PointerEvent<HTMLDivElement>,
   ) => {
-    const element = event.currentTarget;
+    if (
+      !sidebarDragRef.current.active
+    ) {
+      return;
+    }
+
+    sidebarDragRef.current.active =
+      false;
 
     try {
-      element.releasePointerCapture(
+      event.currentTarget.releasePointerCapture(
         event.pointerId,
       );
     } catch {
       // ignore
     }
 
-    const shouldStayOpen =
-      sidebarProgress >= 0.5;
+    setSidebarProgress(
+      (current) => {
+        if (current >= 0.5) {
+          setSidebarOpen(true);
+          return 1;
+        }
 
-    if (shouldStayOpen) {
-      setSidebarOpen(true);
-      setSidebarProgress(1);
-    } else {
-      closeSidebar();
+        setSidebarOpen(false);
+        return 0;
+      },
+    );
+  };
+
+  /*
+   * Área invisível na esquerda para abrir
+   * o menu por swipe.
+   */
+
+  const startEdgeDrag = (
+    event: React.PointerEvent<HTMLDivElement>,
+  ) => {
+    if (
+      event.pointerType === "mouse" &&
+      event.button !== 0
+    ) {
+      return;
     }
 
-    delete (
-      element as HTMLDivElement & {
-        dataset: {
-          startX?: string;
-        };
-      }
-    ).dataset.startX;
+    edgeDragRef.current = {
+      active: true,
+      startX: event.clientX,
+    };
+
+    event.currentTarget.setPointerCapture(
+      event.pointerId,
+    );
+  };
+
+  const moveEdgeDrag = (
+    event: React.PointerEvent<HTMLDivElement>,
+  ) => {
+    if (!edgeDragRef.current.active) {
+      return;
+    }
+
+    const delta =
+      event.clientX -
+      edgeDragRef.current.startX;
+
+    if (delta <= 0) {
+      return;
+    }
+
+    setSidebarProgress(
+      Math.min(
+        1,
+        delta / SIDEBAR_WIDTH,
+      ),
+    );
+  };
+
+  const endEdgeDrag = (
+    event: React.PointerEvent<HTMLDivElement>,
+  ) => {
+    if (!edgeDragRef.current.active) {
+      return;
+    }
+
+    edgeDragRef.current.active =
+      false;
+
+    try {
+      event.currentTarget.releasePointerCapture(
+        event.pointerId,
+      );
+    } catch {
+      // ignore
+    }
+
+    setSidebarProgress(
+      (current) => {
+        if (current >= 0.25) {
+          setSidebarOpen(true);
+          return 1;
+        }
+
+        return 0;
+      },
+    );
   };
 
   /*
@@ -388,14 +519,25 @@ function Workspace() {
     setLikes({});
     setDislikes({});
     setCopiedId(null);
+
+    speechSessionRef.current += 1;
+
+    if (
+      typeof window !== "undefined" &&
+      "speechSynthesis" in window
+    ) {
+      window.speechSynthesis.cancel();
+    }
+
     setReadingMessageId(null);
     setReadingCharIndex(-1);
+
     closeSidebar();
   };
 
   /*
    * ============================================================
-   * SPEECH SYNTHESIS
+   * VOZES
    * ============================================================
    */
 
@@ -407,7 +549,7 @@ function Workspace() {
       return;
     }
 
-    const loadVoices = () => {
+    const updateVoices = () => {
       setVoices(
         window.speechSynthesis
           .getVoices()
@@ -415,85 +557,92 @@ function Workspace() {
       );
     };
 
-    loadVoices();
+    updateVoices();
 
     window.speechSynthesis.addEventListener(
       "voiceschanged",
-      loadVoices,
+      updateVoices,
     );
 
     return () => {
       window.speechSynthesis.removeEventListener(
         "voiceschanged",
-        loadVoices,
+        updateVoices,
       );
 
       window.speechSynthesis.cancel();
     };
   }, []);
 
-  const findBestVoice = useCallback(
+  const findVoice = useCallback(
     (
       language: string,
       gender: VoiceGender,
     ) => {
-      const sameLanguage = voices.filter(
+      const languagePrefix =
+        language
+          .toLowerCase()
+          .split("-")[0];
+
+      const matching = voices.filter(
         (voice) =>
           voice.lang
             .toLowerCase()
             .startsWith(
-              language
-                .toLowerCase()
-                .split("-")[0],
+              languagePrefix,
             ),
       );
 
-      if (!sameLanguage.length) {
+      if (!matching.length) {
         return null;
       }
 
-      const maleWords = [
+      const maleKeywords = [
         "male",
         "man",
         "homem",
         "mascul",
-        "male voice",
-        "google português brasil",
       ];
 
-      const femaleWords = [
+      const femaleKeywords = [
         "female",
         "woman",
         "mulher",
         "fem",
-        "female voice",
       ];
 
       const keywords =
         gender === "male"
-          ? maleWords
-          : femaleWords;
+          ? maleKeywords
+          : femaleKeywords;
 
-      const genderVoice =
-        sameLanguage.find((voice) => {
+      const genderMatch =
+        matching.find((voice) => {
           const name =
             voice.name.toLowerCase();
 
-          return keywords.some((word) =>
-            name.includes(word),
+          return keywords.some(
+            (keyword) =>
+              name.includes(keyword),
           );
         });
 
       return (
-        genderVoice ??
-        sameLanguage.find(
+        genderMatch ??
+        matching.find(
           (voice) => voice.default,
         ) ??
-        sameLanguage[0]
+        matching[0]
       );
     },
     [voices],
   );
+
+  /*
+   * ============================================================
+   * LEITOR
+   * ============================================================
+   */
 
   const stopReading = useCallback(() => {
     speechSessionRef.current += 1;
@@ -521,7 +670,10 @@ function Workspace() {
         return;
       }
 
-      if (readingMessageId === message.id) {
+      if (
+        readingMessageId ===
+        message.id
+      ) {
         stopReading();
         return;
       }
@@ -531,9 +683,13 @@ function Workspace() {
       const session =
         speechSessionRef.current + 1;
 
-      speechSessionRef.current = session;
+      speechSessionRef.current =
+        session;
 
-      setReadingMessageId(message.id);
+      setReadingMessageId(
+        message.id,
+      );
+
       setReadingCharIndex(-1);
 
       const utterance =
@@ -541,12 +697,14 @@ function Workspace() {
           message.content,
         );
 
-      utterance.lang = speechLanguage;
+      utterance.lang =
+        speechLanguage;
+
       utterance.rate = 1.15;
       utterance.pitch = 1;
       utterance.volume = 1;
 
-      const voice = findBestVoice(
+      const voice = findVoice(
         speechLanguage,
         speechGender,
       );
@@ -555,9 +713,12 @@ function Workspace() {
         utterance.voice = voice;
       }
 
-      utterance.onboundary = (event) => {
+      utterance.onboundary = (
+        event,
+      ) => {
         if (
-          speechSessionRef.current !== session
+          speechSessionRef.current !==
+          session
         ) {
           return;
         }
@@ -569,7 +730,8 @@ function Workspace() {
 
       utterance.onend = () => {
         if (
-          speechSessionRef.current !== session
+          speechSessionRef.current !==
+          session
         ) {
           return;
         }
@@ -580,7 +742,8 @@ function Workspace() {
 
       utterance.onerror = () => {
         if (
-          speechSessionRef.current !== session
+          speechSessionRef.current !==
+          session
         ) {
           return;
         }
@@ -589,16 +752,10 @@ function Workspace() {
         setReadingCharIndex(-1);
       };
 
-      speechRef.current = utterance;
-
-      /*
-       * Pequeno atraso para navegadores mobile
-       * que precisam que o speechSynthesis seja
-       * chamado depois do cancel().
-       */
-      window.setTimeout(() => {
+      setTimeout(() => {
         if (
-          speechSessionRef.current !== session
+          speechSessionRef.current !==
+          session
         ) {
           return;
         }
@@ -613,7 +770,7 @@ function Workspace() {
       stopReading,
       speechLanguage,
       speechGender,
-      findBestVoice,
+      findVoice,
     ],
   );
 
@@ -637,8 +794,8 @@ function Workspace() {
 
     const speechWindow =
       window as typeof window & {
-        SpeechRecognition?: new () => SpeechRecognitionLike;
-        webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+        SpeechRecognition?: new () => Recognition;
+        webkitSpeechRecognition?: new () => Recognition;
       };
 
     const Recognition =
@@ -652,7 +809,8 @@ function Workspace() {
       return;
     }
 
-    const recognition = new Recognition();
+    const recognition =
+      new Recognition();
 
     recognition.continuous = false;
     recognition.interimResults = false;
@@ -662,19 +820,17 @@ function Workspace() {
     recognition.onstart = () => {
       setListening(true);
       setError("");
-      lastTranscriptRef.current = "";
+      lastTranscriptRef.current =
+        "";
     };
 
     recognition.onresult = (
       event,
     ) => {
-      /*
-       * Usa somente resultIndex.
-       * Isso evita o problema de o navegador
-       * repetir "hi hi hi hi".
-       */
       const result =
-        event.results[event.resultIndex];
+        event.results[
+          event.resultIndex
+        ];
 
       if (!result?.isFinal) {
         return;
@@ -720,26 +876,29 @@ function Workspace() {
 
         let overlap = 0;
 
-        const maxOverlap = Math.min(
-          existingWords.length,
-          newWords.length,
-          8,
-        );
+        const maxOverlap =
+          Math.min(
+            existingWords.length,
+            newWords.length,
+            8,
+          );
 
         for (
           let size = maxOverlap;
           size >= 1;
           size--
         ) {
-          const end = existingWords
-            .slice(-size)
-            .join(" ")
-            .toLowerCase();
+          const end =
+            existingWords
+              .slice(-size)
+              .join(" ")
+              .toLowerCase();
 
-          const start = newWords
-            .slice(0, size)
-            .join(" ")
-            .toLowerCase();
+          const start =
+            newWords
+              .slice(0, size)
+              .join(" ")
+              .toLowerCase();
 
           if (end === start) {
             overlap = size;
@@ -762,11 +921,14 @@ function Workspace() {
 
     recognition.onerror = () => {
       setListening(false);
+      recognitionRef.current =
+        null;
     };
 
     recognition.onend = () => {
       setListening(false);
-      recognitionRef.current = null;
+      recognitionRef.current =
+        null;
     };
 
     recognitionRef.current =
@@ -776,13 +938,14 @@ function Workspace() {
       recognition.start();
     } catch {
       setListening(false);
-      recognitionRef.current = null;
+      recognitionRef.current =
+        null;
     }
   };
 
   /*
    * ============================================================
-   * ENVIAR PARA IA
+   * ENVIAR
    * ============================================================
    */
 
@@ -810,35 +973,36 @@ function Workspace() {
       content: text,
     };
 
-    const nextMessages = [
+    const history = [
       ...messages,
       userMessage,
     ];
 
-    setMessages(nextMessages);
+    setMessages(history);
 
     try {
       /*
-       * O cliente não é uma barreira de segurança.
-       * A Edge Function deve validar o JWT,
-       * plano e créditos no servidor.
+       * A Edge Function precisa validar o JWT,
+       * créditos e plano no servidor.
        */
-      const { data, error: invokeError } =
-        await supabase.functions.invoke(
-          "decidly-ai",
-          {
-            body: {
-              message: text,
-              history: nextMessages.map(
-                (message) => ({
-                  role: message.role,
-                  content:
-                    message.content,
-                }),
-              ),
-            },
+      const {
+        data,
+        error: invokeError,
+      } = await supabase.functions.invoke(
+        "decidly-ai",
+        {
+          body: {
+            message: text,
+            history: history.map(
+              (message) => ({
+                role: message.role,
+                content:
+                  message.content,
+              }),
+            ),
           },
-        );
+        },
+      );
 
       if (invokeError) {
         const status =
@@ -848,23 +1012,33 @@ function Workspace() {
             }
           ).context?.status;
 
-        if (status === 401 || status === 403) {
-          throw new Error("AUTH");
+        if (
+          status === 401 ||
+          status === 403
+        ) {
+          throw new Error(
+            "AUTH",
+          );
         }
 
         if (status === 402) {
-          throw new Error("CREDITS");
+          throw new Error(
+            "CREDITS",
+          );
         }
 
         if (status === 429) {
-          throw new Error("RATE");
+          throw new Error(
+            "RATE",
+          );
         }
 
         throw new Error("AI");
       }
 
       const answer =
-        typeof data?.answer === "string"
+        typeof data?.answer ===
+        "string"
           ? data.answer
           : typeof data?.response ===
               "string"
@@ -878,11 +1052,12 @@ function Workspace() {
         throw new Error("AI");
       }
 
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: answer,
-      };
+      const assistantMessage: Message =
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: answer,
+        };
 
       setMessages((current) => [
         ...current,
@@ -898,7 +1073,9 @@ function Workspace() {
         setError(
           "Sua sessão não pôde ser validada.",
         );
-      } else if (code === "CREDITS") {
+      } else if (
+        code === "CREDITS"
+      ) {
         setError(
           "Você não possui créditos disponíveis para continuar.",
         );
@@ -912,23 +1089,18 @@ function Workspace() {
         );
       }
 
-      /*
-       * Remove a mensagem do usuário se a chamada falhou,
-       * para não deixar uma mensagem sem resposta.
-       */
       setMessages((current) =>
         current.filter(
           (message) =>
-            message.id !== userMessage.id,
+            message.id !==
+            userMessage.id,
         ),
       );
     } finally {
       /*
-       * IMPORTANTE:
-       * não chamar textarea.focus() aqui.
-       *
-       * Assim o teclado mobile não abre sozinho
-       * depois da resposta da IA.
+       * NÃO dar focus aqui.
+       * Isso evita que o teclado mobile
+       * abra novamente após a resposta.
        */
       setIsLoading(false);
     }
@@ -950,10 +1122,11 @@ function Workspace() {
 
     textarea.style.height = "auto";
 
-    textarea.style.height = `${Math.min(
-      textarea.scrollHeight,
-      140,
-    )}px`;
+    textarea.style.height =
+      `${Math.min(
+        textarea.scrollHeight,
+        140,
+      )}px`;
   }, [input]);
 
   const handleKeyDown = (
@@ -961,7 +1134,8 @@ function Workspace() {
   ) => {
     if (
       event.key === "Enter" &&
-      (event.ctrlKey || event.metaKey)
+      (event.ctrlKey ||
+        event.metaKey)
     ) {
       event.preventDefault();
       void sendMessage();
@@ -970,7 +1144,7 @@ function Workspace() {
 
   /*
    * ============================================================
-   * AÇÕES DAS MENSAGENS
+   * COPIAR / LIKE / DISLIKE
    * ============================================================
    */
 
@@ -984,7 +1158,7 @@ function Workspace() {
 
       setCopiedId(message.id);
 
-      window.setTimeout(() => {
+      setTimeout(() => {
         setCopiedId((current) =>
           current === message.id
             ? null
@@ -1001,7 +1175,8 @@ function Workspace() {
   ) => {
     setLikes((current) => ({
       ...current,
-      [messageId]: !current[messageId],
+      [messageId]:
+        !current[messageId],
     }));
 
     setDislikes((current) => ({
@@ -1015,7 +1190,8 @@ function Workspace() {
   ) => {
     setDislikes((current) => ({
       ...current,
-      [messageId]: !current[messageId],
+      [messageId]:
+        !current[messageId],
     }));
 
     setLikes((current) => ({
@@ -1024,19 +1200,14 @@ function Workspace() {
     }));
   };
 
-  /*
-   * ============================================================
-   * FILTRO SIDEBAR
-   * ============================================================
-   */
-
   const filteredConversations =
-    conversations.filter((conversation) =>
-      conversation.title
-        .toLowerCase()
-        .includes(
-          search.toLowerCase(),
-        ),
+    conversations.filter(
+      (conversation) =>
+        conversation.title
+          .toLowerCase()
+          .includes(
+            search.toLowerCase(),
+          ),
     );
 
   /*
@@ -1053,20 +1224,23 @@ function Workspace() {
       }}
     >
       {/* ======================================================
-          BOTÃO MENU FIXO
+          MENU FIXO
           ====================================================== */}
 
       <button
         type="button"
-        onClick={() => {
-          if (sidebarOpen) {
-            closeSidebar();
-          } else {
-            openSidebar();
-          }
+        onClick={() =>
+          sidebarOpen
+            ? closeSidebar()
+            : openSidebar()
+        }
+        aria-label="Menu"
+        className="fixed left-4 top-4 z-[90] flex h-10 w-10 items-center justify-center rounded-xl text-white/75 transition hover:bg-white/10 hover:text-white"
+        style={{
+          border: "none",
+          outline: "none",
+          boxShadow: "none",
         }}
-        aria-label="Abrir menu"
-        className="fixed left-4 top-4 z-[80] flex h-10 w-10 items-center justify-center rounded-xl text-white/80 transition hover:bg-white/10 hover:text-white"
       >
         {sidebarOpen ? (
           <X size={21} />
@@ -1076,7 +1250,7 @@ function Workspace() {
       </button>
 
       {/* ======================================================
-          CONFIGURAÇÕES FIXAS
+          CONFIG FIXA
           ====================================================== */}
 
       <button
@@ -1086,34 +1260,39 @@ function Workspace() {
             (current) => !current,
           )
         }
-        aria-label="Configurações de voz"
-        className="fixed right-4 top-4 z-[80] flex h-10 w-10 items-center justify-center rounded-xl text-white/80 transition hover:bg-white/10 hover:text-white"
+        aria-label="Configurações"
+        className="fixed right-4 top-4 z-[90] flex h-10 w-10 items-center justify-center rounded-xl text-white/75 transition hover:bg-white/10 hover:text-white"
+        style={{
+          border: "none",
+          outline: "none",
+          boxShadow: "none",
+        }}
       >
         <Settings size={20} />
       </button>
 
       {/* ======================================================
-          PAINEL DE CONFIGURAÇÕES
+          CONFIGURAÇÕES
           ====================================================== */}
 
       {settingsOpen && (
         <div
-          className="fixed right-4 top-[60px] z-[75] w-[260px] rounded-2xl p-4 shadow-2xl"
+          className="fixed right-4 top-[60px] z-[85] w-[260px] rounded-2xl p-4 shadow-2xl"
           style={{
             background: "#18101f",
           }}
         >
           <div className="mb-4">
-            <div className="mb-1 text-sm font-semibold">
+            <div className="text-sm font-semibold">
               Configurações de voz
             </div>
 
-            <div className="text-xs text-white/45">
-              Escolha o idioma e a voz da leitura.
+            <div className="mt-1 text-xs text-white/40">
+              Idioma e voz da leitura.
             </div>
           </div>
 
-          <label className="mb-2 block text-xs text-white/60">
+          <label className="mb-2 block text-xs text-white/55">
             Idioma
           </label>
 
@@ -1124,13 +1303,20 @@ function Workspace() {
                 event.target.value,
               )
             }
-            className="mb-4 w-full rounded-xl bg-white/[0.06] px-3 py-2.5 text-sm text-white outline-none focus:outline-none"
+            className="mb-4 w-full rounded-xl bg-white/[0.06] px-3 py-2.5 text-sm text-white outline-none focus:outline-none focus:ring-0"
+            style={{
+              border: "none",
+            }}
           >
             {LANGUAGES.map(
               (language) => (
                 <option
-                  key={language.value}
-                  value={language.value}
+                  key={
+                    language.value
+                  }
+                  value={
+                    language.value
+                  }
                   className="bg-[#18101f]"
                 >
                   {language.label}
@@ -1139,7 +1325,7 @@ function Workspace() {
             )}
           </select>
 
-          <label className="mb-2 block text-xs text-white/60">
+          <label className="mb-2 block text-xs text-white/55">
             Voz
           </label>
 
@@ -1151,7 +1337,10 @@ function Workspace() {
                   .value as VoiceGender,
               )
             }
-            className="w-full rounded-xl bg-white/[0.06] px-3 py-2.5 text-sm text-white outline-none focus:outline-none"
+            className="w-full rounded-xl bg-white/[0.06] px-3 py-2.5 text-sm text-white outline-none focus:outline-none focus:ring-0"
+            style={{
+              border: "none",
+            }}
           >
             <option
               value="male"
@@ -1171,69 +1360,24 @@ function Workspace() {
       )}
 
       {/* ======================================================
-          ÁREA INVISÍVEL PARA ABRIR SIDEBAR POR SWIPE
+          SWIPE PARA ABRIR
           ====================================================== */}
 
       {!sidebarOpen && (
         <div
-          className="fixed left-0 top-0 z-[70] h-full w-5 touch-pan-y"
-          onPointerDown={(
-            event,
-          ) => {
-            edgeDragRef.current = {
-              active: true,
-              startX: event.clientX,
-            };
-
-            event.currentTarget.setPointerCapture(
-              event.pointerId,
-            );
-          }}
-          onPointerMove={(
-            event,
-          ) => {
-            if (
-              !edgeDragRef.current.active
-            ) {
-              return;
-            }
-
-            const delta =
-              event.clientX -
-              edgeDragRef.current.startX;
-
-            if (delta > 0) {
-              setSidebarProgress(
-                Math.min(
-                  1,
-                  delta /
-                    SIDEBAR_WIDTH,
-                ),
-              );
-            }
-          }}
-          onPointerUp={(
-            event,
-          ) => {
-            edgeDragRef.current.active =
-              false;
-
-            try {
-              event.currentTarget.releasePointerCapture(
-                event.pointerId,
-              );
-            } catch {
-              // ignore
-            }
-
-            if (
-              sidebarProgress > 0.2
-            ) {
-              openSidebar();
-            } else {
-              setSidebarProgress(0);
-            }
-          }}
+          className="fixed left-0 top-0 z-[75] h-full w-6 touch-none"
+          onPointerDown={
+            startEdgeDrag
+          }
+          onPointerMove={
+            moveEdgeDrag
+          }
+          onPointerUp={
+            endEdgeDrag
+          }
+          onPointerCancel={
+            endEdgeDrag
+          }
         />
       )}
 
@@ -1242,7 +1386,7 @@ function Workspace() {
           ====================================================== */}
 
       <aside
-        className="fixed bottom-0 left-0 top-0 z-[60] w-[300px] touch-pan-y border-r border-white/[0.06]"
+        className="fixed bottom-0 left-0 top-0 z-[70] w-[300px] border-r border-white/[0.06]"
         style={{
           background: "#120c18",
           transform: `translateX(${
@@ -1250,26 +1394,26 @@ function Workspace() {
             (1 - sidebarProgress)
           }px)`,
           transition:
-            sidebarDragRef.current.active ||
-            edgeDragRef.current.active
+            sidebarDragRef.current
+              .active
               ? "none"
               : "transform 220ms ease",
         }}
       >
-        {/* HANDLE DE ARRASTAR */}
+        {/* Handle independente para arrastar */}
         <div
-          className="absolute right-0 top-0 h-full w-6 touch-none"
+          className="absolute right-0 top-0 z-10 h-full w-6 touch-none"
           onPointerDown={
-            handleSidebarPointerDown
+            startSidebarDrag
           }
           onPointerMove={
-            handleSidebarPointerMove
+            moveSidebarDrag
           }
           onPointerUp={
-            handleSidebarPointerUp
+            endSidebarDrag
           }
           onPointerCancel={
-            handleSidebarPointerUp
+            endSidebarDrag
           }
         />
 
@@ -1296,8 +1440,14 @@ function Workspace() {
 
             <button
               type="button"
-              onClick={closeSidebar}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-white/50 hover:bg-white/5 hover:text-white"
+              onClick={
+                closeSidebar
+              }
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-white/45 hover:bg-white/5 hover:text-white"
+              style={{
+                border: "none",
+                outline: "none",
+              }}
             >
               <X size={17} />
             </button>
@@ -1305,8 +1455,14 @@ function Workspace() {
 
           <button
             type="button"
-            onClick={newConversation}
-            className="mb-4 flex w-full items-center gap-2 rounded-xl px-3 py-3 text-sm font-medium transition hover:bg-white/[0.06]"
+            onClick={
+              newConversation
+            }
+            className="mb-4 flex w-full items-center gap-2 rounded-xl px-3 py-3 text-sm font-medium hover:bg-white/[0.06]"
+            style={{
+              border: "none",
+              outline: "none",
+            }}
           >
             <Plus size={17} />
             Nova decisão
@@ -1315,7 +1471,7 @@ function Workspace() {
           <div className="relative mb-4">
             <Search
               size={15}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-white/35"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30"
             />
 
             <input
@@ -1326,18 +1482,21 @@ function Workspace() {
                 )
               }
               placeholder="Pesquisar"
-              className="h-10 w-full rounded-xl bg-white/[0.045] pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/30 focus:outline-none focus:ring-0"
+              className="h-10 w-full rounded-xl bg-white/[0.045] pl-9 pr-3 text-sm text-white placeholder:text-white/30 outline-none focus:outline-none focus:ring-0"
+              style={{
+                border: "none",
+              }}
             />
           </div>
 
-          <div className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wider text-white/30">
+          <div className="mb-2 px-1 text-[11px] uppercase tracking-wider text-white/25">
             Conversas
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             {filteredConversations.length ===
             0 ? (
-              <div className="px-1 py-5 text-sm text-white/35">
+              <div className="px-1 py-5 text-sm text-white/30">
                 Nenhuma conversa ainda.
               </div>
             ) : (
@@ -1349,16 +1508,20 @@ function Workspace() {
                         conversation.id
                       }
                       type="button"
-                      className="w-full rounded-xl px-3 py-2.5 text-left text-sm text-white/65 transition hover:bg-white/[0.05] hover:text-white"
-                      onClick={() => {
-                        closeSidebar();
+                      className="w-full truncate rounded-xl px-3 py-2.5 text-left text-sm text-white/60 hover:bg-white/[0.05] hover:text-white"
+                      style={{
+                        border:
+                          "none",
+                        outline:
+                          "none",
                       }}
+                      onClick={() =>
+                        closeSidebar()
+                      }
                     >
-                      <div className="truncate">
-                        {
-                          conversation.title
-                        }
-                      </div>
+                      {
+                        conversation.title
+                      }
                     </button>
                   ),
                 )}
@@ -1372,32 +1535,18 @@ function Workspace() {
           CHAT
           ====================================================== */}
 
-      <main
-        className="absolute inset-0"
-        style={{
-          paddingBottom:
-            keyboardOffset > 0
-              ? keyboardOffset
-              : 0,
-        }}
-      >
+      <main className="absolute inset-0">
         <div
           ref={chatRef}
           className="h-full overflow-y-auto"
         >
-          <div
-            className={`mx-auto w-full max-w-3xl px-4 pb-40 pt-20 ${
-              messages.length === 0
-                ? "min-h-full"
-                : ""
-            }`}
-          >
+          <div className="mx-auto w-full max-w-3xl px-4 pb-40 pt-20">
             {/* ==================================================
-                WELCOME
+                PRIMEIRA TELA
                 ================================================== */}
 
             {messages.length === 0 && (
-              <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+              <div className="flex min-h-[65vh] flex-col items-center justify-center text-center">
                 <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-500/10">
                   <Sparkles
                     size={24}
@@ -1405,7 +1554,7 @@ function Workspace() {
                   />
                 </div>
 
-                <h1 className="text-2xl font-semibold tracking-tight">
+                <h1 className="text-2xl font-semibold">
                   O que você está decidindo?
                 </h1>
 
@@ -1413,7 +1562,7 @@ function Workspace() {
                   Explique a situação, as opções que você tem e o que está te deixando em dúvida.
                 </p>
 
-                <p className="mt-5 text-xs text-white/30">
+                <p className="mt-5 text-xs text-white/25">
                   A DecidlyAI pode cometer erros. Verifique informações importantes.
                 </p>
               </div>
@@ -1427,196 +1576,211 @@ function Workspace() {
               <div className="space-y-7">
                 {messages.map(
                   (message) => {
-                    const isReading =
+                    const reading =
                       readingMessageId ===
                       message.id;
 
+                    if (
+                      message.role ===
+                      "user"
+                    ) {
+                      return (
+                        <div
+                          key={
+                            message.id
+                          }
+                          className="flex justify-end"
+                        >
+                          <div className="max-w-[85%] rounded-2xl bg-violet-500/15 px-4 py-3 text-[15px] leading-6">
+                            {
+                              message.content
+                            }
+                          </div>
+                        </div>
+                      );
+                    }
+
                     return (
                       <div
-                        key={message.id}
-                        className={
-                          message.role ===
-                          "user"
-                            ? "flex justify-end"
-                            : "flex justify-start"
+                        key={
+                          message.id
                         }
+                        className="flex justify-start"
                       >
-                        <div
-                          className={
-                            message.role ===
-                            "user"
-                              ? "max-w-[85%] rounded-2xl bg-violet-500/15 px-4 py-3 text-[15px] leading-6 text-white"
-                              : "w-full max-w-[90%]"
-                          }
-                        >
-                          {message.role ===
-                          "assistant" ? (
-                            <>
-                              <div
-                                className="text-[15px] leading-7 text-white/90"
-                                style={{
-                                  wordBreak:
-                                    "break-word",
+                        <div className="w-full max-w-[90%]">
+                          <div className="text-[15px] leading-7 text-white/90">
+                            {reading ? (
+                              <HighlightedText
+                                text={
+                                  message.content
+                                }
+                                charIndex={
+                                  readingCharIndex
+                                }
+                              />
+                            ) : (
+                              <ReactMarkdown
+                                remarkPlugins={[
+                                  remarkGfm,
+                                ]}
+                                components={{
+                                  p: ({
+                                    children,
+                                  }) => (
+                                    <p className="mb-3 last:mb-0">
+                                      {
+                                        children
+                                      }
+                                    </p>
+                                  ),
+                                  ul: ({
+                                    children,
+                                  }) => (
+                                    <ul className="mb-3 list-disc space-y-1 pl-5">
+                                      {
+                                        children
+                                      }
+                                    </ul>
+                                  ),
+                                  ol: ({
+                                    children,
+                                  }) => (
+                                    <ol className="mb-3 list-decimal space-y-1 pl-5">
+                                      {
+                                        children
+                                      }
+                                    </ol>
+                                  ),
+                                  strong: ({
+                                    children,
+                                  }) => (
+                                    <strong className="font-semibold text-white">
+                                      {
+                                        children
+                                      }
+                                    </strong>
+                                  ),
                                 }}
                               >
-                                {isReading ? (
-                                  <HighlightedText
-                                    text={
-                                      message.content
-                                    }
-                                    charIndex={
-                                      readingCharIndex
-                                    }
-                                  />
-                                ) : (
-                                  <ReactMarkdown
-                                    remarkPlugins={[
-                                      remarkGfm,
-                                    ]}
-                                    components={{
-                                      p: ({
-                                        children,
-                                      }) => (
-                                        <p className="mb-3 last:mb-0">
-                                          {
-                                            children
-                                          }
-                                        </p>
-                                      ),
-                                      ul: ({
-                                        children,
-                                      }) => (
-                                        <ul className="mb-3 list-disc space-y-1 pl-5">
-                                          {
-                                            children
-                                          }
-                                        </ul>
-                                      ),
-                                      ol: ({
-                                        children,
-                                      }) => (
-                                        <ol className="mb-3 list-decimal space-y-1 pl-5">
-                                          {
-                                            children
-                                          }
-                                        </ol>
-                                      ),
-                                      strong: ({
-                                        children,
-                                      }) => (
-                                        <strong className="font-semibold text-white">
-                                          {
-                                            children
-                                          }
-                                        </strong>
-                                      ),
-                                    }}
-                                  >
-                                    {
-                                      message.content
-                                    }
-                                  </ReactMarkdown>
-                                )}
-                              </div>
+                                {
+                                  message.content
+                                }
+                              </ReactMarkdown>
+                            )}
+                          </div>
 
-                              <div className="mt-3 flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    toggleLike(
-                                      message.id,
-                                    )
-                                  }
-                                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
-                                    likes[
-                                      message.id
-                                    ]
-                                      ? "bg-white/10 text-violet-300"
-                                      : "text-white/30 hover:bg-white/5 hover:text-white/70"
-                                  }`}
-                                  aria-label="Gostei"
-                                >
-                                  <ThumbsUp
-                                    size={15}
-                                  />
-                                </button>
+                          <div className="mt-3 flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                toggleLike(
+                                  message.id,
+                                )
+                              }
+                              className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                                likes[
+                                  message.id
+                                ]
+                                  ? "text-violet-300"
+                                  : "text-white/30 hover:text-white/70"
+                              }`}
+                              style={{
+                                border:
+                                  "none",
+                                outline:
+                                  "none",
+                              }}
+                            >
+                              <ThumbsUp
+                                size={15}
+                              />
+                            </button>
 
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    toggleDislike(
-                                      message.id,
-                                    )
-                                  }
-                                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
-                                    dislikes[
-                                      message.id
-                                    ]
-                                      ? "bg-white/10 text-violet-300"
-                                      : "text-white/30 hover:bg-white/5 hover:text-white/70"
-                                  }`}
-                                  aria-label="Não gostei"
-                                >
-                                  <ThumbsDown
-                                    size={15}
-                                  />
-                                </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                toggleDislike(
+                                  message.id,
+                                )
+                              }
+                              className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                                dislikes[
+                                  message.id
+                                ]
+                                  ? "text-violet-300"
+                                  : "text-white/30 hover:text-white/70"
+                              }`}
+                              style={{
+                                border:
+                                  "none",
+                                outline:
+                                  "none",
+                              }}
+                            >
+                              <ThumbsDown
+                                size={15}
+                              />
+                            </button>
 
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    void copyMessage(
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void copyMessage(
+                                  message,
+                                )
+                              }
+                              className="flex h-8 w-8 items-center justify-center rounded-lg text-white/30 hover:text-white/70"
+                              style={{
+                                border:
+                                  "none",
+                                outline:
+                                  "none",
+                              }}
+                            >
+                              {copiedId ===
+                              message.id ? (
+                                <Check
+                                  size={15}
+                                />
+                              ) : (
+                                <Copy
+                                  size={15}
+                                />
+                              )}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                reading
+                                  ? stopReading()
+                                  : readMessage(
                                       message,
                                     )
-                                  }
-                                  className="flex h-8 w-8 items-center justify-center rounded-lg text-white/30 transition hover:bg-white/5 hover:text-white/70"
-                                  aria-label="Copiar"
-                                >
-                                  {copiedId ===
-                                  message.id ? (
-                                    <Check
-                                      size={15}
-                                    />
-                                  ) : (
-                                    <Copy
-                                      size={15}
-                                    />
-                                  )}
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    readMessage(
-                                      message,
-                                    )
-                                  }
-                                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
-                                    isReading
-                                      ? "bg-violet-500/15 text-violet-300"
-                                      : "text-white/30 hover:bg-white/5 hover:text-white/70"
-                                  }`}
-                                  aria-label={
-                                    isReading
-                                      ? "Parar leitura"
-                                      : "Ouvir mensagem"
-                                  }
-                                >
-                                  {isReading ? (
-                                    <VolumeX
-                                      size={15}
-                                    />
-                                  ) : (
-                                    <Volume2
-                                      size={15}
-                                    />
-                                  )}
-                                </button>
-                              </div>
-                            </>
-                          ) : (
-                            message.content
-                          )}
+                              }
+                              className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                                reading
+                                  ? "text-violet-300"
+                                  : "text-white/30 hover:text-white/70"
+                              }`}
+                              style={{
+                                border:
+                                  "none",
+                                outline:
+                                  "none",
+                              }}
+                            >
+                              {reading ? (
+                                <VolumeX
+                                  size={15}
+                                />
+                              ) : (
+                                <Volume2
+                                  size={15}
+                                />
+                              )}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -1624,164 +1788,145 @@ function Workspace() {
                 )}
 
                 {isLoading && (
-                  <div className="flex justify-start">
-                    <div className="text-sm text-white/45">
-                      DecidlyAI está pensando...
-                    </div>
+                  <div className="text-sm text-white/45">
+                    DecidlyAI está pensando...
                   </div>
                 )}
 
                 {error && (
-                  <div className="text-center text-sm text-red-300/80">
+                  <div className="text-sm text-red-300/80">
                     {error}
                   </div>
                 )}
 
-                <div className="pt-2 text-center text-xs text-white/25">
+                <div className="pt-2 text-xs text-white/25">
                   A DecidlyAI pode cometer erros. Verifique informações importantes.
                 </div>
               </div>
             )}
           </div>
         </div>
+      </main>
 
-        {/* ====================================================
-            COMPOSER
-            ==================================================== */}
+      {/* ======================================================
+          COMPOSER
+          ====================================================== */}
 
-        <div
-          className="pointer-events-none fixed left-0 right-0 z-40 px-4"
-          style={{
-            bottom:
-              keyboardOffset > 0
-                ? keyboardOffset + 12
-                : 18,
-            transition:
-              "bottom 100ms ease-out",
-          }}
-        >
-          <div className="pointer-events-auto mx-auto w-full max-w-3xl">
-            {/*
-             * =================================================
-             * IMPORTANTE:
-             * NÃO existe border
-             * NÃO existe outline
-             * NÃO existe ring
-             * NÃO existe shadow
-             *
-             * Visual:
-             *
-             * | Escreva sua decisão... | 🎙 ↑
-             * =================================================
-             */}
+      <div
+        className="pointer-events-none fixed left-0 right-0 z-[50] px-4"
+        style={{
+          bottom:
+            keyboardOffset > 0
+              ? keyboardOffset + 10
+              : 16,
+          transition:
+            "bottom 100ms ease-out",
+        }}
+      >
+        <div className="pointer-events-auto mx-auto w-full max-w-3xl">
+          <div
+            className="flex min-h-[58px] items-end gap-1 rounded-2xl px-4 py-2"
+            style={{
+              background: "#17101f",
 
-            <div
-              className="flex min-h-[58px] items-end gap-2 rounded-2xl px-4 py-2"
+              /*
+               * ZERO bordas.
+               */
+              border: "none",
+              outline: "none",
+              boxShadow: "none",
+            }}
+          >
+            {/* TEXTO */}
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(event) =>
+                setInput(
+                  event.target.value,
+                )
+              }
+              onKeyDown={
+                handleKeyDown
+              }
+              rows={1}
+              disabled={isLoading}
+              placeholder="Escreva sua decisão..."
+              className="min-h-[42px] max-h-[140px] min-w-0 flex-1 resize-none bg-transparent px-0 py-2.5 text-[15px] leading-6 text-white placeholder:text-white/35"
               style={{
-                background: "#17101f",
+                border: "none",
+                outline: "none",
+                boxShadow: "none",
+                appearance: "none",
+                WebkitAppearance:
+                  "none",
+              }}
+            />
+
+            {/* 🎙 MICROFONE — DEPOIS DO TEXTO */}
+            <button
+              type="button"
+              onClick={
+                toggleMicrophone
+              }
+              disabled={isLoading}
+              aria-label={
+                listening
+                  ? "Parar microfone"
+                  : "Microfone"
+              }
+              className={`mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                listening
+                  ? "text-violet-300"
+                  : "text-white/45 hover:text-white"
+              }`}
+              style={{
+                border: "none",
+                outline: "none",
+                boxShadow: "none",
+                background:
+                  "transparent",
+              }}
+            >
+              {listening ? (
+                <MicOff size={19} />
+              ) : (
+                <Mic size={19} />
+              )}
+            </button>
+
+            {/* ↑ ENVIO ROXO */}
+            <button
+              type="button"
+              onClick={() =>
+                void sendMessage()
+              }
+              disabled={
+                !input.trim() ||
+                isLoading
+              }
+              aria-label="Enviar"
+              className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white transition disabled:opacity-25"
+              style={{
+                background:
+                  "#8B5CF6",
                 border: "none",
                 outline: "none",
                 boxShadow: "none",
               }}
             >
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(event) =>
-                  setInput(
-                    event.target.value,
-                  )
-                }
-                onKeyDown={
-                  handleKeyDown
-                }
-                onFocus={() => {
-                  requestAnimationFrame(
-                    () => {
-                      if (
-                        chatRef.current
-                      ) {
-                        chatRef.current.scrollTop =
-                          chatRef.current.scrollHeight;
-                      }
-                    },
-                  );
-                }}
-                rows={1}
-                placeholder="Escreva sua decisão..."
-                disabled={isLoading}
-                className="min-h-[42px] max-h-[140px] min-w-0 flex-1 resize-none bg-transparent px-0 py-2.5 text-[15px] leading-6 text-white placeholder:text-white/35"
-                style={{
-                  border: "none",
-                  outline: "none",
-                  boxShadow: "none",
-                  WebkitAppearance:
-                    "none",
-                }}
-              />
-
-              {/* 🎙 MICROFONE À DIREITA */}
-              <button
-                type="button"
-                onClick={
-                  toggleMicrophone
-                }
-                disabled={isLoading}
-                aria-label={
-                  listening
-                    ? "Parar microfone"
-                    : "Usar microfone"
-                }
-                className={`mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${
-                  listening
-                    ? "bg-violet-500/15 text-violet-300"
-                    : "text-white/45 hover:bg-white/5 hover:text-white"
-                }`}
-                style={{
-                  border: "none",
-                  outline: "none",
-                  boxShadow: "none",
-                }}
-              >
-                {listening ? (
-                  <MicOff size={19} />
-                ) : (
-                  <Mic size={19} />
-                )}
-              </button>
-
-              {/* ↑ BOTÃO ROXO */}
-              <button
-                type="button"
-                onClick={() =>
-                  void sendMessage()
-                }
-                disabled={
-                  !input.trim() ||
-                  isLoading
-                }
-                aria-label="Enviar"
-                className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white transition disabled:cursor-not-allowed disabled:opacity-25"
-                style={{
-                  background: "#8B5CF6",
-                  border: "none",
-                  outline: "none",
-                  boxShadow: "none",
-                }}
-              >
-                <ArrowUp size={19} />
-              </button>
-            </div>
+              <ArrowUp size={19} />
+            </button>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
 
 /*
  * ==============================================================
- * TEXTO COM PALAVRA DESTACADA DURANTE A LEITURA
+ * DESTAQUE DA PALAVRA DURANTE A LEITURA
  * ==============================================================
  */
 
