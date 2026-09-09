@@ -210,8 +210,8 @@ function Workspace() {
         </header>
         <section className="flex flex-1 items-center justify-center px-5 pb-28">
           <div className="w-full max-w-2xl text-center">
-            <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-600/20 text-violet-300">
-              <Sparkles size={23} />
+            <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-violet-600/20 text-violet-300">
+              <img src="/appicon.png" alt="DecidlyAI" className="h-full w-full object-cover" />
             </div>
             <h1 className="text-2xl font-semibold sm:text-3xl">No que você está pensando?</h1>
             <p className="mt-3 text-sm text-white/45">
