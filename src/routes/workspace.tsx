@@ -21,6 +21,7 @@ function Workspace() {
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const sidebar = useRef<HTMLElement>(null);
   const backdrop = useRef<HTMLDivElement>(null);
   const p = useRef(0);
@@ -74,18 +75,35 @@ function Workspace() {
   }, [navigate]);
   const create = async () => {
     const text = input.trim();
-    if (!userId || !text || busy) return;
+    if (!text || busy) return;
     setBusy(true);
-    const id = crypto.randomUUID();
-    const { error } = await supabase
-      .from("conversations")
-      .insert({ id, user_id: userId, title: text.length > 70 ? `${text.slice(0, 70)}…` : text });
-    if (!error) {
+    setError(null);
+    try {
+      const { data, error: authError } = await supabase.auth.getUser();
+      const currentUserId = data.user?.id ?? userId;
+      if (authError || !currentUserId) {
+        setError("Sua sessão expirou. Faça login novamente para continuar.");
+        await navigate({ to: "/login" });
+        return;
+      }
+      const id = crypto.randomUUID();
+      const { error: insertError } = await supabase.from("conversations").insert({
+        id,
+        user_id: currentUserId,
+        title: text.length > 70 ? `${text.slice(0, 70)}…` : text,
+      });
+      if (insertError) {
+        setError(insertError.message || "Não foi possível criar a conversa. Tente novamente.");
+        return;
+      }
       sessionStorage.setItem(`decidly-pending-${id}`, text);
       setInput("");
       await navigate({ to: "/workspace/$conversationId", params: { conversationId: id } });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Não foi possível iniciar a conversa.");
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   };
   const filtered = items.filter((item) => item.title.toLowerCase().includes(query.toLowerCase()));
   const begin = (event: React.PointerEvent<HTMLElement>) => {
@@ -199,6 +217,14 @@ function Workspace() {
             <p className="mt-3 text-sm text-white/45">
               Comece uma decisão e organize suas possibilidades com clareza.
             </p>
+            {error && (
+              <p
+                role="alert"
+                className="mt-5 rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-left text-sm text-red-200"
+              >
+                {error}
+              </p>
+            )}
             <div className="mt-8 rounded-2xl border border-white/10 bg-white/[.04] p-2 text-left">
               <textarea
                 autoFocus

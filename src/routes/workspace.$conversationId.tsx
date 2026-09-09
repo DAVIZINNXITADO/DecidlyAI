@@ -227,14 +227,14 @@ function Conversation() {
   }, [messages, sending]);
   useEffect(() => {
     const pending = sessionStorage.getItem(`decidly-pending-${conversationId}`);
-    if (!loading && pending && messages.length === 0 && !initial.current) {
+    if (!loading && user && pending && messages.length === 0 && !initial.current) {
       initial.current = true;
       sessionStorage.removeItem(`decidly-pending-${conversationId}`);
       void send(pending);
     }
     // O ref garante que a mensagem inicial só seja enviada uma vez.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, conversationId, messages.length]);
+  }, [loading, user, conversationId, messages.length]);
   const filtered = useMemo(
     () => items.filter((i) => i.title.toLowerCase().includes(query.toLowerCase())),
     [items, query],
@@ -330,7 +330,7 @@ function Conversation() {
           <span className="max-w-[60%] truncate text-sm text-white/60">{conversation?.title}</span>
           <span className="text-[10px] uppercase tracking-wider text-violet-300/60">{label}</span>
         </header>
-        <div className="flex-1 overflow-y-auto px-4 pb-44 pt-8 sm:px-8">
+        <div className="flex-1 overflow-y-auto px-4 pb-56 pt-8 sm:px-8">
           <div className="mx-auto max-w-3xl space-y-6">
             {messages.map((m) => (
               <div
@@ -365,31 +365,40 @@ function Conversation() {
             <div ref={endRef} />
           </div>
         </div>
-        <div className="fixed bottom-0 left-0 right-0 z-20 px-4 pb-4 sm:px-8">
-          <div className="mx-auto max-w-3xl rounded-2xl border border-white/10 bg-[#100b1b]/95 p-2 shadow-2xl backdrop-blur-xl">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                  e.preventDefault();
-                  void send();
-                }
-              }}
-              rows={2}
-              placeholder="Continue sua análise…"
-              className="w-full resize-none bg-transparent px-3 py-2 text-sm leading-6 text-white outline-none placeholder:text-white/30"
-            />
-            <div className="flex items-center justify-between px-2 pb-1">
-              <span className="text-[11px] text-white/30">Ctrl + Enter para enviar</span>
-              <button
-                onClick={() => void send()}
-                disabled={!input.trim() || sending}
-                className="rounded-xl bg-violet-600 p-2.5 disabled:opacity-30"
-              >
-                ↑
-              </button>
+        <div
+          className="fixed inset-x-0 bottom-0 z-20 px-3 pt-2 sm:px-8"
+          style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+        >
+          <div className="mx-auto max-w-3xl">
+            <div className="rounded-2xl border border-white/10 bg-[#100b1b]/95 p-2 shadow-2xl backdrop-blur-xl">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    void send();
+                  }
+                }}
+                rows={2}
+                placeholder="Mande o que você quer decidir para a DecidlyAI te ajudar"
+                className="max-h-40 min-h-14 w-full resize-none overflow-y-auto bg-transparent px-3 py-2 text-sm leading-6 text-white outline-none placeholder:text-white/35"
+              />
+              <div className="flex items-center justify-between px-2 pb-1">
+                <span className="text-[11px] text-white/30">Ctrl + Enter para enviar</span>
+                <button
+                  onClick={() => void send()}
+                  disabled={!input.trim() || sending}
+                  className="rounded-xl bg-violet-600 p-2.5 disabled:opacity-30"
+                >
+                  ↑
+                </button>
+              </div>
             </div>
+            <p className="px-2 pt-2 text-center text-[11px] leading-4 text-white/35">
+              DecidlyAI é um agente de AI que pode cometer erros, olhe duas vezes a resposta dela
+              antes de usar.
+            </p>
           </div>
         </div>
       </main>
