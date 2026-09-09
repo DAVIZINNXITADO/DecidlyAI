@@ -15,6 +15,7 @@ import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as TecnologiaRouteImport } from './routes/tecnologia'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as WorkspaceRouteImport } from './routes/workspace'
 import { Route as WorkspaceConversationIdRouteImport } from './routes/workspace.$conversationId'
@@ -49,6 +50,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TecnologiaRoute = TecnologiaRouteImport.update({
+  id: '/tecnologia',
+  path: '/tecnologia',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/tecnologia': typeof TecnologiaRoute
   '/terms': typeof TermsRoute
   '/workspace': typeof WorkspaceRouteWithChildren
   '/workspace/$conversationId': typeof WorkspaceConversationIdRoute
@@ -83,6 +90,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/tecnologia': typeof TecnologiaRoute
   '/terms': typeof TermsRoute
   '/workspace': typeof WorkspaceRouteWithChildren
   '/workspace/$conversationId': typeof WorkspaceConversationIdRoute
@@ -95,6 +103,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/tecnologia': typeof TecnologiaRoute
   '/terms': typeof TermsRoute
   '/workspace': typeof WorkspaceRouteWithChildren
   '/workspace/$conversationId': typeof WorkspaceConversationIdRoute
@@ -108,6 +117,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/privacy'
     | '/reset-password'
+    | '/tecnologia'
     | '/terms'
     | '/workspace'
     | '/workspace/$conversationId'
@@ -119,6 +129,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/privacy'
     | '/reset-password'
+    | '/tecnologia'
     | '/terms'
     | '/workspace'
     | '/workspace/$conversationId'
@@ -130,6 +141,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/privacy'
     | '/reset-password'
+    | '/tecnologia'
     | '/terms'
     | '/workspace'
     | '/workspace/$conversationId'
@@ -142,6 +154,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  TecnologiaRoute: typeof TecnologiaRoute
   TermsRoute: typeof TermsRoute
   WorkspaceRoute: typeof WorkspaceRouteWithChildren
 }
@@ -190,6 +203,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tecnologia': {
+      id: '/tecnologia'
+      path: '/tecnologia'
+      fullPath: '/tecnologia'
+      preLoaderRoute: typeof TecnologiaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/terms': {
       id: '/terms'
       path: '/terms'
@@ -233,6 +253,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  TecnologiaRoute: TecnologiaRoute,
   TermsRoute: TermsRoute,
   WorkspaceRoute: WorkspaceRouteWithChildren,
 }
