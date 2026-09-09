@@ -10,11 +10,11 @@ import {
   Menu,
   Plus,
   Search,
-  Send,
   Sparkles,
   X,
   Mic,
   MicOff,
+  ArrowUp,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -47,27 +47,40 @@ type Subscription = {
 
 const SIDEBAR_MAX_WIDTH = 320;
 
+type SpeechRecognitionResult = {
+  isFinal: boolean;
+  0: {
+    transcript: string;
+  };
+};
+
+type SpeechRecognitionEvent = {
+  results: ArrayLike<SpeechRecognitionResult>;
+  resultIndex: number;
+};
+
+type SpeechRecognitionErrorEvent = {
+  error: string;
+};
+
 type SpeechRecognitionInstance = {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
+
   start: () => void;
   stop: () => void;
   abort: () => void;
+
   onstart: (() => void) | null;
   onend: (() => void) | null;
-  onerror: ((event: { error: string }) => void) | null;
+
+  onerror:
+    | ((event: SpeechRecognitionErrorEvent) => void)
+    | null;
+
   onresult:
-    | ((
-        event: {
-          results: ArrayLike<{
-            isFinal: boolean;
-            0: {
-              transcript: string;
-            };
-          }>;
-        },
-      ) => void)
+    | ((event: SpeechRecognitionEvent) => void)
     | null;
 };
 
@@ -84,7 +97,9 @@ function Workspace() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarProgress, setSidebarProgress] = useState(0);
   const [search, setSearch] = useState("");
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<
+    Conversation[]
+  >([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -97,8 +112,8 @@ function Workspace() {
   const chatRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
-  const shouldKeepListeningRef = useRef(false);
+  const recognitionRef =
+    useRef<SpeechRecognitionInstance | null>(null);
 
   const dragState = useRef<{
     active: boolean;
@@ -111,9 +126,9 @@ function Workspace() {
   });
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * MOBILE KEYBOARD
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
   useEffect(() => {
@@ -146,19 +161,33 @@ function Workspace() {
 
     updateKeyboard();
 
-    viewport.addEventListener("resize", updateKeyboard);
-    viewport.addEventListener("scroll", updateKeyboard);
+    viewport.addEventListener(
+      "resize",
+      updateKeyboard,
+    );
+
+    viewport.addEventListener(
+      "scroll",
+      updateKeyboard,
+    );
 
     return () => {
-      viewport.removeEventListener("resize", updateKeyboard);
-      viewport.removeEventListener("scroll", updateKeyboard);
+      viewport.removeEventListener(
+        "resize",
+        updateKeyboard,
+      );
+
+      viewport.removeEventListener(
+        "scroll",
+        updateKeyboard,
+      );
     };
   }, []);
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * AUTO SCROLL
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
   useEffect(() => {
@@ -172,9 +201,9 @@ function Workspace() {
   }, [messages, isLoading]);
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * AUTH
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
   useEffect(() => {
@@ -200,23 +229,30 @@ function Workspace() {
   }, []);
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * CONVERSATIONS
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
-  const loadConversations = useCallback(async (currentUserId: string) => {
-    const { data } = await supabase
-      .from("conversations")
-      .select("id,title,created_at,updated_at")
-      .eq("user_id", currentUserId)
-      .order("updated_at", { ascending: false })
-      .limit(30);
+  const loadConversations = useCallback(
+    async (currentUserId: string) => {
+      const { data } = await supabase
+        .from("conversations")
+        .select(
+          "id,title,created_at,updated_at",
+        )
+        .eq("user_id", currentUserId)
+        .order("updated_at", {
+          ascending: false,
+        })
+        .limit(30);
 
-    if (data) {
-      setConversations(data);
-    }
-  }, []);
+      if (data) {
+        setConversations(data);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!userId) return;
@@ -225,39 +261,50 @@ function Workspace() {
   }, [userId, loadConversations]);
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * SIDEBAR
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
-  const paintSidebar = useCallback((progress: number) => {
-    const next = Math.min(1, Math.max(0, progress));
+  const paintSidebar = useCallback(
+    (progress: number) => {
+      const next = Math.min(
+        1,
+        Math.max(0, progress),
+      );
 
-    setSidebarProgress(next);
+      setSidebarProgress(next);
 
-    if (sidebarRef.current) {
-      sidebarRef.current.style.transform = `translate3d(${
-        -100 + next * 100
-      }%, 0, 0)`;
-    }
-  }, []);
+      if (sidebarRef.current) {
+        sidebarRef.current.style.transform =
+          `translate3d(${
+            -100 + next * 100
+          }%, 0, 0)`;
+      }
+    },
+    [],
+  );
 
   const settleSidebar = useCallback(
     (progress: number) => {
-      const next = progress >= 0.5 ? 1 : 0;
+      const next =
+        progress >= 0.5 ? 1 : 0;
 
       setSidebarProgress(next);
 
       if (sidebarRef.current) {
         sidebarRef.current.style.transition =
           "transform 220ms cubic-bezier(.22,.61,.36,1)";
-        sidebarRef.current.style.transform = `translate3d(${
-          -100 + next * 100
-        }%, 0, 0)`;
+
+        sidebarRef.current.style.transform =
+          `translate3d(${
+            -100 + next * 100
+          }%, 0, 0)`;
 
         window.setTimeout(() => {
           if (sidebarRef.current) {
-            sidebarRef.current.style.transition = "";
+            sidebarRef.current.style.transition =
+              "";
           }
         }, 230);
       }
@@ -276,7 +323,9 @@ function Workspace() {
       startProgress: sidebarProgress,
     };
 
-    event.currentTarget.setPointerCapture(event.pointerId);
+    event.currentTarget.setPointerCapture(
+      event.pointerId,
+    );
   };
 
   const moveSidebarDrag = (
@@ -284,7 +333,9 @@ function Workspace() {
   ) => {
     if (!dragState.current.active) return;
 
-    const delta = event.clientX - dragState.current.startX;
+    const delta =
+      event.clientX -
+      dragState.current.startX;
 
     const progress =
       dragState.current.startProgress +
@@ -301,7 +352,9 @@ function Workspace() {
     dragState.current.active = false;
 
     try {
-      event.currentTarget.releasePointerCapture(event.pointerId);
+      event.currentTarget.releasePointerCapture(
+        event.pointerId,
+      );
     } catch {
       // noop
     }
@@ -310,9 +363,9 @@ function Workspace() {
   };
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * NEW CONVERSATION
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
   const newConversation = () => {
@@ -328,9 +381,9 @@ function Workspace() {
   };
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * SAVE CONVERSATION
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
   const saveConversationTitle = async (
@@ -344,21 +397,27 @@ function Workspace() {
 
     if (!title) return;
 
-    await supabase.from("conversations").insert({
-      user_id: currentUserId,
-      title,
-    });
+    await supabase
+      .from("conversations")
+      .insert({
+        user_id: currentUserId,
+        title,
+      });
 
-    await loadConversations(currentUserId);
+    await loadConversations(
+      currentUserId,
+    );
   };
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * AI
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
-  const getAIModel = async (currentUserId: string) => {
+  const getAIModel = async (
+    currentUserId: string,
+  ) => {
     const { data } = await supabase
       .from("subscription")
       .select(
@@ -379,7 +438,9 @@ function Workspace() {
       data.status === "active" &&
       (
         !data.current_period_end ||
-        new Date(data.current_period_end).getTime() > Date.now()
+        new Date(
+          data.current_period_end,
+        ).getTime() > Date.now()
       );
 
     const isVip =
@@ -416,17 +477,27 @@ function Workspace() {
       content: text,
     };
 
-    setMessages((current) => [...current, userMessage]);
+    setMessages((current) => [
+      ...current,
+      userMessage,
+    ]);
 
     try {
-      const model = await getAIModel(userId);
+      const model =
+        await getAIModel(userId);
 
-      const history = [...messages, userMessage].map((message) => ({
+      const history = [
+        ...messages,
+        userMessage,
+      ].map((message) => ({
         role: message.role,
         content: message.content,
       }));
 
-      const { data, error } = await supabase.functions.invoke(
+      const {
+        data,
+        error,
+      } = await supabase.functions.invoke(
         model,
         {
           body: {
@@ -437,7 +508,8 @@ function Workspace() {
       );
 
       if (error) {
-        const status = error.context?.status;
+        const status =
+          error.context?.status;
 
         if (status === 402) {
           throw new Error(
@@ -451,13 +523,19 @@ function Workspace() {
           );
         }
 
-        if (status === 401 || status === 403) {
+        if (
+          status === 401 ||
+          status === 403
+        ) {
           throw new Error(
             "Sua sessão não permite realizar esta ação.",
           );
         }
 
-        if (status && status >= 500) {
+        if (
+          status &&
+          status >= 500
+        ) {
           throw new Error(
             "A DecidlyAI está temporariamente indisponível. Tente novamente.",
           );
@@ -495,7 +573,10 @@ function Workspace() {
       ]);
 
       if (messages.length === 0) {
-        await saveConversationTitle(userId, text);
+        await saveConversationTitle(
+          userId,
+          text,
+        );
       }
     } catch (error) {
       setErrorMessage(
@@ -513,36 +594,42 @@ function Workspace() {
   };
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * TEXTAREA
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
-  const resizeTextarea = () => {
-    const textarea = textareaRef.current;
+  const resizeTextarea = useCallback(() => {
+    const textarea =
+      textareaRef.current;
 
     if (!textarea) return;
 
     textarea.style.height = "auto";
 
     const nextHeight = Math.min(
-      Math.max(textarea.scrollHeight, 58),
+      Math.max(
+        textarea.scrollHeight,
+        58,
+      ),
       140,
     );
 
-    textarea.style.height = `${nextHeight}px`;
-  };
+    textarea.style.height =
+      `${nextHeight}px`;
+  }, []);
 
   useEffect(() => {
     resizeTextarea();
-  }, [input]);
+  }, [input, resizeTextarea]);
 
   const handleTextareaKeyDown = (
     event: React.KeyboardEvent<HTMLTextAreaElement>,
   ) => {
     if (
       event.key === "Enter" &&
-      (event.ctrlKey || event.metaKey)
+      (event.ctrlKey ||
+        event.metaKey)
     ) {
       event.preventDefault();
       sendMessage();
@@ -551,35 +638,31 @@ function Workspace() {
 
   const handleTextareaFocus = () => {
     setTimeout(() => {
-      textareaRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
+      textareaRef.current?.scrollIntoView(
+        {
+          behavior: "smooth",
+          block: "center",
+        },
+      );
 
       const chat = chatRef.current;
 
       if (chat) {
-        chat.scrollTop = chat.scrollHeight;
+        chat.scrollTop =
+          chat.scrollHeight;
       }
     }, 100);
   };
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * MICROPHONE
-   * ---------------------------------------------------------
-   *
-   * IMPORTANTE:
-   * O navegador não fornece detecção automática de idioma
-   * perfeita. Aqui usamos o idioma configurado no navegador.
-   *
-   * Não existe select ocupando espaço no compositor.
+   * =========================================================
    */
 
   const stopListening = useCallback(() => {
-    shouldKeepListeningRef.current = false;
-
-    const recognition = recognitionRef.current;
+    const recognition =
+      recognitionRef.current;
 
     if (recognition) {
       try {
@@ -592,188 +675,246 @@ function Workspace() {
     setIsListening(false);
   }, []);
 
-  const startListening = useCallback(() => {
-    const SpeechRecognition =
-      window.SpeechRecognition ||
-      window.webkitSpeechRecognition;
+  const startListening =
+    useCallback(() => {
+      const SpeechRecognition =
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition;
 
-    if (!SpeechRecognition) {
-      setErrorMessage(
-        "O reconhecimento de voz não é compatível com este navegador. Tente usar o Chrome ou Edge.",
-      );
-      return;
-    }
-
-    if (isLoading) return;
-
-    if (isListening) {
-      stopListening();
-      return;
-    }
-
-    setErrorMessage("");
-
-    const recognition = new SpeechRecognition();
-
-    /*
-     * Usa o idioma do navegador automaticamente.
-     * Exemplos:
-     * pt-BR, en-US, es-ES, fr-FR...
-     */
-    const browserLanguage =
-      navigator.language || "pt-BR";
-
-    recognition.lang = browserLanguage;
-    recognition.continuous = false;
-    recognition.interimResults = true;
-
-    recognition.onstart = () => {
-      setIsListening(true);
-      shouldKeepListeningRef.current = true;
-    };
-
-    recognition.onresult = (event) => {
-      let transcript = "";
-
-      for (
-        let i = 0;
-        i < event.results.length;
-        i++
-      ) {
-        transcript += event.results[i][0].transcript;
+      if (!SpeechRecognition) {
+        setErrorMessage(
+          "O reconhecimento de voz não é compatível com este navegador. Tente usar o Chrome ou Edge.",
+        );
+        return;
       }
 
-      if (transcript.trim()) {
+      if (isLoading) return;
+
+      if (isListening) {
+        stopListening();
+        return;
+      }
+
+      setErrorMessage("");
+
+      const recognition =
+        new SpeechRecognition();
+
+      /*
+       * Usa automaticamente o idioma
+       * configurado no navegador.
+       */
+      recognition.lang =
+        navigator.language ||
+        "pt-BR";
+
+      /*
+       * Uma fala por ativação.
+       * Evita que o mesmo resultado
+       * seja repetido indefinidamente.
+       */
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (
+        event,
+      ) => {
+        /*
+         * IMPORTANTE:
+         *
+         * Usamos resultIndex em vez de
+         * percorrer todos os resultados.
+         *
+         * Isso corrige o problema:
+         *
+         * hi hi hi hi hi
+         */
+        const index =
+          event.resultIndex;
+
+        const result =
+          event.results[index];
+
+        if (!result) return;
+
+        const transcript =
+          result[0]?.transcript
+            ?.trim();
+
+        if (!transcript) return;
+
         setInput((current) => {
-          const existing = current.trim();
+          const existing =
+            current.trim();
 
           if (!existing) {
-            return transcript.trim();
+            return transcript;
           }
 
-          return `${existing} ${transcript.trim()}`;
+          return `${existing} ${transcript}`;
         });
-      }
-    };
+      };
 
-    recognition.onerror = (event) => {
-      shouldKeepListeningRef.current = false;
-      setIsListening(false);
+      recognition.onerror = (
+        event,
+      ) => {
+        setIsListening(false);
 
-      if (event.error === "not-allowed") {
+        if (
+          event.error ===
+          "not-allowed"
+        ) {
+          setErrorMessage(
+            "Permissão do microfone bloqueada. Permita o acesso ao microfone no navegador.",
+          );
+          return;
+        }
+
+        if (
+          event.error ===
+          "no-speech"
+        ) {
+          setErrorMessage(
+            "Não consegui ouvir sua voz. Tente falar novamente.",
+          );
+          return;
+        }
+
+        if (
+          event.error ===
+          "audio-capture"
+        ) {
+          setErrorMessage(
+            "Não foi possível acessar o microfone.",
+          );
+          return;
+        }
+
+        if (
+          event.error ===
+          "network"
+        ) {
+          setErrorMessage(
+            "O reconhecimento de voz precisa de conexão com a internet.",
+          );
+          return;
+        }
+
         setErrorMessage(
-          "Permissão do microfone bloqueada. Permita o acesso ao microfone no navegador.",
+          "Não foi possível usar o microfone agora.",
         );
-        return;
-      }
+      };
 
-      if (event.error === "no-speech") {
+      recognition.onend = () => {
+        setIsListening(false);
+        recognitionRef.current =
+          null;
+
+        requestAnimationFrame(() => {
+          textareaRef.current?.focus();
+          resizeTextarea();
+        });
+      };
+
+      recognitionRef.current =
+        recognition;
+
+      try {
+        recognition.start();
+      } catch {
+        recognitionRef.current =
+          null;
+
+        setIsListening(false);
+
         setErrorMessage(
-          "Não consegui ouvir sua voz. Tente falar novamente.",
+          "Não foi possível iniciar o microfone. Tente novamente.",
         );
-        return;
       }
-
-      if (event.error === "audio-capture") {
-        setErrorMessage(
-          "Não foi possível acessar o microfone.",
-        );
-        return;
-      }
-
-      if (event.error === "network") {
-        setErrorMessage(
-          "O reconhecimento de voz precisa de conexão com a internet.",
-        );
-        return;
-      }
-
-      setErrorMessage(
-        "Não foi possível usar o microfone agora.",
-      );
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-      recognitionRef.current = null;
-      shouldKeepListeningRef.current = false;
-
-      requestAnimationFrame(() => {
-        textareaRef.current?.focus();
-        resizeTextarea();
-      });
-    };
-
-    recognitionRef.current = recognition;
-
-    try {
-      recognition.start();
-    } catch {
-      recognitionRef.current = null;
-      setIsListening(false);
-      setErrorMessage(
-        "Não foi possível iniciar o microfone. Tente novamente.",
-      );
-    }
-  }, [
-    isListening,
-    isLoading,
-    stopListening,
-  ]);
+    }, [
+      isListening,
+      isLoading,
+      stopListening,
+      resizeTextarea,
+    ]);
 
   useEffect(() => {
     return () => {
-      shouldKeepListeningRef.current = false;
-
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort();
         } catch {
           // noop
         }
+
+        recognitionRef.current =
+          null;
       }
     };
   }, []);
 
   /*
-   * ---------------------------------------------------------
-   * SEARCH
-   * ---------------------------------------------------------
+   * =========================================================
+   * FILTER
+   * =========================================================
    */
 
-  const filteredConversations = conversations.filter(
-    (conversation) =>
-      conversation.title
-        .toLowerCase()
-        .includes(search.toLowerCase()),
-  );
+  const filteredConversations =
+    conversations.filter(
+      (conversation) =>
+        conversation.title
+          .toLowerCase()
+          .includes(
+            search.toLowerCase(),
+          ),
+    );
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * RENDER
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
   return (
     <div className="relative min-h-[100dvh] overflow-hidden bg-[#0d0912] text-white">
-      {/* SIDEBAR */}
+
+      {/* =====================================================
+          SIDEBAR
+          ===================================================== */}
 
       <div
         ref={sidebarRef}
         className="fixed inset-y-0 left-0 z-[100] w-[min(320px,88vw)] bg-[#120d19] shadow-2xl"
         style={{
-          transform: `translate3d(${
-            -100 + sidebarProgress * 100
-          }%, 0, 0)`,
+          transform:
+            `translate3d(${
+              -100 +
+              sidebarProgress *
+                100
+            }%, 0, 0)`,
         }}
-        onPointerDown={startSidebarDrag}
-        onPointerMove={moveSidebarDrag}
-        onPointerUp={endSidebarDrag}
-        onPointerCancel={endSidebarDrag}
+        onPointerDown={
+          startSidebarDrag
+        }
+        onPointerMove={
+          moveSidebarDrag
+        }
+        onPointerUp={
+          endSidebarDrag
+        }
+        onPointerCancel={
+          endSidebarDrag
+        }
       >
         <div className="flex h-full flex-col">
+
           <div className="flex items-center justify-between px-4 py-4">
             <div className="flex items-center gap-2">
+
               <img
                 src="/appicon.png"
                 alt="DecidlyAI"
@@ -783,6 +924,7 @@ function Workspace() {
               <span className="font-semibold">
                 DecidlyAI
               </span>
+
             </div>
 
             <button
@@ -799,18 +941,24 @@ function Workspace() {
           </div>
 
           <div className="px-3">
+
             <button
               type="button"
-              onClick={newConversation}
+              onClick={
+                newConversation
+              }
               className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition hover:bg-white/10"
             >
               <Plus size={18} />
               Nova conversa
             </button>
+
           </div>
 
           <div className="px-3 pt-4">
+
             <div className="flex items-center gap-2 rounded-2xl bg-white/[0.06] px-3 py-2.5">
+
               <Search
                 size={17}
                 className="text-white/40"
@@ -819,45 +967,61 @@ function Workspace() {
               <input
                 value={search}
                 onChange={(event) =>
-                  setSearch(event.target.value)
+                  setSearch(
+                    event.target.value,
+                  )
                 }
                 placeholder="Pesquisar"
                 className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/35"
               />
+
             </div>
+
           </div>
 
           <div className="flex-1 overflow-y-auto px-3 py-4">
+
             <div className="mb-2 px-2 text-xs font-medium text-white/35">
               Conversas
             </div>
 
             <div className="space-y-1">
+
               {filteredConversations.map(
                 (conversation) => (
                   <button
-                    key={conversation.id}
+                    key={
+                      conversation.id
+                    }
                     type="button"
                     className="w-full rounded-xl px-3 py-2.5 text-left text-sm text-white/70 transition hover:bg-white/[0.06] hover:text-white"
                   >
                     <div className="truncate">
-                      {conversation.title}
+                      {
+                        conversation.title
+                      }
                     </div>
                   </button>
                 ),
               )}
 
-              {filteredConversations.length === 0 && (
+              {filteredConversations.length ===
+                0 && (
                 <div className="px-3 py-3 text-sm text-white/30">
                   Nenhuma conversa encontrada.
                 </div>
               )}
+
             </div>
+
           </div>
+
         </div>
       </div>
 
-      {/* SIDEBAR BACKDROP */}
+      {/* =====================================================
+          BACKDROP
+          ===================================================== */}
 
       {sidebarOpen && (
         <button
@@ -871,7 +1035,9 @@ function Workspace() {
         />
       )}
 
-      {/* FIXED MENU BUTTON */}
+      {/* =====================================================
+          MENU FIXO
+          ===================================================== */}
 
       <button
         type="button"
@@ -885,10 +1051,14 @@ function Workspace() {
         <Menu size={21} />
       </button>
 
-      {/* TOP BAR */}
+      {/* =====================================================
+          TOP BAR
+          ===================================================== */}
 
-      <header className="fixed left-0 right-0 top-0 z-40 flex h-16 items-center justify-center pointer-events-none">
+      <header className="pointer-events-none fixed left-0 right-0 top-0 z-40 flex h-16 items-center justify-center">
+
         <div className="flex items-center gap-2">
+
           <img
             src="/appicon.png"
             alt="DecidlyAI"
@@ -898,24 +1068,34 @@ function Workspace() {
           <span className="text-sm font-semibold">
             DecidlyAI
           </span>
+
         </div>
+
       </header>
 
-      {/* CHAT */}
+      {/* =====================================================
+          CHAT
+          ===================================================== */}
 
       <main
         ref={chatRef}
         className="h-[100dvh] overflow-y-auto overscroll-contain px-4 pb-32 pt-24"
       >
         <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col">
-          {messages.length === 0 ? (
+
+          {messages.length ===
+          0 ? (
             <div className="flex flex-1 items-center justify-center pb-32">
+
               <div className="w-full max-w-2xl text-center">
+
                 <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/[0.06]">
+
                   <Sparkles
                     size={25}
                     className="text-white/80"
                   />
+
                 </div>
 
                 <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -925,45 +1105,64 @@ function Workspace() {
                 <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-white/45">
                   Explique a situação, as opções que você tem e o que está te deixando em dúvida.
                 </p>
+
               </div>
+
             </div>
           ) : (
             <div className="space-y-5 pb-10">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={
-                    message.role === "user"
-                      ? "flex justify-end"
-                      : "flex justify-start"
-                  }
-                >
+
+              {messages.map(
+                (message) => (
                   <div
+                    key={message.id}
                     className={
-                      message.role === "user"
-                        ? "max-w-[85%] rounded-2xl bg-white/[0.08] px-4 py-3 text-sm leading-6"
-                        : "max-w-[90%] text-sm leading-7 text-white/85"
+                      message.role ===
+                      "user"
+                        ? "flex justify-end"
+                        : "flex justify-start"
                     }
                   >
-                    {message.role === "assistant" ? (
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                      >
-                        {message.content}
-                      </ReactMarkdown>
-                    ) : (
-                      message.content
-                    )}
+
+                    <div
+                      className={
+                        message.role ===
+                        "user"
+                          ? "max-w-[85%] rounded-2xl bg-white/[0.08] px-4 py-3 text-sm leading-6"
+                          : "max-w-[90%] text-sm leading-7 text-white/85"
+                      }
+                    >
+
+                      {message.role ===
+                      "assistant" ? (
+                        <ReactMarkdown
+                          remarkPlugins={[
+                            remarkGfm,
+                          ]}
+                        >
+                          {
+                            message.content
+                          }
+                        </ReactMarkdown>
+                      ) : (
+                        message.content
+                      )}
+
+                    </div>
+
                   </div>
-                </div>
-              ))}
+                ),
+              )}
 
               {isLoading && (
                 <div className="flex items-center gap-2 text-sm text-white/40">
+
                   <Sparkles size={15} />
+
                   <span>
                     DecidlyAI está pensando...
                   </span>
+
                 </div>
               )}
 
@@ -972,36 +1171,127 @@ function Workspace() {
                   {errorMessage}
                 </div>
               )}
+
             </div>
           )}
+
         </div>
       </main>
 
-      {/* COMPOSER */}
+      {/* =====================================================
+          COMPOSER
+          ===================================================== */}
 
       <div
         className="fixed left-0 right-0 z-50 px-3 sm:px-4"
         style={{
           bottom: 0,
-          transform: `translate3d(0, -${keyboardOffset}px, 0)`,
+          transform:
+            `translate3d(0, -${keyboardOffset}px, 0)`,
           transition:
             "transform 90ms linear",
         }}
       >
+
         <div className="mx-auto w-full max-w-3xl pb-3 sm:pb-5">
-          <div className="rounded-[26px] bg-[#17111e]/95 px-2 py-2 shadow-2xl backdrop-blur-xl">
-            <div className="flex items-end gap-1">
-              {/* MICROPHONE */}
+
+          <div className="rounded-[26px] bg-[#17111e]/95 px-3 py-2 shadow-2xl backdrop-blur-xl">
+
+            <div className="flex items-end gap-2">
+
+              {/* =================================================
+                  TEXTAREA
+                  ================================================= */}
+
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(event) =>
+                  setInput(
+                    event.target.value,
+                  )
+                }
+                onKeyDown={
+                  handleTextareaKeyDown
+                }
+                onFocus={
+                  handleTextareaFocus
+                }
+                placeholder="Escreva sua decisão..."
+                rows={1}
+                disabled={isLoading}
+                spellCheck
+                autoComplete="off"
+                className="
+                  min-h-[58px]
+                  flex-1
+                  resize-none
+                  overflow-y-auto
+                  bg-transparent
+                  px-1
+                  py-3
+                  text-[15px]
+                  leading-6
+                  text-white
+                  placeholder:text-white/35
+
+                  !border-0
+                  !border-none
+                  !outline-0
+                  !outline-none
+                  !ring-0
+                  !shadow-none
+
+                  focus:!border-0
+                  focus:!border-none
+                  focus:!outline-0
+                  focus:!outline-none
+                  focus:!ring-0
+                  focus:!shadow-none
+
+                  active:!border-0
+                  active:!outline-none
+                  active:!ring-0
+
+                  disabled:opacity-50
+                "
+                style={{
+                  border: "none",
+                  outline: "none",
+                  boxShadow: "none",
+                }}
+              />
+
+              {/* =================================================
+                  MICROPHONE
+                  ================================================= */}
 
               <button
                 type="button"
-                onClick={startListening}
+                onClick={
+                  startListening
+                }
                 disabled={isLoading}
-                className={`mb-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition ${
-                  isListening
-                    ? "bg-white text-black"
-                    : "text-white/45 hover:bg-white/[0.06] hover:text-white"
-                } disabled:cursor-not-allowed disabled:opacity-30`}
+                className={`
+                  mb-1
+                  flex
+                  h-10
+                  w-10
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-full
+                  transition-all
+
+                  ${
+                    isListening
+                      ? "bg-white text-[#17111e] shadow-lg"
+                      : "text-white/45 hover:bg-white/[0.06] hover:text-white"
+                  }
+
+                  disabled:cursor-not-allowed
+                  disabled:opacity-30
+                `}
                 aria-label={
                   isListening
                     ? "Parar microfone"
@@ -1013,48 +1303,82 @@ function Workspace() {
                     : "Usar microfone"
                 }
               >
+
                 {isListening ? (
-                  <MicOff size={20} />
+                  <MicOff
+                    size={19}
+                    strokeWidth={2.2}
+                  />
                 ) : (
-                  <Mic size={20} />
+                  <Mic
+                    size={19}
+                    strokeWidth={2.2}
+                  />
                 )}
+
               </button>
 
-              {/* TEXTAREA */}
-
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(event) =>
-                  setInput(event.target.value)
-                }
-                onKeyDown={handleTextareaKeyDown}
-                onFocus={handleTextareaFocus}
-                placeholder="Escreva sua decisão..."
-                rows={1}
-                disabled={isLoading}
-                className="min-h-[58px] flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-3 text-[15px] leading-6 text-white outline-none ring-0 shadow-none placeholder:text-white/35 focus:border-0 focus:outline-none focus:ring-0 disabled:opacity-50"
-              />
-
-              {/* SEND */}
+              {/* =================================================
+                  SEND
+                  ================================================= */}
 
               <button
                 type="button"
                 onClick={sendMessage}
-                disabled={!input.trim() || isLoading}
-                className="mb-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-25"
+                disabled={
+                  !input.trim() ||
+                  isLoading
+                }
+                className="
+                  mb-1
+                  flex
+                  h-10
+                  w-10
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-full
+
+                  bg-[#8B5CF6]
+                  text-white
+
+                  shadow-[0_4px_18px_rgba(139,92,246,0.25)]
+
+                  transition-all
+                  duration-200
+
+                  hover:bg-[#9B6CFF]
+                  hover:shadow-[0_5px_22px_rgba(139,92,246,0.35)]
+
+                  active:scale-95
+
+                  disabled:cursor-not-allowed
+                  disabled:bg-[#8B5CF6]/25
+                  disabled:text-white/30
+                  disabled:shadow-none
+                "
                 aria-label="Enviar"
               >
-                <Send size={18} />
+
+                <ArrowUp
+                  size={20}
+                  strokeWidth={2.5}
+                />
+
               </button>
+
             </div>
+
           </div>
 
           <p className="mt-2 text-center text-[11px] text-white/25">
             A DecidlyAI pode cometer erros. Verifique informações importantes.
           </p>
+
         </div>
+
       </div>
+
     </div>
   );
 }
