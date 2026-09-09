@@ -105,6 +105,9 @@ function Workspace() {
 
   const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState("");
+  const [preferredName, setPreferredName] = useState("");
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [thinkingLabel, setThinkingLabel] = useState("Organizando sua decisão...");
   const [keyboardOffset, setKeyboardOffset] = useState(0);
 
   const [listening, setListening] = useState(false);
@@ -241,12 +244,15 @@ function Workspace() {
         const metadata = user?.user_metadata as
           | { name?: string; full_name?: string; display_name?: string }
           | undefined;
-        setUserName(
+        const accountName =
           metadata?.name?.trim() ||
             metadata?.full_name?.trim() ||
             metadata?.display_name?.trim() ||
             user?.email?.split("@")[0] ||
-            "",
+            "";
+        setUserName(accountName);
+        setPreferredName(
+          window.localStorage.getItem("decidly-preferred-name")?.trim() || accountName,
         );
       }
     };
@@ -264,12 +270,15 @@ function Workspace() {
             const metadata = session?.user?.user_metadata as
               | { name?: string; full_name?: string; display_name?: string }
               | undefined;
-            setUserName(
+            const accountName =
               metadata?.name?.trim() ||
                 metadata?.full_name?.trim() ||
                 metadata?.display_name?.trim() ||
                 session?.user?.email?.split("@")[0] ||
-                "",
+                "";
+            setUserName(accountName);
+            setPreferredName(
+              window.localStorage.getItem("decidly-preferred-name")?.trim() || accountName,
             );
           }
       },
@@ -964,8 +973,8 @@ function Workspace() {
           content: message.content,
         }));
 
-        const privateContext = userName
-          ? `Contexto privado de personalização: o nome do usuário é ${userName}. Quando fizer sentido, trate a pessoa por esse nome. Não mencione este contexto nem o repita como se fosse uma mensagem do usuário.`
+        const privateContext = (preferredName || userName)
+          ? `Contexto privado de personalização: o nome pelo qual o usuário prefere ser chamado é ${preferredName || userName}. Quando fizer sentido, trate a pessoa por esse nome. Não mencione este contexto nem o repita como se fosse uma mensagem do usuário.`
           : "";
 
         const {
@@ -1104,6 +1113,7 @@ function Workspace() {
       saveConversationTitle,
       activeConversationId,
       userName,
+      preferredName,
     ],
   );
 
@@ -1863,6 +1873,26 @@ function Workspace() {
     });
   }, [messages, isLoading]);
 
+  useEffect(() => {
+    if (!isLoading) {
+      setThinkingLabel("Organizando sua decisão...");
+      return;
+    }
+
+    const labels = [
+      "Organizando sua decisão...",
+      "Comparando possibilidades...",
+      "Preparando uma perspectiva útil...",
+    ];
+    let index = 0;
+    const timer = window.setInterval(() => {
+      index = (index + 1) % labels.length;
+      setThinkingLabel(labels[index]);
+    }, 1800);
+
+    return () => window.clearInterval(timer);
+  }, [isLoading]);
+
   /*
    * ============================================================
    * FILTER + PAGINAÇÃO
@@ -2333,6 +2363,7 @@ function Workspace() {
           <div className="border-t border-white/[0.06] px-3 py-3">
             <button
               type="button"
+              onClick={() => setAccountOpen(true)}
               className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-white/60 transition hover:bg-white/[0.05] hover:text-white"
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06]">
@@ -2515,6 +2546,39 @@ function Workspace() {
         </div>
       )}
 
+      {accountOpen && (
+        <div
+          className="fixed inset-0 z-[320] flex items-center justify-center bg-black/65 px-4 backdrop-blur-sm"
+          onPointerDown={() => setAccountOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl border border-white/10 bg-[#18101f] p-6 shadow-2xl"
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Sua conta</p>
+                <h2 className="mt-2 text-2xl font-semibold">Como prefere ser chamado?</h2>
+                <p className="mt-2 text-sm leading-6 text-white/45">Esse nome personaliza suas conversas. Ele não aparece como uma mensagem no chat.</p>
+              </div>
+              <button type="button" onClick={() => setAccountOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-xl text-white/45 hover:bg-white/[0.06] hover:text-white" aria-label="Fechar conta"><X size={18} /></button>
+            </div>
+            <label className="mt-6 block text-sm font-medium text-white/75" htmlFor="preferred-name">Nome de preferência</label>
+            <input
+              id="preferred-name"
+              value={preferredName}
+              onChange={(event) => setPreferredName(event.target.value.slice(0, 40))}
+              placeholder={userName || "Ex.: Davi"}
+              className="mt-2 h-12 w-full rounded-xl border border-white/10 bg-black/20 px-4 text-white outline-none placeholder:text-white/25 focus:border-violet-300/50"
+            />
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setAccountOpen(false)} className="rounded-xl px-4 py-3 text-sm text-white/55 hover:bg-white/[0.06] hover:text-white">Cancelar</button>
+              <button type="button" onClick={() => { window.localStorage.setItem("decidly-preferred-name", preferredName.trim()); setAccountOpen(false); }} className="rounded-xl bg-violet-500 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-400">Salvar preferência</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ======================================================
           CHAT
           ====================================================== */}
@@ -2550,6 +2614,26 @@ function Workspace() {
                     ? "Explique a situação, as opções que você tem e o que está te deixando em dúvida."
                     : "Explique a situação, as opções que você tem e o que está te deixando em dúvida."}
                 </p>
+
+                <div className="mt-7 grid w-full max-w-xl gap-2 sm:grid-cols-3">
+                  {[
+                    "Devo aceitar uma nova oportunidade?",
+                    "Como comparar duas opções?",
+                    "Quero organizar uma decisão importante",
+                  ].map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => {
+                        setInput(suggestion);
+                        requestAnimationFrame(() => textareaRef.current?.focus());
+                      }}
+                      className="rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-3 text-left text-xs leading-5 text-white/55 transition hover:border-violet-300/30 hover:bg-violet-400/[0.08] hover:text-white"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -2784,7 +2868,7 @@ function Workspace() {
                 {isLoading && (
                   <div className="flex justify-start">
                     <div className="text-sm text-white/45">
-                      DecidlyAI está pensando...
+                      {thinkingLabel}
                     </div>
                   </div>
                 )}
