@@ -1,65 +1,68 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  useNavigate,
+} from "@tanstack/react-router"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowUp,
-  ChevronDown,
+  ChevronRight,
+  Copy,
   Menu,
-  MoreHorizontal,
-  PanelLeft,
+  MessageSquare,
   Plus,
   Search,
-  Settings,
   Sparkles,
-  Trash2,
-  User,
   X,
-} from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { supabase } from "@/lib/supabase";
+  Check,
+} from "lucide-react"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
+import { supabase } from "@/lib/supabase"
 
-export const Route = createFileRoute("/workspace/$conversationId")({
+export const Route = createFileRoute(
+  "/workspace/$conversationId",
+)({
   component: ConversationWorkspace,
-});
-
-type Message = {
-  id: string;
-  conversation_id: string;
-  role: "user" | "assistant";
-  content: string;
-  created_at: string;
-};
+})
 
 type Conversation = {
-  id: string;
-  title: string;
-  created_at: string;
-  updated_at: string;
-};
+  id: string
+  user_id: string
+  title: string
+  created_at: string
+  updated_at: string
+}
+
+type Message = {
+  id: string
+  conversation_id: string
+  user_id: string
+  role: "user" | "assistant"
+  content: string
+  created_at: string
+}
 
 type Subscription = {
-  plan: string | null;
-  status: string | null;
-  expires_at: string | null;
-};
-
-type AiError = {
-  status?: number;
-  message?: string;
-};
+  plan: string | null
+  status: string | null
+  expires_at: string | null
+}
 
 function getFriendlyAiError(
   status?: number,
   backendMessage?: string,
 ): string {
-  const message = (backendMessage || "").toLowerCase();
+  const message = String(
+    backendMessage ?? "",
+  ).toLowerCase()
 
   if (
     status === 402 ||
     message.includes("credit") ||
     message.includes("crédito")
   ) {
-    return "Sua conta não possui créditos disponíveis para continuar usando a IA.";
+    return "Sua conta não possui créditos disponíveis para realizar essa análise."
   }
 
   if (
@@ -69,7 +72,7 @@ function getFriendlyAiError(
     message.includes("resource_exhausted") ||
     message.includes("limite")
   ) {
-    return "A IA está recebendo muitas solicitações no momento. Tente novamente em alguns instantes.";
+    return "O limite de uso da IA foi atingido. Aguarde um pouco e tente novamente."
   }
 
   if (
@@ -77,17 +80,22 @@ function getFriendlyAiError(
     status === 403 ||
     message.includes("unauthorized") ||
     message.includes("authentication") ||
-    message.includes("não autenticado")
+    message.includes("auth")
   ) {
-    return "Sua sessão precisa ser atualizada. Entre novamente na sua conta.";
+    return "Sua sessão não está autorizada. Faça login novamente."
   }
 
-  if ([500, 502, 503, 504].includes(status || 0)) {
-    return "O serviço de IA encontrou uma dificuldade temporária. Tente novamente.";
+  if (
+    status === 500 ||
+    status === 502 ||
+    status === 503 ||
+    status === 504
+  ) {
+    return "O serviço de IA está temporariamente indisponível. Tente novamente em alguns instantes."
   }
 
   if (message.includes("timeout")) {
-    return "A resposta demorou demais para chegar. Tente novamente.";
+    return "A análise demorou mais que o esperado. Tente novamente."
   }
 
   if (
@@ -95,1433 +103,1085 @@ function getFriendlyAiError(
     message.includes("fetch") ||
     message.includes("connection")
   ) {
-    return "Não foi possível conectar ao serviço de IA. Verifique sua conexão e tente novamente.";
+    return "Não foi possível conectar ao serviço de IA. Verifique sua conexão e tente novamente."
   }
 
-  return "Não consegui concluir essa análise agora. Tente novamente em alguns instantes.";
+  return "Não foi possível concluir a análise agora. Tente novamente."
+}
+
+async function getAiFunction(
+  setModelLabel: (
+    value: string,
+  ) => void,
+): Promise<string> {
+  const { data, error } =
+    await supabase.auth.getUser()
+
+  if (error || !data.user) {
+    throw {
+      status: 401,
+      message: "Usuário não autenticado",
+    }
+  }
+
+  const { data: subscription } =
+    await supabase
+      .from("subscription")
+      .select(
+        "plan,status,expires_at",
+      )
+      .eq("user_id", data.user.id)
+      .order("created_at", {
+        ascending: false,
+      })
+      .limit(1)
+      .maybeSingle<Subscription>()
+
+  const plan = String(
+    subscription?.plan ?? "",
+  ).toLowerCase()
+
+  const status = String(
+    subscription?.status ?? "",
+  ).toLowerCase()
+
+  const active =
+    status === "active" ||
+    status === "ativo"
+
+  const validDate =
+    !subscription?.expires_at ||
+    new Date(
+      subscription.expires_at,
+    ).getTime() > Date.now()
+
+  if (
+    plan === "vip" &&
+    active &&
+    validDate
+  ) {
+    setModelLabel("VIP")
+    return "decidly-ai"
+  }
+
+  setModelLabel("Free")
+  return "decidly-ai-free"
 }
 
 function ConversationWorkspace() {
-  const navigate = useNavigate();
+  const { conversationId } =
+    Route.useParams()
 
-  const { conversationId } = Route.useParams();
+  const navigate = useNavigate()
 
-  const [userId, setUserId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [conversation, setConversation] = useState<Conversation | null>(null);
+  const [userId, setUserId] =
+    useState<string | null>(null)
 
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [loadingConversation, setLoadingConversation] = useState(true);
-  const [mobileSidebar, setMobileSidebar] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [modelLabel, setModelLabel] = useState("Free");
+  const [conversation, setConversation] =
+    useState<Conversation | null>(null)
 
-  const [editingTitle, setEditingTitle] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
+  const [messages, setMessages] =
+    useState<Message[]>([])
 
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [conversations, setConversations] =
+    useState<Conversation[]>([])
 
-  /*
-   * ============================================================
-   * AUTENTICAÇÃO
-   * ============================================================
-   */
+  const [input, setInput] =
+    useState("")
 
-  async function loadUser() {
-    const { data, error } = await supabase.auth.getUser();
+  const [loading, setLoading] =
+    useState(true)
 
-    if (error || !data.user) {
-      await navigate({
-        to: "/login",
-      });
+  const [sending, setSending] =
+    useState(false)
 
-      return null;
-    }
+  const [modelLabel, setModelLabel] =
+    useState("Free")
 
-    setUserId(data.user.id);
+  const [search, setSearch] =
+    useState("")
 
-    return data.user;
+  const [sidebarProgress, setSidebarProgress] =
+    useState(0)
+
+  const [dragging, setDragging] =
+    useState(false)
+
+  const [copiedId, setCopiedId] =
+    useState<string | null>(null)
+
+  const [error, setError] =
+    useState<string | null>(null)
+
+  const dragStartX =
+    useRef(0)
+
+  const startProgress =
+    useRef(0)
+
+  const messagesEndRef =
+    useRef<HTMLDivElement | null>(null)
+
+  const SIDEBAR_WIDTH = 300
+
+  const sidebarOpen =
+    sidebarProgress > 0
+
+  const openSidebar = () => {
+    setSidebarProgress(1)
   }
 
-  /*
-   * ============================================================
-   * CARREGAR CONVERSAS
-   * ============================================================
-   */
+  const closeSidebar = () => {
+    setSidebarProgress(0)
+  }
 
-  async function loadConversations(currentUserId?: string) {
-    const id = currentUserId || userId;
+  const loadData = async () => {
+    setLoading(true)
+    setError(null)
 
-    if (!id) return;
+    const { data: authData } =
+      await supabase.auth.getUser()
 
-    const { data, error } = await supabase
-      .from("conversations")
-      .select("id, title, created_at, updated_at")
-      .eq("user_id", id)
-      .order("updated_at", { ascending: false });
+    if (!authData.user) {
+      navigate({
+        to: "/login",
+      })
+      return
+    }
+
+    const uid = authData.user.id
+
+    setUserId(uid)
+
+    const [
+      conversationResult,
+      conversationsResult,
+      messagesResult,
+    ] = await Promise.all([
+      supabase
+        .from("conversations")
+        .select("*")
+        .eq("id", conversationId)
+        .eq("user_id", uid)
+        .maybeSingle(),
+
+      supabase
+        .from("conversations")
+        .select("*")
+        .eq("user_id", uid)
+        .order("updated_at", {
+          ascending: false,
+        }),
+
+      supabase
+        .from("messages")
+        .select("*")
+        .eq(
+          "conversation_id",
+          conversationId,
+        )
+        .eq("user_id", uid)
+        .order("created_at", {
+          ascending: true,
+        }),
+    ])
+
+    if (
+      conversationResult.error ||
+      !conversationResult.data
+    ) {
+      setError(
+        "Esta decisão não existe ou você não tem acesso a ela.",
+      )
+      setLoading(false)
+      return
+    }
+
+    setConversation(
+      conversationResult.data as Conversation,
+    )
+
+    setConversations(
+      (conversationsResult.data ??
+        []) as Conversation[],
+    )
+
+    setMessages(
+      (messagesResult.data ??
+        []) as Message[],
+    )
+
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [conversationId])
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+    })
+  }, [messages, sending])
+
+  const filteredConversations =
+    useMemo(() => {
+      const term =
+        search.trim().toLowerCase()
+
+      if (!term) {
+        return conversations
+      }
+
+      return conversations.filter(
+        (item) =>
+          item.title
+            .toLowerCase()
+            .includes(term),
+      )
+    }, [conversations, search])
+
+  const createConversation = async () => {
+    if (!userId) return
+
+    const id = crypto.randomUUID()
+
+    const { error } =
+      await supabase
+        .from("conversations")
+        .insert({
+          id,
+          user_id: userId,
+          title: "Nova decisão",
+        })
 
     if (error) {
-      console.error("Erro ao carregar conversas:", error);
-      return;
+      return
     }
 
-    setConversations((data || []) as Conversation[]);
+    navigate({
+      to: "/workspace/$conversationId",
+      params: {
+        conversationId: id,
+      },
+    })
+
+    closeSidebar()
   }
 
-  /*
-   * ============================================================
-   * CARREGAR CONVERSA ATUAL
-   * ============================================================
-   */
-
-  async function loadConversation(currentUserId?: string) {
-    const id = currentUserId || userId;
-
-    if (!id || !conversationId) return;
-
-    setLoadingConversation(true);
-
+  const copyMessage = async (
+    message: Message,
+  ) => {
     try {
-      const { data: conversationData, error: conversationError } =
-        await supabase
-          .from("conversations")
-          .select("id, title, created_at, updated_at")
-          .eq("id", conversationId)
-          .eq("user_id", id)
-          .maybeSingle();
+      await navigator.clipboard.writeText(
+        message.content,
+      )
 
-      if (conversationError) {
-        console.error(
-          "Erro ao carregar conversa:",
-          conversationError,
-        );
-        return;
-      }
+      setCopiedId(message.id)
 
-      if (!conversationData) {
-        await navigate({
-          to: "/workspace",
-        });
-
-        return;
-      }
-
-      setConversation(conversationData as Conversation);
-      setNewTitle(conversationData.title || "Nova decisão");
-
-      const { data: messageData, error: messageError } =
-        await supabase
-          .from("messages")
-          .select(
-            "id, conversation_id, role, content, created_at",
-          )
-          .eq("conversation_id", conversationId)
-          .eq("user_id", id)
-          .order("created_at", { ascending: true });
-
-      if (messageError) {
-        console.error(
-          "Erro ao carregar mensagens:",
-          messageError,
-        );
-        return;
-      }
-
-      setMessages((messageData || []) as Message[]);
-    } finally {
-      setLoadingConversation(false);
+      setTimeout(() => {
+        setCopiedId(null)
+      }, 1500)
+    } catch {
+      // Clipboard indisponível
     }
   }
 
-  /*
-   * ============================================================
-   * PLANO / MODELO DA IA
-   * ============================================================
-   */
+  const sendMessage = async () => {
+    const trimmed =
+      input.trim()
 
-  async function getAiFunction(): Promise<string> {
-    const { data, error } = await supabase.auth.getUser();
-
-    if (error || !data.user) {
-      throw {
-        status: 401,
-        message: "Usuário não autenticado",
-      } satisfies AiError;
+    if (
+      !trimmed ||
+      sending ||
+      !userId
+    ) {
+      return
     }
 
-    const { data: subscription, error: subscriptionError } =
-      await supabase
-        .from("subscription")
-        .select("plan, status, expires_at")
-        .eq("user_id", data.user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle<Subscription>();
+    setInput("")
+    setSending(true)
+    setError(null)
 
-    if (subscriptionError) {
-      setModelLabel("Free");
-      return "decidly-ai-free";
-    }
-
-    if (!subscription) {
-      setModelLabel("Free");
-      return "decidly-ai-free";
-    }
-
-    const plan = String(subscription.plan || "").toLowerCase();
-    const status = String(subscription.status || "").toLowerCase();
-
-    const activeStatus =
-      status === "active" ||
-      status === "ativo" ||
-      status === "active_subscription";
-
-    const expired =
-      subscription.expires_at &&
-      new Date(subscription.expires_at).getTime() < Date.now();
-
-    const isVip =
-      plan === "vip" &&
-      activeStatus &&
-      !expired;
-
-    if (isVip) {
-      setModelLabel("VIP");
-      return "decidly-ai";
-    }
-
-    setModelLabel("Free");
-    return "decidly-ai-free";
-  }
-
-  /*
-   * ============================================================
-   * ENVIAR MENSAGEM
-   * ============================================================
-   */
-
-  async function sendMessage() {
-    const trimmedMessage = input.trim();
-
-    if (!trimmedMessage || loading || !conversationId || !userId) {
-      return;
-    }
-
-    setInput("");
-    setLoading(true);
-
-    const temporaryUserMessage: Message = {
-      id: `temp-user-${Date.now()}`,
-      conversation_id: conversationId,
+    const temporaryMessage: Message = {
+      id: `temporary-${Date.now()}`,
+      conversation_id:
+        conversationId,
+      user_id: userId,
       role: "user",
-      content: trimmedMessage,
-      created_at: new Date().toISOString(),
-    };
+      content: trimmed,
+      created_at:
+        new Date().toISOString(),
+    }
 
     setMessages((current) => [
       ...current,
-      temporaryUserMessage,
-    ]);
+      temporaryMessage,
+    ])
 
     try {
-      /*
-       * Salva a mensagem do usuário no banco.
-       */
+      const functionName =
+        await getAiFunction(
+          setModelLabel,
+        )
 
-      const { data: savedUserMessage, error: userMessageError } =
-        await supabase
-          .from("messages")
-          .insert({
-            conversation_id: conversationId,
-            user_id: userId,
-            role: "user",
-            content: trimmedMessage,
-          })
-          .select(
-            "id, conversation_id, role, content, created_at",
-          )
-          .single();
-
-      if (userMessageError) {
-        throw userMessageError;
-      }
-
-      /*
-       * Substitui a mensagem temporária pela mensagem real.
-       */
-
-      setMessages((current) =>
-        current.map((message) =>
-          message.id === temporaryUserMessage.id
-            ? (savedUserMessage as Message)
-            : message,
-        ),
-      );
-
-      /*
-       * Atualiza título automaticamente na primeira mensagem.
-       */
-
-      if (
-        messages.length === 0 ||
-        conversation?.title === "Nova decisão"
-      ) {
-        const generatedTitle =
-          trimmedMessage.length > 45
-            ? `${trimmedMessage.slice(0, 45)}...`
-            : trimmedMessage;
-
-        await supabase
-          .from("conversations")
-          .update({
-            title: generatedTitle,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", conversationId)
-          .eq("user_id", userId);
-
-        setConversation((current) =>
-          current
-            ? {
-                ...current,
-                title: generatedTitle,
-                updated_at: new Date().toISOString(),
-              }
-            : current,
-        );
-
-        setNewTitle(generatedTitle);
-
-        await loadConversations(userId);
-      }
-
-      /*
-       * Busca a Edge Function correta conforme o plano.
-       */
-
-      const functionName = await getAiFunction();
-
-      /*
-       * Envia somente as últimas mensagens para a IA.
-       */
-
-      const history = [...messages, temporaryUserMessage]
+      const history = messages
         .slice(-12)
         .map((message) => ({
           role: message.role,
           content: message.content,
-        }));
+        }))
 
-      const { data, error: functionError } =
-        await supabase.functions.invoke(functionName, {
+      const {
+        data,
+        error: functionError,
+      } = await supabase.functions.invoke(
+        functionName,
+        {
           body: {
-            message: trimmedMessage,
+            message: trimmed,
             history,
-            conversation_id: conversationId,
+            conversationId,
           },
-        });
+        },
+      )
 
       if (functionError) {
-        let backendMessage = functionError.message;
+        let backendMessage =
+          functionError.message
 
-        const context = functionError.context;
+        try {
+          if (
+            functionError.context
+          ) {
+            const cloned =
+              functionError.context.clone()
 
-        if (context) {
-          try {
-            const clonedContext =
-              typeof context.clone === "function"
-                ? context.clone()
-                : context;
+            const json =
+              await cloned.json()
 
-            const json = await clonedContext.json();
-
-            if (json?.error) {
-              backendMessage = String(json.error);
-            }
-
-            if (json?.message) {
-              backendMessage = String(json.message);
-            }
-          } catch {
-            // Ignora caso o corpo não seja JSON.
+            backendMessage =
+              json?.error ??
+              json?.message ??
+              backendMessage
           }
+        } catch {
+          // Mantém mensagem original
         }
 
         throw {
-          status: context?.status,
-          message: backendMessage,
-        } satisfies AiError;
+          status:
+            functionError.context
+              ?.status,
+          message:
+            backendMessage,
+        }
       }
 
       if (data?.error) {
         throw {
           status: data.status,
-          message: String(data.error),
-        } satisfies AiError;
+          message: data.error,
+        }
       }
 
       if (
         !data ||
-        typeof data.response !== "string" ||
+        typeof data.response !==
+          "string" ||
         !data.response.trim()
       ) {
         throw {
           status: 500,
-          message: "Resposta inválida da IA",
-        } satisfies AiError;
+          message:
+            "Resposta inválida da IA.",
+        }
       }
 
-      const assistantContent = data.response.trim();
+      const assistantMessage: Message =
+        {
+          id: crypto.randomUUID(),
+          conversation_id:
+            conversationId,
+          user_id: userId,
+          role: "assistant",
+          content:
+            data.response.trim(),
+          created_at:
+            new Date().toISOString(),
+        }
 
-      /*
-       * Salva resposta da IA no banco.
-       */
-
-      const { data: savedAssistantMessage, error: assistantError } =
+      const { error: userInsertError } =
         await supabase
           .from("messages")
           .insert({
-            conversation_id: conversationId,
+            conversation_id:
+              conversationId,
             user_id: userId,
-            role: "assistant",
-            content: assistantContent,
+            role: "user",
+            content: trimmed,
           })
-          .select(
-            "id, conversation_id, role, content, created_at",
-          )
-          .single();
 
-      if (assistantError) {
-        throw assistantError;
+      if (userInsertError) {
+        throw {
+          status: 500,
+          message:
+            userInsertError.message,
+        }
       }
 
-      setMessages((current) => [
-        ...current,
-        savedAssistantMessage as Message,
-      ]);
+      const {
+        error: assistantInsertError,
+      } = await supabase
+        .from("messages")
+        .insert({
+          conversation_id:
+            conversationId,
+          user_id: userId,
+          role: "assistant",
+          content:
+            assistantMessage.content,
+        })
 
-      /*
-       * Atualiza updated_at da conversa.
-       */
+      if (assistantInsertError) {
+        throw {
+          status: 500,
+          message:
+            assistantInsertError.message,
+        }
+      }
 
       await supabase
         .from("conversations")
         .update({
-          updated_at: new Date().toISOString(),
+          updated_at:
+            new Date().toISOString(),
         })
-        .eq("id", conversationId)
-        .eq("user_id", userId);
+        .eq(
+          "id",
+          conversationId,
+        )
+        .eq(
+          "user_id",
+          userId,
+        )
 
-      await loadConversations(userId);
-    } catch (error) {
-      console.error("Erro na IA:", error);
+      setMessages((current) =>
+        current
+          .filter(
+            (message) =>
+              message.id !==
+              temporaryMessage.id,
+          )
+          .concat([
+            {
+              ...temporaryMessage,
+              id: crypto.randomUUID(),
+            },
+            assistantMessage,
+          ]),
+      )
 
-      const aiError = error as AiError;
-
-      const friendlyMessage = getFriendlyAiError(
-        aiError?.status,
-        aiError?.message,
-      );
-
-      const errorMessage: Message = {
-        id: `error-${Date.now()}`,
-        conversation_id: conversationId,
-        role: "assistant",
-        content: friendlyMessage,
-        created_at: new Date().toISOString(),
-      };
+      setConversations((current) =>
+        current.map((item) =>
+          item.id ===
+          conversationId
+            ? {
+                ...item,
+                updated_at:
+                  new Date().toISOString(),
+              }
+            : item,
+        ),
+      )
+    } catch (caught) {
+      const typed =
+        caught as {
+          status?: number
+          message?: string
+        }
 
       setMessages((current) => [
         ...current,
-        errorMessage,
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  /*
-   * ============================================================
-   * NOVA CONVERSA
-   * ============================================================
-   */
-
-  async function createNewConversation() {
-    if (!userId) return;
-
-    const { data, error } = await supabase
-      .from("conversations")
-      .insert({
-        user_id: userId,
-        title: "Nova decisão",
-      })
-      .select(
-        "id, title, created_at, updated_at",
-      )
-      .single();
-
-    if (error) {
-      console.error(
-        "Erro ao criar conversa:",
-        error,
-      );
-      return;
-    }
-
-    await loadConversations(userId);
-
-    await navigate({
-      to: "/workspace/$conversationId",
-      params: {
-        conversationId: data.id,
-      },
-    });
-
-    setMobileSidebar(false);
-  }
-
-  /*
-   * ============================================================
-   * RENOMEAR
-   * ============================================================
-   */
-
-  async function saveTitle() {
-    if (!userId || !conversationId) return;
-
-    const title = newTitle.trim();
-
-    if (!title) {
-      setNewTitle(conversation?.title || "Nova decisão");
-      setEditingTitle(false);
-      return;
-    }
-
-    const { error } = await supabase
-      .from("conversations")
-      .update({
-        title,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", conversationId)
-      .eq("user_id", userId);
-
-    if (error) {
-      console.error(
-        "Erro ao renomear conversa:",
-        error,
-      );
-      return;
-    }
-
-    setConversation((current) =>
-      current
-        ? {
-            ...current,
-            title,
-          }
-        : current,
-    );
-
-    await loadConversations(userId);
-
-    setEditingTitle(false);
-  }
-
-  /*
-   * ============================================================
-   * EXCLUIR
-   * ============================================================
-   */
-
-  async function deleteConversation() {
-    if (!userId || !conversationId) return;
-
-    const confirmed = window.confirm(
-      "Tem certeza que deseja excluir esta decisão? Essa ação não pode ser desfeita.",
-    );
-
-    if (!confirmed) return;
-
-    const { error } = await supabase
-      .from("conversations")
-      .delete()
-      .eq("id", conversationId)
-      .eq("user_id", userId);
-
-    if (error) {
-      console.error(
-        "Erro ao excluir conversa:",
-        error,
-      );
-      return;
-    }
-
-    const remaining = conversations.filter(
-      (item) => item.id !== conversationId,
-    );
-
-    setConversations(remaining);
-
-    if (remaining.length > 0) {
-      await navigate({
-        to: "/workspace/$conversationId",
-        params: {
-          conversationId: remaining[0].id,
+        {
+          id: crypto.randomUUID(),
+          conversation_id:
+            conversationId,
+          user_id: userId,
+          role: "assistant",
+          content:
+            getFriendlyAiError(
+              typed.status,
+              typed.message,
+            ),
+          created_at:
+            new Date().toISOString(),
         },
-      });
+      ])
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const handlePointerDown = (
+    event: React.PointerEvent,
+  ) => {
+    event.currentTarget.setPointerCapture(
+      event.pointerId,
+    )
+
+    dragStartX.current =
+      event.clientX
+
+    startProgress.current =
+      sidebarProgress
+
+    setDragging(true)
+  }
+
+  const handlePointerMove = (
+    event: React.PointerEvent,
+  ) => {
+    if (!dragging) return
+
+    const difference =
+      event.clientX -
+      dragStartX.current
+
+    let progress =
+      startProgress.current +
+      difference / SIDEBAR_WIDTH
+
+    progress = Math.max(
+      0,
+      Math.min(1, progress),
+    )
+
+    setSidebarProgress(progress)
+  }
+
+  const handlePointerUp = (
+    event: React.PointerEvent,
+  ) => {
+    if (!dragging) return
+
+    try {
+      event.currentTarget.releasePointerCapture(
+        event.pointerId,
+      )
+    } catch {
+      // Ignora
+    }
+
+    setDragging(false)
+
+    if (sidebarProgress >= 0.45) {
+      openSidebar()
     } else {
-      await navigate({
-        to: "/workspace",
-      });
+      closeSidebar()
     }
   }
-
-  /*
-   * ============================================================
-   * TECLADO
-   * ============================================================
-   */
-
-  function handleKeyDown(
-    event: React.KeyboardEvent<HTMLTextAreaElement>,
-  ) {
-    if (
-      event.key === "Enter" &&
-      (event.ctrlKey || event.metaKey)
-    ) {
-      event.preventDefault();
-      sendMessage();
-    }
-  }
-
-  /*
-   * ============================================================
-   * INICIALIZAÇÃO
-   * ============================================================
-   */
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function initialize() {
-      const user = await loadUser();
-
-      if (!mounted || !user) return;
-
-      await Promise.all([
-        loadConversation(user.id),
-        loadConversations(user.id),
-      ]);
-    }
-
-    initialize();
-
-    return () => {
-      mounted = false;
-    };
-  }, [conversationId]);
-
-  /*
-   * ============================================================
-   * GRUPOS DA SIDEBAR
-   * ============================================================
-   */
-
-  const groupedConversations = useMemo(() => {
-    const now = new Date();
-
-    const startOfToday = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-    );
-
-    const startOfYesterday = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() - 1,
-    );
-
-    const today: Conversation[] = [];
-    const yesterday: Conversation[] = [];
-    const older: Conversation[] = [];
-
-    conversations.forEach((item) => {
-      const date = new Date(item.updated_at);
-
-      if (date >= startOfToday) {
-        today.push(item);
-      } else if (date >= startOfYesterday) {
-        yesterday.push(item);
-      } else {
-        older.push(item);
-      }
-    });
-
-    return {
-      today,
-      yesterday,
-      older,
-    };
-  }, [conversations]);
-
-  /*
-   * ============================================================
-   * RENDER
-   * ============================================================
-   */
 
   return (
-    <div className="min-h-screen bg-[#08050f] text-white">
-      <div className="flex min-h-screen overflow-hidden">
-        {/* =====================================================
-            SIDEBAR DESKTOP
-        ====================================================== */}
+    <div
+      className="relative h-screen w-full overflow-hidden bg-[#090611] text-white"
+      onPointerMove={
+        dragging
+          ? handlePointerMove
+          : undefined
+      }
+    >
+      {/* BACKDROP */}
+      <div
+        className="fixed inset-0 z-30 bg-black/60 backdrop-blur-[2px]"
+        style={{
+          opacity:
+            sidebarProgress * 0.8,
+          pointerEvents:
+            sidebarProgress > 0
+              ? "auto"
+              : "none",
+          transition: dragging
+            ? "none"
+            : "opacity 280ms ease",
+        }}
+        onClick={closeSidebar}
+      />
 
-        <aside
-          className={[
-            "hidden border-r border-white/[0.07] bg-[#0b0714] transition-all duration-300 md:flex md:flex-col",
-            sidebarCollapsed
-              ? "w-[76px]"
-              : "w-[280px]",
-          ].join(" ")}
-        >
-          {/* Logo */}
-
-          <div
-            className={[
-              "flex h-[72px] items-center border-b border-white/[0.06]",
-              sidebarCollapsed
-                ? "justify-center px-3"
-                : "px-5",
-            ].join(" ")}
+      {/* SIDEBAR */}
+      <aside
+        className="fixed left-0 top-0 z-50 flex h-full flex-col border-r border-white/[0.08] bg-[#0d0918] shadow-2xl shadow-black/60"
+        style={{
+          width: SIDEBAR_WIDTH,
+          transform: `translateX(${
+            -SIDEBAR_WIDTH +
+            SIDEBAR_WIDTH *
+              sidebarProgress
+          }px)`,
+          transition: dragging
+            ? "none"
+            : "transform 280ms cubic-bezier(0.22, 1, 0.36, 1)",
+        }}
+        onPointerDown={
+          handlePointerDown
+        }
+        onPointerMove={
+          handlePointerMove
+        }
+        onPointerUp={
+          handlePointerUp
+        }
+      >
+        {/* HEADER */}
+        <div className="flex h-[72px] shrink-0 items-center justify-between border-b border-white/[0.06] px-5">
+          <Link
+            to="/workspace"
+            onClick={closeSidebar}
+            className="flex items-center gap-3"
           >
-            {sidebarCollapsed ? (
-              <button
-                onClick={() =>
-                  setSidebarCollapsed(false)
-                }
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/15 text-purple-300 transition hover:bg-purple-500/20"
-                title="Abrir menu"
-              >
-                <Sparkles size={19} />
-              </button>
-            ) : (
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-violet-700 shadow-lg shadow-purple-900/20">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-700 shadow-lg shadow-purple-950/40">
+              <Sparkles size={17} />
+            </div>
+
+            <div>
+              <div className="text-[15px] font-semibold">
+                DecidlyAI
+              </div>
+
+              <div className="text-[9px] uppercase tracking-[0.18em] text-white/30">
+                Decision intelligence
+              </div>
+            </div>
+          </Link>
+
+          <button
+            onClick={closeSidebar}
+            className="rounded-lg p-2 text-white/40 transition hover:bg-white/5 hover:text-white"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* NEW */}
+        <div className="p-4">
+          <button
+            onClick={createConversation}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-3 text-sm font-semibold shadow-lg shadow-purple-950/30 transition hover:brightness-110 active:scale-[0.98]"
+          >
+            <Plus size={17} />
+            Nova decisão
+          </button>
+        </div>
+
+        {/* SEARCH */}
+        <div className="px-4 pb-4">
+          <div className="relative">
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25"
+            />
+
+            <input
+              value={search}
+              onChange={(event) =>
+                setSearch(
+                  event.target.value,
+                )
+              }
+              onPointerDown={(event) =>
+                event.stopPropagation()
+              }
+              placeholder="Pesquisar decisões"
+              className="h-10 w-full rounded-xl border border-white/[0.07] bg-white/[0.035] pl-9 pr-3 text-xs text-white outline-none placeholder:text-white/25 focus:border-violet-500/40"
+            />
+          </div>
+        </div>
+
+        {/* HISTORY */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-3">
+          <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/25">
+            Decisões
+          </div>
+
+          {filteredConversations.length ===
+          0 ? (
+            <div className="px-3 py-8 text-center text-xs text-white/25">
+              Nenhuma decisão encontrada.
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {filteredConversations.map(
+                (item) => {
+                  const active =
+                    item.id ===
+                    conversationId
+
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        navigate({
+                          to: "/workspace/$conversationId",
+                          params: {
+                            conversationId:
+                              item.id,
+                          },
+                        })
+
+                        closeSidebar()
+                      }}
+                      className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition ${
+                        active
+                          ? "bg-violet-500/10 text-white"
+                          : "text-white/60 hover:bg-white/[0.05]"
+                      }`}
+                    >
+                      <div
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                          active
+                            ? "bg-violet-500/15"
+                            : "bg-white/[0.05]"
+                        }`}
+                      >
+                        <MessageSquare
+                          size={14}
+                          className={
+                            active
+                              ? "text-violet-300"
+                              : "text-white/30"
+                          }
+                        />
+                      </div>
+
+                      <span className="min-w-0 flex-1 truncate text-xs">
+                        {item.title}
+                      </span>
+
+                      <ChevronRight
+                        size={14}
+                        className="text-white/20"
+                      />
+                    </button>
+                  )
+                },
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ACCOUNT */}
+        <div className="shrink-0 border-t border-white/[0.06] p-3">
+          <button
+            onClick={() =>
+              navigate({
+                to: "/",
+              })
+            }
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-white/[0.04]"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-600 text-xs font-bold">
+              D
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-semibold text-white/70">
+                Minha conta
+              </div>
+
+              <div className="text-[10px] text-white/25">
+                Configurações
+              </div>
+            </div>
+          </button>
+        </div>
+      </aside>
+
+      {/* EDGE SWIPE */}
+      <div
+        className="fixed left-0 top-0 z-40 h-full w-6 touch-none"
+        onPointerDown={(event) => {
+          if (
+            sidebarProgress !== 0
+          ) {
+            return
+          }
+
+          dragStartX.current =
+            event.clientX
+
+          startProgress.current = 0
+
+          setDragging(true)
+
+          event.currentTarget.setPointerCapture(
+            event.pointerId,
+          )
+        }}
+        onPointerMove={
+          dragging
+            ? handlePointerMove
+            : undefined
+        }
+        onPointerUp={
+          dragging
+            ? handlePointerUp
+            : undefined
+        }
+      />
+
+      {/* MAIN */}
+      <main className="relative flex h-full w-full flex-col">
+        {/* TOP */}
+        <header className="flex h-[72px] shrink-0 items-center gap-3 px-4 sm:px-6">
+          <button
+            onClick={openSidebar}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.035] text-white/60 transition hover:border-violet-400/20 hover:bg-white/[0.06] hover:text-white active:scale-95"
+          >
+            <Menu size={19} />
+          </button>
+
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-sm font-semibold text-white/80">
+              {conversation?.title ??
+                "Decisão"}
+            </h1>
+
+            <div className="mt-0.5 flex items-center gap-2 text-[10px] text-white/25">
+              <span>
+                Análise DecidlyAI
+              </span>
+
+              <span>•</span>
+
+              <span>
+                {modelLabel}
+              </span>
+            </div>
+          </div>
+
+          <div className="hidden rounded-full border border-white/[0.06] bg-white/[0.03] px-3 py-1.5 text-[10px] text-white/30 sm:block">
+            Análise concluída
+          </div>
+        </header>
+
+        {/* CONTENT */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-32 sm:px-8">
+          <div className="mx-auto max-w-3xl pt-6">
+            {loading ? (
+              <div className="flex min-h-[50vh] items-center justify-center">
+                <div className="flex items-center gap-3 text-sm text-white/30">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/10 border-t-violet-400" />
+                  Carregando análise...
+                </div>
+              </div>
+            ) : error ? (
+              <div className="rounded-2xl border border-red-400/10 bg-red-500/[0.04] p-6 text-center">
+                <p className="text-sm text-white/60">
+                  {error}
+                </p>
+
+                <Link
+                  to="/workspace"
+                  className="mt-4 inline-flex rounded-xl bg-violet-600 px-4 py-2 text-xs font-semibold"
+                >
+                  Voltar ao workspace
+                </Link>
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="flex min-h-[55vh] flex-col items-center justify-center text-center">
+                <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-500/10">
                   <Sparkles
-                    size={18}
-                    className="text-white"
+                    size={25}
+                    className="text-violet-300"
                   />
                 </div>
 
-                <div>
-                  <div className="text-[15px] font-semibold tracking-tight">
-                    DecidlyAI
-                  </div>
+                <h2 className="text-xl font-semibold">
+                  Vamos analisar essa decisão.
+                </h2>
 
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-white/35">
-                    Decision intelligence
+                <p className="mt-2 max-w-md text-sm leading-6 text-white/30">
+                  Descreva a situação, as opções
+                  que você está considerando e o
+                  que mais importa para você.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-7">
+                {messages.map(
+                  (message) => (
+                    <div
+                      key={message.id}
+                      className={
+                        message.role ===
+                        "user"
+                          ? "flex justify-end"
+                          : "flex justify-start"
+                      }
+                    >
+                      {message.role ===
+                      "user" ? (
+                        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-violet-600/90 px-4 py-3 text-sm leading-6 shadow-lg shadow-violet-950/20">
+                          {message.content}
+                        </div>
+                      ) : (
+                        <div className="w-full max-w-3xl">
+                          <div className="mb-3 flex items-center gap-2">
+                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-700">
+                              <Sparkles
+                                size={13}
+                              />
+                            </div>
+
+                            <span className="text-xs font-semibold text-white/60">
+                              DecidlyAI
+                            </span>
+                          </div>
+
+                          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5 shadow-xl shadow-black/10">
+                            <div className="prose prose-invert prose-sm max-w-none prose-p:leading-7 prose-headings:text-white prose-p:text-white/65 prose-strong:text-white prose-li:text-white/65">
+                              <ReactMarkdown
+                                remarkPlugins={[
+                                  remarkGfm,
+                                ]}
+                              >
+                                {
+                                  message.content
+                                }
+                              </ReactMarkdown>
+                            </div>
+
+                            <div className="mt-5 flex items-center border-t border-white/[0.06] pt-3">
+                              <button
+                                onClick={() =>
+                                  copyMessage(
+                                    message,
+                                  )
+                                }
+                                className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[10px] text-white/25 transition hover:bg-white/5 hover:text-white/60"
+                              >
+                                {copiedId ===
+                                message.id ? (
+                                  <>
+                                    <Check
+                                      size={
+                                        13
+                                      }
+                                    />
+                                    Copiado
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy
+                                      size={
+                                        13
+                                      }
+                                    />
+                                    Copiar
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ),
+                )}
+
+                {sending && (
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-700">
+                      <Sparkles
+                        size={13}
+                      />
+                    </div>
+
+                    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] px-5 py-4">
+                      <div className="flex gap-1">
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-300" />
+                        <span
+                          className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-300"
+                          style={{
+                            animationDelay:
+                              "120ms",
+                          }}
+                        />
+                        <span
+                          className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-300"
+                          style={{
+                            animationDelay:
+                              "240ms",
+                          }}
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                <div ref={messagesEndRef} />
               </div>
             )}
           </div>
+        </div>
 
-          {!sidebarCollapsed && (
-            <>
-              {/* Nova decisão */}
-
-              <div className="px-3 pt-4">
-                <button
-                  onClick={createNewConversation}
-                  className="group flex w-full items-center gap-3 rounded-xl border border-purple-400/20 bg-purple-500/[0.08] px-3 py-3 text-left transition hover:border-purple-400/30 hover:bg-purple-500/[0.13]"
-                >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/15 text-purple-300">
-                    <Plus size={17} />
-                  </div>
-
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">
-                      Nova decisão
-                    </div>
-
-                    <div className="text-[11px] text-white/35">
-                      Começar uma nova análise
-                    </div>
-                  </div>
-                </button>
-              </div>
-
-              {/* Pesquisa */}
-
-              <div className="px-3 pt-3">
-                <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-2.5">
-                  <Search
-                    size={15}
-                    className="text-white/30"
-                  />
-
-                  <input
-                    placeholder="Pesquisar decisões"
-                    className="min-w-0 flex-1 bg-transparent text-xs text-white outline-none placeholder:text-white/25"
-                  />
-
-                  <span className="rounded border border-white/[0.07] px-1.5 py-0.5 text-[9px] text-white/25">
-                    ⌘ K
-                  </span>
-                </div>
-              </div>
-
-              {/* Conversas */}
-
-              <div className="scrollbar-thin mt-5 flex-1 overflow-y-auto px-3 pb-4">
-                {groupedConversations.today.length >
-                  0 && (
-                  <ConversationGroup
-                    title="Hoje"
-                    conversations={
-                      groupedConversations.today
-                    }
-                    currentId={conversationId}
-                    onNavigate={() =>
-                      setMobileSidebar(false)
-                    }
-                  />
-                )}
-
-                {groupedConversations.yesterday
-                  .length > 0 && (
-                  <ConversationGroup
-                    title="Ontem"
-                    conversations={
-                      groupedConversations.yesterday
-                    }
-                    currentId={conversationId}
-                    onNavigate={() =>
-                      setMobileSidebar(false)
-                    }
-                  />
-                )}
-
-                {groupedConversations.older.length >
-                  0 && (
-                  <ConversationGroup
-                    title="Anteriores"
-                    conversations={
-                      groupedConversations.older
-                    }
-                    currentId={conversationId}
-                    onNavigate={() =>
-                      setMobileSidebar(false)
-                    }
-                  />
-                )}
-
-                {conversations.length === 0 && (
-                  <div className="px-2 py-10 text-center">
-                    <div className="text-xs text-white/25">
-                      Nenhuma decisão ainda.
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Rodapé sidebar */}
-
-              <div className="border-t border-white/[0.06] p-3">
-                <button className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-white/[0.04]">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.07]">
-                    <User
-                      size={15}
-                      className="text-white/50"
-                    />
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-xs font-medium text-white/80">
-                      Minha conta
-                    </div>
-
-                    <div className="text-[10px] text-white/30">
-                      Plano {modelLabel}
-                    </div>
-                  </div>
-
-                  <Settings
-                    size={15}
-                    className="text-white/25"
-                  />
-                </button>
-              </div>
-            </>
-          )}
-
-          {sidebarCollapsed && (
-            <div className="flex flex-1 flex-col items-center gap-3 pt-4">
-              <button
-                onClick={createNewConversation}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/10 text-purple-300 transition hover:bg-purple-500/20"
-                title="Nova decisão"
-              >
-                <Plus size={18} />
-              </button>
-
-              <button
-                onClick={() =>
-                  setSidebarCollapsed(false)
+        {/* INPUT FIXO */}
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-20 px-4 pb-4 sm:px-8">
+          <div className="pointer-events-auto mx-auto max-w-3xl">
+            <div className="rounded-2xl border border-white/[0.08] bg-[#100b1b]/95 p-2 shadow-2xl shadow-black/40 backdrop-blur-xl transition focus-within:border-violet-400/25">
+              <textarea
+                value={input}
+                onChange={(event) =>
+                  setInput(
+                    event.target.value,
+                  )
                 }
-                className="flex h-10 w-10 items-center justify-center rounded-xl text-white/35 transition hover:bg-white/[0.05] hover:text-white"
-                title="Expandir menu"
-              >
-                <PanelLeft size={18} />
-              </button>
-
-              <div className="mt-auto pb-4">
-                <button className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.06] text-white/40">
-                  <User size={16} />
-                </button>
-              </div>
-            </div>
-          )}
-        </aside>
-
-        {/* =====================================================
-            SIDEBAR MOBILE
-        ====================================================== */}
-
-        {mobileSidebar && (
-          <div className="fixed inset-0 z-50 md:hidden">
-            <div
-              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-              onClick={() =>
-                setMobileSidebar(false)
-              }
-            />
-
-            <aside className="relative flex h-full w-[290px] flex-col border-r border-white/[0.08] bg-[#0b0714]">
-              <div className="flex h-[72px] items-center justify-between border-b border-white/[0.06] px-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-violet-700">
-                    <Sparkles size={18} />
-                  </div>
-
-                  <span className="font-semibold">
-                    DecidlyAI
-                  </span>
-                </div>
-
-                <button
-                  onClick={() =>
-                    setMobileSidebar(false)
+                onKeyDown={(event) => {
+                  if (
+                    event.key ===
+                      "Enter" &&
+                    (event.ctrlKey ||
+                      event.metaKey)
+                  ) {
+                    event.preventDefault()
+                    sendMessage()
                   }
-                  className="text-white/40"
-                >
-                  <X size={19} />
-                </button>
-              </div>
+                }}
+                disabled={sending}
+                rows={2}
+                placeholder="Continue a análise..."
+                className="w-full resize-none bg-transparent px-3 py-2 text-sm leading-6 text-white outline-none placeholder:text-white/25 disabled:opacity-50"
+              />
 
-              <div className="px-3 pt-4">
-                <button
-                  onClick={createNewConversation}
-                  className="flex w-full items-center gap-3 rounded-xl bg-purple-500/10 px-3 py-3"
-                >
-                  <Plus size={17} />
-
-                  <span className="text-sm">
-                    Nova decisão
-                  </span>
-                </button>
-              </div>
-
-              <div className="mt-4 flex-1 overflow-y-auto px-3">
-                <ConversationGroup
-                  title="Conversas"
-                  conversations={conversations}
-                  currentId={conversationId}
-                  onNavigate={() =>
-                    setMobileSidebar(false)
-                  }
-                />
-              </div>
-
-              <div className="border-t border-white/[0.06] p-3">
-                <button className="flex w-full items-center gap-3 rounded-xl px-3 py-3">
-                  <User size={17} />
-
-                  <span className="text-sm text-white/70">
-                    Minha conta
-                  </span>
-                </button>
-              </div>
-            </aside>
-          </div>
-        )}
-
-        {/* =====================================================
-            ÁREA PRINCIPAL
-        ====================================================== */}
-
-        <main className="flex min-w-0 flex-1 flex-col bg-[radial-gradient(circle_at_50%_-10%,rgba(124,58,237,0.12),transparent_38%)]">
-          {/* Header */}
-
-          <header className="flex h-[72px] shrink-0 items-center justify-between border-b border-white/[0.06] bg-[#08050f]/80 px-4 backdrop-blur-xl md:px-7">
-            <div className="flex min-w-0 items-center gap-3">
-              <button
-                onClick={() =>
-                  setMobileSidebar(true)
-                }
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-white/50 hover:bg-white/[0.05] md:hidden"
-              >
-                <Menu size={19} />
-              </button>
-
-              {!sidebarCollapsed && (
-                <button
-                  onClick={() =>
-                    setSidebarCollapsed(true)
-                  }
-                  className="hidden h-9 w-9 items-center justify-center rounded-lg text-white/30 transition hover:bg-white/[0.05] hover:text-white/70 md:flex"
-                  title="Recolher menu"
-                >
-                  <PanelLeft size={18} />
-                </button>
-              )}
-
-              <div className="min-w-0">
-                {editingTitle ? (
-                  <input
-                    autoFocus
-                    value={newTitle}
-                    onChange={(event) =>
-                      setNewTitle(event.target.value)
-                    }
-                    onBlur={saveTitle}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        saveTitle();
-                      }
-
-                      if (event.key === "Escape") {
-                        setNewTitle(
-                          conversation?.title ||
-                            "Nova decisão",
-                        );
-                        setEditingTitle(false);
-                      }
-                    }}
-                    className="w-[220px] rounded-lg border border-purple-400/20 bg-white/[0.05] px-2 py-1 text-sm outline-none md:w-[350px]"
-                  />
-                ) : (
-                  <button
-                    onClick={() =>
-                      setEditingTitle(true)
-                    }
-                    className="max-w-[240px] truncate text-sm font-medium text-white/85 hover:text-white md:max-w-[450px]"
-                    title="Clique para renomear"
-                  >
-                    {conversation?.title ||
-                      "Nova decisão"}
-                  </button>
-                )}
-
-                <div className="mt-0.5 flex items-center gap-2">
-                  <span className="font-mono text-[9px] text-white/20">
-                    {conversationId}
-                  </span>
-
-                  <span className="h-1 w-1 rounded-full bg-white/20" />
-
-                  <span className="text-[10px] text-white/30">
-                    Análise de decisão
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="hidden items-center gap-2 rounded-full border border-emerald-400/10 bg-emerald-400/[0.05] px-3 py-1.5 sm:flex">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-
-                <span className="text-[10px] font-medium text-emerald-300/80">
-                  Concluído
+              <div className="flex items-center justify-between px-2 pb-1">
+                <span className="text-[10px] text-white/20">
+                  Ctrl + Enter para enviar
                 </span>
-              </div>
 
-              <div className="relative">
                 <button
-                  onClick={() =>
-                    setMenuOpen((current) => !current)
+                  onClick={sendMessage}
+                  disabled={
+                    !input.trim() ||
+                    sending
                   }
-                  className="flex h-9 w-9 items-center justify-center rounded-lg text-white/35 transition hover:bg-white/[0.05] hover:text-white/70"
+                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-600 text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-25"
                 >
-                  <MoreHorizontal size={19} />
+                  <ArrowUp
+                    size={17}
+                  />
                 </button>
-
-                {menuOpen && (
-                  <div className="absolute right-0 top-11 z-30 w-44 overflow-hidden rounded-xl border border-white/[0.08] bg-[#14101e] p-1 shadow-2xl shadow-black/40">
-                    <button
-                      onClick={() => {
-                        setMenuOpen(false);
-                        setEditingTitle(true);
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs text-white/70 hover:bg-white/[0.05] hover:text-white"
-                    >
-                      <ChevronDown
-                        size={14}
-                        className="rotate-[-90deg]"
-                      />
-                      Renomear
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setMenuOpen(false);
-                        deleteConversation();
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs text-red-300/80 hover:bg-red-500/10 hover:text-red-300"
-                    >
-                      <Trash2 size={14} />
-                      Excluir decisão
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </header>
-
-          {/* Conteúdo */}
-
-          <div className="flex min-h-0 flex-1 flex-col">
-            <div className="flex-1 overflow-y-auto">
-              <div className="mx-auto w-full max-w-4xl px-4 pb-40 pt-8 md:px-8 md:pt-12">
-                {loadingConversation ? (
-                  <div className="flex min-h-[400px] items-center justify-center">
-                    <div className="flex items-center gap-3 text-sm text-white/35">
-                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-purple-400/20 border-t-purple-400" />
-                      Carregando decisão...
-                    </div>
-                  </div>
-                ) : messages.length === 0 ? (
-                  <EmptyConversation />
-                ) : (
-                  <div className="space-y-8">
-                    {messages.map((message) => (
-                      <MessageBubble
-                        key={message.id}
-                        message={message}
-                      />
-                    ))}
-
-                    {loading && (
-                      <div className="flex gap-4">
-                        <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500/20 to-violet-500/10 text-purple-300">
-                          <Sparkles size={17} />
-                        </div>
-
-                        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.025] px-5 py-4">
-                          <div className="flex items-center gap-1.5">
-                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-400 [animation-delay:-0.3s]" />
-                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-400 [animation-delay:-0.15s]" />
-                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-400" />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
 
-            {/* =================================================
-                INPUT
-            ================================================== */}
-
-            <div className="pointer-events-none absolute inset-x-0 bottom-0">
-              <div className="pointer-events-auto mx-auto w-full max-w-4xl px-4 pb-5 md:px-8 md:pb-7">
-                <div className="rounded-2xl border border-white/[0.09] bg-[#110c1b]/95 p-2 shadow-2xl shadow-black/40 backdrop-blur-xl">
-                  <div className="flex items-end gap-2">
-                    <textarea
-                      value={input}
-                      onChange={(event) =>
-                        setInput(event.target.value)
-                      }
-                      onKeyDown={handleKeyDown}
-                      disabled={loading}
-                      rows={1}
-                      placeholder="Descreva a decisão que você precisa tomar..."
-                      className="max-h-36 min-h-[48px] flex-1 resize-none bg-transparent px-3 py-3 text-sm leading-6 text-white outline-none placeholder:text-white/25 disabled:opacity-50"
-                    />
-
-                    <button
-                      onClick={sendMessage}
-                      disabled={
-                        loading || !input.trim()
-                      }
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-600 text-white shadow-lg shadow-purple-950/30 transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-30"
-                    >
-                      <ArrowUp size={18} />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between px-3 pb-1 pt-1">
-                    <span className="text-[10px] text-white/20">
-                      DecidlyAI pode cometer erros. Revise decisões importantes.
-                    </span>
-
-                    <span className="hidden text-[10px] text-white/20 sm:block">
-                      Ctrl + Enter
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <p className="mt-2 text-center text-[9px] text-white/15">
+              O DecidlyAI pode cometer erros.
+              Revise informações importantes.
+            </p>
           </div>
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
-  );
+  )
 }
 
-/*
- * ================================================================
- * GRUPO DE CONVERSAS
- * ================================================================
- */
-
-function ConversationGroup({
-  title,
-  conversations,
-  currentId,
-  onNavigate,
-}: {
-  title: string;
-  conversations: Conversation[];
-  currentId: string;
-  onNavigate: () => void;
-}) {
-  return (
-    <div className="mb-5">
-      <div className="mb-2 px-2 text-[10px] font-medium uppercase tracking-[0.14em] text-white/25">
-        {title}
-      </div>
-
-      <div className="space-y-1">
-        {conversations.map((item) => (
-          <Link
-            key={item.id}
-            to="/workspace/$conversationId"
-            params={{
-              conversationId: item.id,
-            }}
-            onClick={onNavigate}
-            className={[
-              "group flex items-center gap-2 rounded-lg px-2.5 py-2.5 transition",
-              currentId === item.id
-                ? "bg-purple-500/[0.09] text-white"
-                : "text-white/45 hover:bg-white/[0.035] hover:text-white/75",
-            ].join(" ")}
-          >
-            <div
-              className={[
-                "h-1.5 w-1.5 shrink-0 rounded-full",
-                currentId === item.id
-                  ? "bg-purple-400"
-                  : "bg-white/15",
-              ].join(" ")}
-            />
-
-            <span className="min-w-0 flex-1 truncate text-xs">
-              {item.title || "Nova decisão"}
-            </span>
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/*
- * ================================================================
- * MENSAGEM
- * ================================================================
- */
-
-function MessageBubble({
-  message,
-}: {
-  message: Message;
-}) {
-  const isUser = message.role === "user";
-
-  if (isUser) {
-    return (
-      <div className="flex justify-end">
-        <div className="max-w-[88%] rounded-2xl rounded-br-md border border-purple-400/10 bg-purple-500/[0.09] px-5 py-4 md:max-w-[75%]">
-          <p className="whitespace-pre-wrap text-sm leading-7 text-white/85">
-            {message.content}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex gap-4">
-      <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500/20 to-violet-500/10 text-purple-300">
-        <Sparkles size={17} />
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="mb-2 flex items-center gap-2">
-          <span className="text-xs font-semibold text-white/75">
-            DecidlyAI
-          </span>
-
-          <span className="text-[9px] uppercase tracking-[0.12em] text-purple-300/40">
-            análise
-          </span>
-        </div>
-
-        <div className="max-w-none text-sm leading-7 text-white/70">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              h1: ({ children }) => (
-                <h1 className="mb-4 mt-6 text-xl font-semibold text-white">
-                  {children}
-                </h1>
-              ),
-
-              h2: ({ children }) => (
-                <h2 className="mb-3 mt-6 text-lg font-semibold text-white">
-                  {children}
-                </h2>
-              ),
-
-              h3: ({ children }) => (
-                <h3 className="mb-2 mt-5 text-base font-semibold text-white">
-                  {children}
-                </h3>
-              ),
-
-              p: ({ children }) => (
-                <p className="mb-4">
-                  {children}
-                </p>
-              ),
-
-              ul: ({ children }) => (
-                <ul className="mb-4 ml-5 list-disc space-y-2">
-                  {children}
-                </ul>
-              ),
-
-              ol: ({ children }) => (
-                <ol className="mb-4 ml-5 list-decimal space-y-2">
-                  {children}
-                </ol>
-              ),
-
-              li: ({ children }) => (
-                <li className="pl-1">
-                  {children}
-                </li>
-              ),
-
-              strong: ({ children }) => (
-                <strong className="font-semibold text-white">
-                  {children}
-                </strong>
-              ),
-
-              blockquote: ({ children }) => (
-                <blockquote className="my-4 border-l-2 border-purple-400/40 pl-4 text-white/50">
-                  {children}
-                </blockquote>
-              ),
-
-              code: ({ children }) => (
-                <code className="rounded-md bg-white/[0.06] px-1.5 py-0.5 font-mono text-[12px] text-purple-200">
-                  {children}
-                </code>
-              ),
-
-              table: ({ children }) => (
-                <div className="my-5 overflow-x-auto rounded-xl border border-white/[0.07]">
-                  <table className="w-full border-collapse text-left text-xs">
-                    {children}
-                  </table>
-                </div>
-              ),
-
-              th: ({ children }) => (
-                <th className="border-b border-white/[0.07] bg-white/[0.03] px-3 py-2 font-medium text-white/70">
-                  {children}
-                </th>
-              ),
-
-              td: ({ children }) => (
-                <td className="border-b border-white/[0.05] px-3 py-2 text-white/55">
-                  {children}
-                </td>
-              ),
-            }}
-          >
-            {message.content}
-          </ReactMarkdown>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/*
- * ================================================================
- * ESTADO VAZIO
- * ================================================================
- */
-
-function EmptyConversation() {
-  return (
-    <div className="flex min-h-[55vh] items-center justify-center">
-      <div className="w-full max-w-xl text-center">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-purple-400/10 bg-purple-500/[0.07] shadow-xl shadow-purple-950/20">
-          <Sparkles
-            size={27}
-            className="text-purple-300"
-          />
-        </div>
-
-        <h1 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
-          Qual decisão você precisa tomar?
-        </h1>
-
-        <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-white/35">
-          Conte o contexto, as opções que você está considerando
-          e o que é importante para você. O DecidlyAI organiza
-          os fatores e ajuda a chegar a uma decisão mais clara.
-        </p>
-
-        <div className="mt-8 grid gap-2 text-left sm:grid-cols-2">
-          {[
-            "Devo escolher A ou B?",
-            "Quais são os riscos dessa decisão?",
-            "Compare minhas opções",
-            "Me ajude a analisar este cenário",
-          ].map((suggestion) => (
-            <div
-              key={suggestion}
-              className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-xs text-white/40"
-            >
-              {suggestion}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
+export default ConversationWorkspace
