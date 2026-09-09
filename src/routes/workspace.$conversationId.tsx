@@ -1,30 +1,18 @@
-import { createFileRoute } from "@tanstack/react-router";
-import {
-  ArrowUp,
-  Menu,
-  Plus,
-  Search,
-  Trash2,
-  X,
-} from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-
+// src/routes/workspace.$conversationId.tsx
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import { Menu, Plus, Search, Send, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+
+export const Route = createFileRoute("/workspace/$conversationId")({
+  component: ConversationPage,
+});
 
 type Message = {
   id: string;
-  conversation_id?: string;
-  user_id?: string;
   role: "user" | "assistant";
   content: string;
-  created_at?: string;
+  created_at: string;
 };
 
 type Conversation = {
@@ -32,275 +20,154 @@ type Conversation = {
   title: string;
 };
 
-type Subscription = {
-  plan: string | null;
-  status: string | null;
-  expires_at: string | null;
-};
-
-export const Route = createFileRoute(
-  "/workspace/$conversationId",
-)({
-  component: ConversationPage,
-});
-
-function friendlyError(status?: number, message?: string) {
-  const text = String(message || "").toLowerCase();
-
-  if (
-    status === 402 ||
-    text.includes("crédito") ||
-    text.includes("credit")
-  ) {
-    return "Desculpe pelo inconveniente, mas no momento você não possui créditos disponíveis para continuar usando a DecidlyAI. Pedimos desculpas pelo transtorno. Quando houver créditos disponíveis novamente, tente enviar sua mensagem outra vez.";
-  }
-
-  if (
-    status === 429 ||
-    text.includes("quota") ||
-    text.includes("rate limit") ||
-    text.includes("resource_exhausted")
-  ) {
-    return "Opa, nosso serviço atingiu temporariamente o limite de requisições para esta IA. Pedimos desculpas pelo inconveniente e agradecemos pela sua paciência. Por favor, tente novamente mais tarde.";
-  }
-
-  if (status === 401 || status === 403) {
-    return "Desculpe pelo inconveniente. No momento não consegui confirmar sua sessão corretamente. Por favor, tente entrar novamente e depois envie sua mensagem mais uma vez.";
-  }
-
-  if ([500, 502, 503, 504].includes(status || 0)) {
-    return "Desculpe pelo inconveniente. Estou enfrentando uma dificuldade temporária no nosso serviço e não consegui processar sua mensagem agora. Por favor, tente novamente mais tarde.";
-  }
-
-  return "Desculpe pelo inconveniente. Ocorreu uma dificuldade temporária enquanto eu processava sua mensagem. Por favor, tente novamente mais tarde.";
-}
-
-async function getAiFunction() {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw {
-      status: 401,
-      message: "Usuário não autenticado",
-    };
-  }
-
-  const { data, error } = await supabase
-    .from("subscriptions")
-    .select("plan,status,expires_at")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle<Subscription>();
-
-  if (error) {
-    console.error(error);
-    return "decidly-ai-free";
-  }
-
-  const plan = String(data?.plan || "").toLowerCase();
-  const status = String(data?.status || "").toLowerCase();
-
-  const expired =
-    data?.expires_at &&
-    new Date(data.expires_at).getTime() <= Date.now();
-
-  const vip =
-    plan === "vip" &&
-    (status === "active" || status === "ativo") &&
-    !expired;
-
-  return vip ? "decidly-ai" : "decidly-ai-free";
-}
-
-async function askAi(
-  functionName: string,
-  message: string,
-  history: Message[],
-) {
-  const { data, error } = await supabase.functions.invoke(
-    functionName,
-    {
-      body: {
-        message,
-        history: history.slice(-12).map((item) => ({
-          role: item.role,
-          content: item.content,
-        })),
-      },
-    },
-  );
-
-  if (error) {
-    const status = (error as any)?.context?.status;
-
-    throw {
-      status,
-      message: error.message,
-    };
-  }
-
-  if (data?.error) {
-    throw {
-      status: data.status,
-      message: data.error,
-    };
-  }
-
-  if (!data?.response) {
-    throw {
-      status: 500,
-      message: "A IA não retornou uma resposta.",
-    };
-  }
-
-  return String(data.response);
-}
-
 function ConversationPage() {
   const { conversationId } = Route.useParams();
-  const navigate = Route.useNavigate();
+  const navigate = useNavigate();
 
   const [conversation, setConversation] =
     useState<Conversation | null>(null);
-
   const [messages, setMessages] = useState<Message[]>([]);
-  const [history, setHistory] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<
+    { id: string; title: string; updated_at: string }[]
+  >([]);
   const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState("");
 
-  const [loading, setLoading] = useState(true);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const contentRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const sidebarRef = useRef<HTMLElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
 
-  const progressRef = useRef(0);
-  const draggingRef = useRef(false);
-  const startXRef = useRef(0);
-  const startProgressRef = useRef(0);
-  const lastXRef = useRef(0);
+  const dragRef = useRef({
+    active: false,
+    moved: false,
+    startX: 0,
+    startProgress: 0,
+    progress: 0,
+    width: 320,
+    pointerId: -1,
+  });
+
   const frameRef = useRef<number | null>(null);
 
-  const autoReplyRef = useRef(false);
+  useEffect(() => {
+    loadConversation();
+    loadHistory();
+  }, [conversationId]);
 
-  const paint = useCallback((value: number) => {
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      const el = contentRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    });
+  }, [messages, sending]);
+
+  useEffect(() => {
+    if (messages.length && messages[messages.length - 1].role === "user") {
+      const last = messages[messages.length - 1];
+
+      if (!sending) {
+        askAi(last.content, messages);
+      }
+    }
+  }, [messages]);
+
+  function paint(progress: number) {
+    const d = dragRef.current;
+    d.progress = Math.max(0, Math.min(1, progress));
+
+    if (frameRef.current) cancelAnimationFrame(frameRef.current);
+
+    frameRef.current = requestAnimationFrame(() => {
+      const sidebar = sidebarRef.current;
+      const backdrop = backdropRef.current;
+      if (!sidebar || !backdrop) return;
+
+      sidebar.style.transform =
+        `translate3d(${-d.width + d.width * d.progress}px,0,0)`;
+
+      backdrop.style.opacity = String(d.progress * 0.72);
+      backdrop.style.pointerEvents =
+        d.progress > 0.01 ? "auto" : "none";
+    });
+  }
+
+  function settle(open: boolean) {
     const sidebar = sidebarRef.current;
     const backdrop = backdropRef.current;
 
     if (!sidebar || !backdrop) return;
 
-    const progress = Math.max(0, Math.min(1, value));
+    const d = dragRef.current;
+    d.progress = open ? 1 : 0;
 
-    progressRef.current = progress;
+    sidebar.style.transition =
+      "transform .26s cubic-bezier(.22,1,.36,1)";
+    backdrop.style.transition = "opacity .26s ease";
 
-    if (frameRef.current !== null) {
-      cancelAnimationFrame(frameRef.current);
-    }
+    paint(d.progress);
+    setSidebarOpen(open);
 
-    frameRef.current = requestAnimationFrame(() => {
-      const width = sidebar.offsetWidth;
+    window.setTimeout(() => {
+      sidebarRef.current?.style.setProperty("transition", "none");
+      backdropRef.current?.style.setProperty("transition", "none");
+    }, 280);
+  }
 
-      sidebar.style.transform =
-        `translate3d(${-width + width * progress}px,0,0)`;
-
-      backdrop.style.opacity = String(progress * 0.72);
-      backdrop.style.pointerEvents =
-        progress > 0.01 ? "auto" : "none";
-    });
-  }, []);
-
-  const settle = useCallback(
-    (open: boolean) => {
-      const sidebar = sidebarRef.current;
-      const backdrop = backdropRef.current;
-
-      if (!sidebar || !backdrop) return;
-
-      sidebar.style.transition =
-        "transform .26s cubic-bezier(.22,1,.36,1)";
-
-      backdrop.style.transition = "opacity .26s ease";
-
-      paint(open ? 1 : 0);
-
-      setSidebarOpen(open);
-
-      window.setTimeout(() => {
-        if (sidebarRef.current) {
-          sidebarRef.current.style.transition = "none";
-        }
-
-        if (backdropRef.current) {
-          backdropRef.current.style.transition = "none";
-        }
-      }, 280);
-    },
-    [paint],
-  );
-
-  /*
-   * GESTO GLOBAL:
-   * direita = abre
-   * esquerda = fecha
-   */
   useEffect(() => {
-    function down(event: PointerEvent) {
-      if (event.pointerType === "mouse" && event.button !== 0) {
-        return;
-      }
+    paint(0);
 
-      draggingRef.current = true;
-      startXRef.current = event.clientX;
-      lastXRef.current = event.clientX;
-      startProgressRef.current = progressRef.current;
-
-      if (sidebarRef.current) {
-        sidebarRef.current.style.transition = "none";
-      }
-    }
-
-    function move(event: PointerEvent) {
-      if (!draggingRef.current) return;
-
-      lastXRef.current = event.clientX;
+    const down = (e: PointerEvent) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
 
       const sidebar = sidebarRef.current;
-
       if (!sidebar) return;
 
-      const delta = event.clientX - startXRef.current;
-      const width = sidebar.offsetWidth;
+      const d = dragRef.current;
 
-      paint(
-        startProgressRef.current +
-          delta / width,
-      );
-    }
+      d.active = true;
+      d.moved = false;
+      d.startX = e.clientX;
+      d.startProgress = d.progress;
+      d.width = sidebar.offsetWidth || 320;
+      d.pointerId = e.pointerId;
 
-    function up() {
-      if (!draggingRef.current) return;
+      sidebar.style.transition = "none";
+    };
 
-      draggingRef.current = false;
+    const move = (e: PointerEvent) => {
+      const d = dragRef.current;
+      if (!d.active || e.pointerId !== d.pointerId) return;
 
-      const delta =
-        lastXRef.current - startXRef.current;
+      const dx = e.clientX - d.startX;
 
-      if (Math.abs(delta) > 35) {
-        settle(delta > 0);
-      } else {
-        settle(progressRef.current > 0.5);
+      if (!d.moved && Math.abs(dx) < 8) return;
+
+      d.moved = true;
+
+      paint(d.startProgress + dx / d.width);
+
+      if (Math.abs(dx) > 8) {
+        e.preventDefault();
       }
-    }
+    };
+
+    const up = (e: PointerEvent) => {
+      const d = dragRef.current;
+      if (!d.active || e.pointerId !== d.pointerId) return;
+
+      d.active = false;
+
+      if (!d.moved) return;
+
+      settle(d.progress > 0.5);
+    };
 
     window.addEventListener("pointerdown", down);
-    window.addEventListener("pointermove", move);
+    window.addEventListener("pointermove", move, { passive: false });
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", up);
 
@@ -309,299 +176,238 @@ function ConversationPage() {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
+
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
     };
-  }, [paint, settle]);
-
-  useEffect(() => {
-    const sidebar = sidebarRef.current;
-
-    if (!sidebar) return;
-
-    sidebar.style.transform =
-      `translate3d(-${sidebar.offsetWidth}px,0,0)`;
   }, []);
 
   async function loadConversation() {
-    setLoading(true);
+    const { data: auth } = await supabase.auth.getUser();
 
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        await navigate({ to: "/login" });
-        return;
-      }
-
-      const { data: conversations } = await supabase
-        .from("conversations")
-        .select("id,title")
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false })
-        .limit(50);
-
-      setHistory(
-        (conversations || []) as Conversation[],
-      );
-
-      const { data: current, error } = await supabase
-        .from("conversations")
-        .select("id,title")
-        .eq("id", conversationId)
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (error || !current) {
-        await navigate({ to: "/workspace" });
-        return;
-      }
-
-      setConversation(current as Conversation);
-
-      const { data: rows, error: messageError } =
-        await supabase
-          .from("messages")
-          .select(
-            "id,conversation_id,user_id,role,content,created_at",
-          )
-          .eq("conversation_id", conversationId)
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: true });
-
-      if (messageError) {
-        throw messageError;
-      }
-
-      const loaded = (rows || []) as Message[];
-
-      setMessages(loaded);
-
-      const last = loaded.at(-1);
-
-      if (
-        last?.role === "user" &&
-        !autoReplyRef.current
-      ) {
-        autoReplyRef.current = true;
-        void respond(last.content, loaded);
-      }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
+    if (!auth.user) {
+      navigate({ to: "/login" });
+      return;
     }
+
+    const { data: conv } = await supabase
+      .from("conversations")
+      .select("id,title")
+      .eq("id", conversationId)
+      .eq("user_id", auth.user.id)
+      .single();
+
+    if (!conv) {
+      navigate({ to: "/workspace" });
+      return;
+    }
+
+    setConversation(conv);
+
+    const { data } = await supabase
+      .from("messages")
+      .select("id,role,content,created_at")
+      .eq("conversation_id", conversationId)
+      .eq("user_id", auth.user.id)
+      .order("created_at", { ascending: true });
+
+    setMessages(data ?? []);
   }
 
-  useEffect(() => {
-    autoReplyRef.current = false;
-    void loadConversation();
+  async function loadHistory() {
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) return;
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId]);
+    const { data } = await supabase
+      .from("conversations")
+      .select("id,title,updated_at")
+      .eq("user_id", auth.user.id)
+      .order("updated_at", { ascending: false });
 
-  useEffect(() => {
-    const element = contentRef.current;
+    setConversations(data ?? []);
+  }
 
-    if (!element) return;
-
-    requestAnimationFrame(() => {
-      element.scrollTop = element.scrollHeight;
-    });
-  }, [messages, aiLoading]);
-
-  async function respond(
+  async function askAi(
     text: string,
     currentMessages: Message[],
   ) {
-    if (aiLoading) return;
+    if (sending) return;
 
-    setAiLoading(true);
-
-    const temporaryId = `temporary-${Date.now()}`;
-
-    setMessages((current) => [
-      ...current,
-      {
-        id: temporaryId,
-        role: "assistant",
-        content: "",
-      },
-    ]);
+    setSending(true);
 
     try {
-      const functionName = await getAiFunction();
+      const { data: auth } = await supabase.auth.getUser();
 
-      const response = await askAi(
+      if (!auth.user) throw new Error("Não autenticado");
+
+      const { data: subscription } = await supabase
+        .from("subscriptions")
+        .select("plan,status,expires_at")
+        .eq("user_id", auth.user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const plan = String(subscription?.plan ?? "").toLowerCase();
+      const status = String(subscription?.status ?? "").toLowerCase();
+
+      const expired =
+        subscription?.expires_at &&
+        new Date(subscription.expires_at).getTime() < Date.now();
+
+      const vip =
+        plan === "vip" &&
+        (status === "active" || status === "ativo") &&
+        !expired;
+
+      const functionName = vip
+        ? "decidly-ai"
+        : "decidly-ai-free";
+
+      const history = currentMessages.slice(-12).map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      const { data, error } = await supabase.functions.invoke(
         functionName,
-        text,
-        currentMessages,
+        {
+          body: {
+            message: text,
+            history,
+          },
+        },
       );
 
-      /*
-       * Exibição progressiva.
-       *
-       * Quando a Edge Function passar a enviar
-       * streaming real, essa parte pode consumir
-       * os chunks diretamente.
-       */
-      let visible = "";
+      if (error) {
+        let backendMessage = "";
 
-      const pieces = response.split(/(\s+)/);
+        try {
+          const context = error.context;
 
-      for (const piece of pieces) {
-        visible += piece;
+          if (context instanceof Response) {
+            const cloned = context.clone();
+            const json = await cloned.json().catch(() => null);
+            backendMessage =
+              json?.error || json?.message || "";
+          }
+        } catch {}
 
-        setMessages((current) =>
-          current.map((message) =>
-            message.id === temporaryId
-              ? {
-                  ...message,
-                  content: visible,
-                }
-              : message,
-          ),
-        );
-
-        await new Promise<void>((resolve) =>
-          requestAnimationFrame(() => resolve()),
+        throw new Error(
+          backendMessage || error.message || "Erro na IA",
         );
       }
 
-      const {
-        data: saved,
-        error: saveError,
-      } = await supabase
+      if (data?.error) {
+        throw new Error(String(data.error));
+      }
+
+      const response = String(data?.response ?? "").trim();
+
+      if (!response) {
+        throw new Error("A IA não retornou uma resposta.");
+      }
+
+      const { data: saved, error: saveError } = await supabase
         .from("messages")
         .insert({
           conversation_id: conversationId,
-          user_id: (
-            await supabase.auth.getUser()
-          ).data.user?.id,
+          user_id: auth.user.id,
           role: "assistant",
           content: response,
         })
-        .select(
-          "id,conversation_id,user_id,role,content,created_at",
-        )
+        .select("id,role,content,created_at")
         .single();
 
       if (saveError || !saved) {
-        throw saveError || new Error("Falha salvando resposta.");
+        throw new Error("Não foi possível salvar a resposta.");
       }
 
-      setMessages((current) =>
-        current.map((message) =>
-          message.id === temporaryId
-            ? (saved as Message)
-            : message,
-        ),
-      );
+      setMessages((prev) => [...prev, saved]);
 
       await supabase
         .from("conversations")
         .update({
           updated_at: new Date().toISOString(),
         })
-        .eq("id", conversationId);
-    } catch (error: any) {
+        .eq("id", conversationId)
+        .eq("user_id", auth.user.id);
+    } catch (error) {
       console.error(error);
 
-      const friendly = friendlyError(
-        error?.status,
-        error?.message,
-      );
+      const text =
+        error instanceof Error
+          ? error.message
+          : "Ocorreu um erro temporário.";
 
-      setMessages((current) =>
-        current.map((message) =>
-          message.id === temporaryId
-            ? {
-                ...message,
-                content: friendly,
-              }
-            : message,
-        ),
-      );
+      const friendly =
+        text.toLowerCase().includes("credit") ||
+        text.toLowerCase().includes("crédito")
+          ? "Desculpe pelo inconveniente, mas no momento você não possui créditos disponíveis para continuar usando a DecidlyAI."
+          : "Desculpe pelo inconveniente. Ocorreu uma dificuldade temporária enquanto eu processava sua mensagem. Por favor, tente novamente mais tarde.";
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (user) {
-        await supabase.from("messages").insert({
-          conversation_id: conversationId,
-          user_id: user.id,
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `error-${Date.now()}`,
           role: "assistant",
           content: friendly,
-        });
-      }
+          created_at: new Date().toISOString(),
+        },
+      ]);
     } finally {
-      setAiLoading(false);
+      setSending(false);
     }
   }
 
-  async function sendMessage() {
+  async function send() {
     const trimmed = input.trim();
 
-    if (!trimmed || aiLoading) return;
+    if (!trimmed || sending) return;
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: auth } = await supabase.auth.getUser();
 
-    if (!user) {
-      await navigate({ to: "/login" });
+    if (!auth.user) {
+      navigate({ to: "/login" });
       return;
     }
 
     setInput("");
 
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-    }
-
-    const localMessage: Message = {
+    const optimistic: Message = {
       id: `local-${Date.now()}`,
-      conversation_id: conversationId,
-      user_id: user.id,
       role: "user",
       content: trimmed,
+      created_at: new Date().toISOString(),
     };
 
-    const nextMessages = [
-      ...messages,
-      localMessage,
-    ];
-
-    setMessages(nextMessages);
+    setMessages((prev) => [...prev, optimistic]);
+    setSending(true);
 
     const { data: saved, error } = await supabase
       .from("messages")
       .insert({
         conversation_id: conversationId,
-        user_id: user.id,
+        user_id: auth.user.id,
         role: "user",
         content: trimmed,
       })
-      .select(
-        "id,conversation_id,user_id,role,content,created_at",
-      )
+      .select("id,role,content,created_at")
       .single();
 
-    if (error) {
+    if (error || !saved) {
       console.error(error);
 
-      setMessages(messages);
-      setInput(trimmed);
+      setSending(false);
+
+      setMessages((prev) =>
+        prev.filter((m) => m.id !== optimistic.id),
+      );
+
       return;
     }
 
-    setMessages((current) =>
-      current.map((item) =>
-        item.id === localMessage.id
-          ? (saved as Message)
-          : item,
-      ),
+    setMessages((prev) =>
+      prev.map((m) => (m.id === optimistic.id ? saved : m)),
     );
 
     await supabase
@@ -609,303 +415,403 @@ function ConversationPage() {
       .update({
         updated_at: new Date().toISOString(),
       })
-      .eq("id", conversationId);
+      .eq("id", conversationId)
+      .eq("user_id", auth.user.id);
 
-    void respond(
+    setSending(false);
+
+    await askAi(
       trimmed,
-      nextMessages,
+      [...messages, saved],
     );
+
+    loadHistory();
   }
 
-  async function deleteConversation(id: string) {
-    if (!window.confirm("Excluir esta conversa?")) return;
+  function autoResize() {
+    const el = textareaRef.current;
+    if (!el) return;
 
-    await supabase
-      .from("messages")
-      .delete()
-      .eq("conversation_id", id);
-
-    await supabase
-      .from("conversations")
-      .delete()
-      .eq("id", id);
-
-    if (id === conversationId) {
-      await navigate({ to: "/workspace" });
-      return;
-    }
-
-    setHistory((current) =>
-      current.filter((item) => item.id !== id),
-    );
+    el.style.height = "0px";
+    el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
   }
 
-  const filteredHistory = history.filter((item) =>
-    item.title
-      .toLowerCase()
-      .includes(search.toLowerCase()),
+  const filtered = conversations.filter((c) =>
+    c.title.toLowerCase().includes(search.toLowerCase()),
   );
 
-  if (loading && !conversation) {
-    return (
-      <div className="flex h-[100dvh] items-center justify-center bg-[#0d0a11] text-white/30">
-        Carregando...
-      </div>
-    );
-  }
-
   return (
-    <div className="relative h-[100dvh] overflow-hidden bg-[#0d0a11] text-white">
-      {/* BACKDROP */}
-      <div
-        ref={backdropRef}
-        className="fixed inset-0 z-40 bg-black"
+    <div
+      style={{
+        height: "100dvh",
+        width: "100%",
+        overflow: "hidden",
+        background:
+          "radial-gradient(circle at 50% -20%, rgba(118,81,232,.14), transparent 45%), #0d0a11",
+        color: "white",
+        fontFamily:
+          'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+        touchAction: "pan-y",
+      }}
+    >
+      <header
         style={{
-          opacity: 0,
-          pointerEvents: "none",
+          height: 68,
+          display: "flex",
+          alignItems: "center",
+          padding: "0 16px",
+          borderBottom: "1px solid rgba(255,255,255,.08)",
         }}
-        onClick={() => settle(false)}
-      />
-
-      {/* SIDEBAR */}
-      <aside
-        ref={sidebarRef}
-        className="fixed left-0 top-0 z-50 flex h-[100dvh] w-[min(86vw,320px)] flex-col border-r border-white/[0.07] bg-[#141019] shadow-2xl shadow-black/50"
-        style={{
-          transform: "translate3d(-100%,0,0)",
-          willChange: "transform",
-          touchAction: "none",
-        }}
-        onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex h-[68px] shrink-0 items-center justify-between px-4">
-          <div className="flex items-center gap-2.5">
-            <img
-              src="/appicon.png"
-              alt="DecidlyAI"
-              className="h-8 w-8 rounded-lg object-cover"
-              onError={(event) => {
-                event.currentTarget.src = "/favicon.ico";
+        <button
+          type="button"
+          onClick={() => settle(true)}
+          style={{
+            width: 40,
+            height: 40,
+            display: "grid",
+            placeItems: "center",
+            border: 0,
+            outline: 0,
+            background: "transparent",
+            color: "rgba(255,255,255,.82)",
+          }}
+        >
+          <Menu size={22} />
+        </button>
+
+        <div style={{ marginLeft: 10, fontWeight: 700 }}>
+          DecidlyAI
+        </div>
+
+        <div
+          style={{
+            marginLeft: 12,
+            color: "rgba(255,255,255,.4)",
+            fontSize: 12,
+          }}
+        >
+          {conversation?.title ?? "Workspace"}
+        </div>
+      </header>
+
+      <main
+        ref={contentRef}
+        style={{
+          height: "calc(100dvh - 68px)",
+          overflowY: "auto",
+          padding: "28px 18px 250px",
+        }}
+      >
+        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+          {messages.map((message, index) => (
+            <div
+              key={message.id ?? index}
+              style={{
+                display: "flex",
+                justifyContent:
+                  message.role === "user"
+                    ? "flex-end"
+                    : "flex-start",
+                marginBottom: 18,
+              }}
+            >
+              <div
+                style={{
+                  maxWidth: "82%",
+                  padding: "12px 15px",
+                  borderRadius: 18,
+                  background:
+                    message.role === "user"
+                      ? "#7651e8"
+                      : "rgba(255,255,255,.045)",
+                  border:
+                    message.role === "assistant"
+                      ? "1px solid rgba(255,255,255,.09)"
+                      : "none",
+                  whiteSpace: "pre-wrap",
+                  lineHeight: 1.6,
+                }}
+              >
+                {message.content}
+              </div>
+            </div>
+          ))}
+
+          {sending && (
+            <div
+              style={{
+                color: "rgba(255,255,255,.42)",
+                fontSize: 13,
+                padding: "4px 10px 20px",
+              }}
+            >
+              DecidlyAI está pensando…
+            </div>
+          )}
+        </div>
+      </main>
+
+      <div
+        style={{
+          position: "fixed",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 20,
+          padding: "16px 18px 18px",
+          background:
+            "linear-gradient(to top, #0d0a11 55%, transparent)",
+        }}
+      >
+        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-end",
+              gap: 10,
+              padding: 10,
+              borderRadius: 20,
+              background: "#141019",
+              border: "1px solid rgba(255,255,255,.1)",
+            }}
+          >
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                autoResize();
+              }}
+              onKeyDown={(e) => {
+                if (
+                  e.key === "Enter" &&
+                  (e.ctrlKey || e.metaKey) &&
+                  !e.shiftKey
+                ) {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+              placeholder="Digite sua decisão..."
+              rows={1}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                maxHeight: 180,
+                resize: "none",
+                overflowY: "auto",
+                padding: "9px 7px",
+                background: "transparent",
+                color: "white",
+                border: 0,
+                outline: "none",
+                boxShadow: "none",
+                WebkitAppearance: "none",
+                appearance: "none",
+                font: "inherit",
+                lineHeight: 1.45,
               }}
             />
 
-            <span className="font-semibold">
-              DecidlyAI
-            </span>
+            <button
+              type="button"
+              onClick={send}
+              disabled={!input.trim() || sending}
+              style={{
+                flexShrink: 0,
+                width: 42,
+                height: 42,
+                border: 0,
+                outline: 0,
+                borderRadius: 13,
+                display: "grid",
+                placeItems: "center",
+                background: input.trim()
+                  ? "#7651e8"
+                  : "rgba(255,255,255,.08)",
+                color: "white",
+              }}
+            >
+              <Send size={18} />
+            </button>
           </div>
+
+          <div
+            style={{
+              textAlign: "center",
+              marginTop: 9,
+              fontSize: 11,
+              color: "rgba(255,255,255,.32)",
+            }}
+          >
+            DecidlyAI é um agente de AI que pode cometer erros, olhe duas
+            vezes a resposta dela antes de usar.
+          </div>
+        </div>
+      </div>
+
+      <div
+        ref={backdropRef}
+        onClick={() => settle(false)}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 40,
+          background: "rgba(0,0,0,.72)",
+          opacity: 0,
+          pointerEvents: "none",
+        }}
+      />
+
+      <aside
+        ref={sidebarRef}
+        style={{
+          position: "fixed",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: "min(86vw,320px)",
+          zIndex: 50,
+          background: "#141019",
+          borderRight: "1px solid rgba(255,255,255,.1)",
+          transform: "translate3d(-100%,0,0)",
+          willChange: "transform",
+          display: "flex",
+          flexDirection: "column",
+          touchAction: "pan-y",
+        }}
+      >
+        <div
+          style={{
+            height: 68,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 14px 0 18px",
+            borderBottom: "1px solid rgba(255,255,255,.08)",
+          }}
+        >
+          <strong>DecidlyAI</strong>
 
           <button
             type="button"
             onClick={() => settle(false)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl text-white/40 hover:bg-white/[0.06] hover:text-white"
+            style={{
+              width: 38,
+              height: 38,
+              border: 0,
+              outline: 0,
+              background: "transparent",
+              color: "rgba(255,255,255,.65)",
+            }}
           >
-            <X size={19} />
+            <X size={20} />
           </button>
         </div>
 
-        <div className="px-3">
-          <button
-            type="button"
-            onClick={() =>
-              void navigate({ to: "/workspace" })
-            }
-            className="flex w-full items-center gap-2 rounded-xl bg-[#7651e8] px-3.5 py-3 text-sm font-medium hover:bg-[#8564ed]"
-          >
-            <Plus size={18} />
-            Nova decisão
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => navigate({ to: "/workspace" })}
+          style={{
+            margin: 14,
+            height: 44,
+            border: 0,
+            borderRadius: 12,
+            background: "#7651e8",
+            color: "white",
+            display: "flex",
+            alignItems: "center",
+            gap: 9,
+            padding: "0 14px",
+            fontWeight: 600,
+          }}
+        >
+          <Plus size={18} />
+          Nova conversa
+        </button>
 
-        <div className="p-3">
-          <div className="flex items-center gap-2 rounded-xl bg-white/[0.04] px-3 py-2.5">
-            <Search
-              size={16}
-              className="text-white/25"
-            />
+        <div style={{ padding: "0 14px 12px" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              height: 40,
+              padding: "0 11px",
+              borderRadius: 10,
+              background: "rgba(255,255,255,.05)",
+              border: "1px solid rgba(255,255,255,.08)",
+            }}
+          >
+            <Search size={16} color="rgba(255,255,255,.4)" />
 
             <input
               value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
-              placeholder="Pesquisar conversas"
-              className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/25"
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Pesquisar"
+              style={{
+                flex: 1,
+                minWidth: 0,
+                border: 0,
+                outline: 0,
+                boxShadow: "none",
+                background: "transparent",
+                color: "white",
+              }}
             />
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-2">
-          <p className="px-3 py-2 text-[10px] uppercase tracking-wider text-white/25">
+        <div
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            padding: "4px 10px",
+          }}
+        >
+          <div
+            style={{
+              padding: "8px",
+              fontSize: 11,
+              color: "rgba(255,255,255,.35)",
+              textTransform: "uppercase",
+            }}
+          >
             Histórico
-          </p>
+          </div>
 
-          {filteredHistory.map((item) => (
-            <div
+          {filtered.map((item) => (
+            <button
               key={item.id}
-              className="group flex rounded-xl hover:bg-white/[0.04]"
+              type="button"
+              onClick={() => {
+                settle(false);
+                navigate({
+                  to: "/workspace/$conversationId",
+                  params: { conversationId: item.id },
+                });
+              }}
+              style={{
+                display: "block",
+                width: "100%",
+                textAlign: "left",
+                padding: "11px 10px",
+                marginBottom: 3,
+                border: 0,
+                borderRadius: 9,
+                background: "transparent",
+                color: "rgba(255,255,255,.72)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
             >
-              <button
-                type="button"
-                onClick={() => {
-                  void navigate({
-                    to: "/workspace/$conversationId",
-                    params: {
-                      conversationId: item.id,
-                    },
-                  });
-
-                  settle(false);
-                }}
-                className="min-w-0 flex-1 truncate px-3 py-3 text-left text-sm text-white/60"
-              >
-                {item.title}
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  void deleteConversation(item.id)
-                }
-                className="mr-1 hidden h-8 w-8 self-center items-center justify-center rounded-lg text-white/20 hover:bg-red-500/10 hover:text-red-300 group-hover:flex"
-              >
-                <Trash2 size={15} />
-              </button>
-            </div>
+              {item.title}
+            </button>
           ))}
         </div>
-
-        <div className="border-t border-white/[0.06] p-4">
-          <div className="text-xs text-white/30">
-            DecidlyAI
-          </div>
-          <div className="mt-1 text-xs text-white/20">
-            Seu espaço para decisões.
-          </div>
-        </div>
       </aside>
-
-      {/* CHAT */}
-      <div className="flex h-full min-w-0 flex-col">
-        <header className="flex h-[68px] shrink-0 items-center px-4">
-          <button
-            type="button"
-            onClick={() => settle(true)}
-            className="flex h-10 w-10 items-center justify-center rounded-xl text-white/60 hover:bg-white/[0.06] hover:text-white"
-          >
-            <Menu size={21} />
-          </button>
-
-          <div className="ml-2 min-w-0">
-            <div className="truncate text-sm font-medium">
-              {conversation?.title}
-            </div>
-            <div className="text-[10px] text-white/25">
-              DecidlyAI
-            </div>
-          </div>
-        </header>
-
-        <div
-          ref={contentRef}
-          className="min-h-0 flex-1 overflow-y-auto px-4"
-        >
-          <div className="mx-auto max-w-[720px] pb-[205px] pt-5">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`mb-7 flex ${
-                  message.role === "user"
-                    ? "justify-end"
-                    : "justify-start"
-                }`}
-              >
-                {message.role === "assistant" && (
-                  <img
-                    src="/appicon.png"
-                    alt="DecidlyAI"
-                    className="mr-3 mt-1 h-7 w-7 shrink-0 rounded-lg object-cover"
-                    onError={(event) => {
-                      event.currentTarget.src =
-                        "/favicon.ico";
-                    }}
-                  />
-                )}
-
-                <div
-                  className={
-                    message.role === "user"
-                      ? "max-w-[85%] rounded-2xl rounded-br-md bg-[#7651e8] px-4 py-3 text-[15px] leading-6"
-                      : "max-w-[88%] text-[15px] leading-7 text-white/80"
-                  }
-                >
-                  {message.role === "assistant" ? (
-                    message.content ? (
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                      >
-                        {message.content}
-                      </ReactMarkdown>
-                    ) : (
-                      <div className="flex gap-1 py-2">
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/40" />
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/40 [animation-delay:100ms]" />
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/40 [animation-delay:200ms]" />
-                      </div>
-                    )
-                  ) : (
-                    message.content
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* COMPOSER */}
-        <div className="fixed inset-x-0 bottom-0 z-30 px-3 pb-[max(14px,env(safe-area-inset-bottom))] pt-3">
-          <div className="mx-auto max-w-[720px]">
-            <div className="flex items-end gap-2 rounded-2xl bg-[#141019] px-2 py-2 shadow-[0_10px_40px_rgba(0,0,0,.4)]">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                rows={1}
-                placeholder="Continue uma decisão..."
-                className="max-h-[180px] min-h-[44px] flex-1 resize-none overflow-y-auto border-0 bg-transparent px-3 py-2.5 text-[15px] leading-6 text-white outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0 focus-visible:border-0 focus-visible:outline-none focus-visible:ring-0 placeholder:text-white/25"
-                onChange={(event) => {
-                  setInput(event.target.value);
-
-                  event.currentTarget.style.height = "auto";
-                  event.currentTarget.style.height =
-                    `${Math.min(event.currentTarget.scrollHeight, 180)}px`;
-                }}
-                onKeyDown={(event) => {
-                  if (
-                    event.key === "Enter" &&
-                    !event.shiftKey
-                  ) {
-                    event.preventDefault();
-                    void sendMessage();
-                  }
-                }}
-              />
-
-              <button
-                type="button"
-                disabled={!input.trim() || aiLoading}
-                onClick={() => void sendMessage()}
-                className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#7651e8] text-white hover:bg-[#8564ed] disabled:opacity-25"
-              >
-                <ArrowUp size={19} />
-              </button>
-            </div>
-
-            <p className="mt-2 text-center text-[10px] text-white/20">
-              A DecidlyAI pode cometer erros. Analise a resposta antes
-              de tomar uma decisão importante.
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
