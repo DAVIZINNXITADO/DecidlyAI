@@ -817,7 +817,7 @@ function LoginPage() {
         }
 
         showError(
-          error.message,
+          "Não foi possível entrar agora. Confira seus dados e tente novamente.",
         );
 
         return;
@@ -1009,7 +1009,7 @@ function LoginPage() {
         }
 
         showError(
-          error.message,
+          "Não foi possível criar sua conta agora. Confira os dados e tente novamente.",
         );
 
         return;
@@ -1116,7 +1116,7 @@ function LoginPage() {
         }
 
         showError(
-          error.message,
+          "Não foi possível enviar o link agora. Tente novamente em instantes.",
         );
 
         return;
@@ -1306,8 +1306,8 @@ function LoginPage() {
 
                 <p className="mt-4 text-base leading-relaxed text-slate-400 sm:text-lg">
                   {isSignUp
-                    ? "Crie sua conta e comece a tomar decisões com mais clareza."
-                    : "Bem-vindo de volta! Acesse sua conta para continuar."}
+                    ? "Crie sua conta e transforme sua próxima dúvida em um caminho mais claro."
+                    : "Continue organizando suas decisões com mais clareza."}
                 </p>
               </div>
 
@@ -1560,6 +1560,16 @@ function LoginPage() {
 
                 .
               </p>
+
+              <p className="mt-5 text-center text-xs text-slate-500">
+                Está com problemas para entrar?{" "}
+                <a
+                  href="mailto:decidlyai@outlook.com?subject=Ajuda%20com%20acesso%20ao%20DecidlyAI"
+                  className="font-medium text-violet-300 underline underline-offset-2 transition hover:text-violet-200"
+                >
+                  Fale com o suporte
+                </a>
+              </p>
             </>
           )}
         </section>
@@ -1622,6 +1632,10 @@ function CaptchaBox({
 
         Verificação de segurança
       </div>
+
+      <p className="mb-3 text-xs leading-5 text-slate-500">
+        Usamos esta verificação para proteger sua conta contra cadastros automáticos.
+      </p>
 
       <div
         ref={containerRef}
