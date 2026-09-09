@@ -1,263 +1,207 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
-import { Menu, Plus, Search, Sparkles, X } from "lucide-react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+import { Send, Sparkles, Menu } from "lucide-react";
+
 import { supabase } from "@/lib/supabase";
 
-export const Route = createFileRoute("/workspace")({ component: Workspace });
-type Conversation = {
-  id: string;
-  user_id: string;
-  title: string;
-  created_at: string;
-  updated_at: string;
-};
-const WIDTH = 320;
+export const Route = createFileRoute("/workspace")({
+  component: Workspace,
+});
 
 function Workspace() {
-  const navigate = useNavigate();
-  const [userId, setUserId] = useState<string | null>(null);
-  const [input, setInput] = useState("");
-  const [items, setItems] = useState<Conversation[]>([]);
-  const [query, setQuery] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const sidebar = useRef<HTMLElement>(null);
-  const backdrop = useRef<HTMLDivElement>(null);
-  const p = useRef(0);
-  const start = useRef(0);
-  const startP = useRef(0);
-  const dragging = useRef(false);
-  const raf = useRef<number | null>(null);
-  const paint = (value: number) => {
-    p.current = Math.max(0, Math.min(1, value));
-    if (raf.current !== null) cancelAnimationFrame(raf.current);
-    raf.current = requestAnimationFrame(() => {
-      if (sidebar.current)
-        sidebar.current.style.transform = `translate3d(${-WIDTH + WIDTH * p.current}px,0,0)`;
-      if (backdrop.current) {
-        backdrop.current.style.opacity = String(p.current * 0.72);
-        backdrop.current.style.pointerEvents = p.current > 0.01 ? "auto" : "none";
-      }
-    });
-  };
-  const settle = (value: boolean) => {
-    setOpen(value);
-    if (sidebar.current)
-      sidebar.current.style.transition = "transform 260ms cubic-bezier(.22,1,.36,1)";
-    if (backdrop.current) backdrop.current.style.transition = "opacity 260ms ease";
-    paint(value ? 1 : 0);
-    window.setTimeout(() => {
-      if (sidebar.current) sidebar.current.style.transition = "none";
-      if (backdrop.current) backdrop.current.style.transition = "none";
-    }, 280);
-  };
-  useEffect(() => {
-    let alive = true;
-    void (async () => {
-      const { data } = await supabase.auth.getUser();
-      if (!data.user) {
-        await navigate({ to: "/login" });
-        return;
-      }
-      if (!alive) return;
-      setUserId(data.user.id);
-      const { data: rows } = await supabase
-        .from("conversations")
-        .select("*")
-        .eq("user_id", data.user.id)
-        .order("updated_at", { ascending: false });
-      if (alive && rows) setItems(rows as Conversation[]);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [navigate]);
-  const create = async () => {
-    const text = input.trim();
-    if (!text || busy) return;
-    setBusy(true);
-    setError(null);
+  const navigate = Route.useNavigate();
+
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+
+  async function startConversation() {
+    const trimmed = message.trim();
+
+    if (!trimmed || sending) return;
+
+    setSending(true);
+
     try {
-      const { data, error: authError } = await supabase.auth.getUser();
-      const currentUserId = data.user?.id ?? userId;
-      if (authError || !currentUserId) {
-        setError("Sua sessão expirou. Faça login novamente para continuar.");
-        await navigate({ to: "/login" });
+      // 1. Verifica o usuário
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        await navigate({
+          to: "/login",
+        });
         return;
       }
-      const id = crypto.randomUUID();
-      const { error: insertError } = await supabase.from("conversations").insert({
-        id,
-        user_id: currentUserId,
-        title: text.length > 70 ? `${text.slice(0, 70)}…` : text,
+
+      // 2. Cria o título baseado na primeira mensagem
+      const title =
+        trimmed.replace(/\s+/g, " ").slice(0, 60) ||
+        "Nova conversa";
+
+      // 3. Cria a conversa
+      const {
+        data: conversation,
+        error: conversationError,
+      } = await supabase
+        .from("conversations")
+        .insert({
+          user_id: user.id,
+          title,
+        })
+        .select("id")
+        .single();
+
+      if (conversationError || !conversation) {
+        console.error(conversationError);
+        throw new Error("Não foi possível criar a conversa.");
+      }
+
+      // 4. Salva a mensagem do usuário
+      const { error: messageError } = await supabase
+        .from("messages")
+        .insert({
+          conversation_id: conversation.id,
+          role: "user",
+          content: trimmed,
+        });
+
+      if (messageError) {
+        console.error(messageError);
+
+        // Se falhar ao salvar a mensagem, tenta remover
+        // a conversa recém-criada.
+        await supabase
+          .from("conversations")
+          .delete()
+          .eq("id", conversation.id);
+
+        throw new Error("Não foi possível salvar sua mensagem.");
+      }
+
+      // 5. ABRE O CHAT IMEDIATAMENTE.
+      //
+      // Não esperamos a IA aqui.
+      // A rota /workspace/:conversationId vai carregar
+      // a mensagem e iniciar a resposta da IA.
+      await navigate({
+        to: "/workspace/$conversationId",
+        params: {
+          conversationId: conversation.id,
+        },
       });
-      if (insertError) {
-        setError(insertError.message || "Não foi possível criar a conversa. Tente novamente.");
-        return;
-      }
-      sessionStorage.setItem(`decidly-pending-${id}`, text);
-      setInput("");
-      await navigate({ to: "/workspace/$conversationId", params: { conversationId: id } });
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Não foi possível iniciar a conversa.");
+    } catch (error) {
+      console.error(error);
+
+      const text =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível iniciar a conversa.";
+
+      window.alert(text);
     } finally {
-      setBusy(false);
+      setSending(false);
     }
-  };
-  const filtered = items.filter((item) => item.title.toLowerCase().includes(query.toLowerCase()));
-  const begin = (event: React.PointerEvent<HTMLElement>) => {
-    event.currentTarget.setPointerCapture(event.pointerId);
-    dragging.current = true;
-    start.current = event.clientX;
-    startP.current = p.current;
-    if (sidebar.current) sidebar.current.style.transition = "none";
-  };
-  const move = (event: React.PointerEvent<HTMLElement>) => {
-    if (dragging.current) paint(startP.current + (event.clientX - start.current) / WIDTH);
-  };
-  const end = () => {
-    if (dragging.current) {
-      dragging.current = false;
-      settle(p.current > 0.5);
+  }
+
+  function handleKeyDown(
+    event: React.KeyboardEvent<HTMLTextAreaElement>,
+  ) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      void startConversation();
     }
-  };
+  }
+
   return (
-    <div className="min-h-screen bg-[#0c0912] text-white">
-      <div
-        ref={backdrop}
-        onClick={() => settle(false)}
-        className="pointer-events-none fixed inset-0 z-30 bg-black opacity-0"
-      />
-      <aside
-        ref={sidebar}
-        onPointerDown={begin}
-        onPointerMove={move}
-        onPointerUp={end}
-        onPointerCancel={end}
-        className="fixed inset-y-0 left-0 z-40 flex w-[min(90vw,320px)] touch-pan-y flex-col border-r border-white/10 bg-[#120d1b] p-4 shadow-2xl will-change-transform"
-        style={{ transform: `translate3d(-${WIDTH}px,0,0)` }}
-      >
-        <div className="flex items-center justify-between">
-          <strong>DecidlyAI</strong>
-          <button
-            aria-label="Fechar menu"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={() => settle(false)}
-            className="rounded-lg p-2 text-white/60 hover:bg-white/10"
-          >
-            <X size={18} />
-          </button>
-        </div>
+    <div className="min-h-screen overflow-hidden bg-[#0d0a11] text-white">
+      {/* Fundo */}
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_50%_-10%,rgba(118,81,232,0.16),transparent_42%)]" />
+
+      {/* Topbar */}
+      <header className="relative z-10 flex h-[68px] items-center border-b border-white/[0.06] px-4">
         <button
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={() => navigate({ to: "/workspace" })}
-          className="mt-7 flex items-center gap-2 rounded-xl bg-violet-600 px-3 py-2.5 text-sm font-medium hover:bg-violet-500"
+          type="button"
+          onClick={() => {
+            // A sidebar será adicionada na rota da conversa.
+          }}
+          className="flex h-10 w-10 items-center justify-center rounded-xl text-white/70 transition hover:bg-white/[0.06] hover:text-white"
+          aria-label="Menu"
         >
-          <Plus size={17} /> Nova decisão
+          <Menu size={21} />
         </button>
-        <label
-          onPointerDown={(e) => e.stopPropagation()}
-          className="mt-5 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[.04] px-3 text-white/50"
-        >
-          <Search size={16} />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Pesquisar"
-            className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-white outline-none placeholder:text-white/35"
-          />
-        </label>
-        <div
-          onPointerDown={(e) => e.stopPropagation()}
-          className="mt-6 flex-1 space-y-1 overflow-y-auto"
-        >
-          {filtered.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                void navigate({
-                  to: "/workspace/$conversationId",
-                  params: { conversationId: item.id },
-                });
-                settle(false);
-              }}
-              className="block w-full truncate rounded-xl px-3 py-2.5 text-left text-sm text-white/70 hover:bg-white/[.06]"
-            >
-              {item.title}
-            </button>
-          ))}
+
+        <div className="ml-3 flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#7651e8]">
+            <Sparkles size={17} />
+          </div>
+
+          <span className="text-[15px] font-semibold tracking-tight">
+            DecidlyAI
+          </span>
         </div>
-        <div className="border-t border-white/10 pt-4 text-xs text-white/45">Sua conta</div>
-      </aside>
-      <div
-        className="fixed left-0 top-0 z-20 h-full w-5 touch-none"
-        onPointerDown={begin}
-        onPointerMove={move}
-        onPointerUp={end}
-        onPointerCancel={end}
-      />
-      <main className="relative flex min-h-screen flex-col">
-        <header className="flex items-center gap-3 border-b border-white/[.07] px-5 py-4">
-          <button
-            aria-label="Abrir menu"
-            onClick={() => settle(!open)}
-            className="rounded-lg p-2 text-white/65 hover:bg-white/10"
-          >
-            <Menu size={20} />
-          </button>
-          <span className="text-sm text-white/65">Nova decisão</span>
-        </header>
-        <section className="flex flex-1 items-center justify-center px-5 pb-28">
-          <div className="w-full max-w-2xl text-center">
-            <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-violet-600/20 text-violet-300">
-              <img src="/appicon.png" alt="DecidlyAI" className="h-full w-full object-cover" />
-            </div>
-            <h1 className="text-2xl font-semibold sm:text-3xl">No que você está pensando?</h1>
-            <p className="mt-3 text-sm text-white/45">
-              Comece uma decisão e organize suas possibilidades com clareza.
-            </p>
-            {error && (
-              <p
-                role="alert"
-                className="mt-5 rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-left text-sm text-red-200"
-              >
-                {error}
-              </p>
-            )}
-            <div className="mt-8 rounded-2xl border border-white/10 bg-white/[.04] p-2 text-left">
-              <textarea
-                autoFocus
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                    e.preventDefault();
-                    void create();
-                  }
-                }}
-                rows={3}
-                placeholder="Estou pensando em…"
-                className="w-full resize-none bg-transparent px-3 py-2 text-sm leading-6 text-white outline-none placeholder:text-white/30"
-              />
-              <div className="flex items-center justify-between px-2 pb-1">
-                <span className="text-[11px] text-white/30">Ctrl + Enter para enviar</span>
+
+        <div className="ml-auto flex items-center gap-2 text-xs text-white/40">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          Workspace
+        </div>
+      </header>
+
+      {/* Conteúdo */}
+      <main className="relative flex min-h-[calc(100vh-68px)] flex-col">
+        <div className="mx-auto flex w-full max-w-[720px] flex-1 flex-col items-center justify-center px-5 pb-40 pt-10">
+          <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/[0.08] bg-[#141019] shadow-2xl shadow-black/20">
+            <Sparkles
+              size={25}
+              strokeWidth={1.7}
+              className="text-[#9275ed]"
+            />
+          </div>
+
+          <h1 className="text-center text-[26px] font-semibold tracking-tight sm:text-[30px]">
+            Como posso ajudar?
+          </h1>
+
+          <p className="mt-3 max-w-[500px] text-center text-sm leading-6 text-white/45">
+            Converse com a DecidlyAI, faça perguntas, organize ideias,
+            estude e descubra novas possibilidades.
+          </p>
+        </div>
+
+        {/* Composer */}
+        <div className="fixed inset-x-0 bottom-0 z-20 px-4 pb-5">
+          <div className="mx-auto max-w-[720px]">
+            <div className="rounded-2xl border border-white/[0.10] bg-[#141019]/95 p-2 shadow-2xl shadow-black/40 backdrop-blur-xl">
+              <div className="flex items-end gap-2">
+                <textarea
+                  value={message}
+                  onChange={(event) => setMessage(event.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={sending}
+                  rows={1}
+                  placeholder="Envie uma mensagem..."
+                  className="max-h-40 min-h-[46px] flex-1 resize-none bg-transparent px-3 py-3 text-[15px] leading-6 text-white outline-none placeholder:text-white/30 disabled:opacity-50"
+                />
+
                 <button
+                  type="button"
+                  onClick={() => void startConversation()}
+                  disabled={!message.trim() || sending}
+                  className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#7651e8] text-white transition hover:bg-[#8564ed] disabled:cursor-not-allowed disabled:opacity-30"
                   aria-label="Enviar"
-                  onClick={() => void create()}
-                  disabled={!input.trim() || busy}
-                  className="rounded-xl bg-violet-600 p-2.5 text-white disabled:opacity-30"
                 >
-                  {busy ? (
-                    <span className="block h-[18px] w-[18px] animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                  ) : (
-                    "↑"
-                  )}
+                  <Send size={18} />
                 </button>
               </div>
             </div>
+
+            <p className="mt-2 px-2 text-center text-[10px] leading-4 text-white/25">
+              DecidlyAI é um agente de AI que pode cometer erros, olhe duas
+              vezes a resposta dela antes de usar.
+            </p>
           </div>
-        </section>
+        </div>
       </main>
     </div>
   );
