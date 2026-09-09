@@ -310,3 +310,47 @@ a {
 #lovable-badge {
   display: none !important;
 }
+
+/* Landing page — atmosfera premium, sem depender de imagens externas */
+.landing-orb {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: 0.28;
+}
+
+.landing-orb-one {
+  left: -12rem;
+  top: 18rem;
+  width: 32rem;
+  height: 32rem;
+  background: rgba(124, 58, 237, 0.28);
+}
+
+.landing-orb-two {
+  right: -14rem;
+  top: 4rem;
+  width: 36rem;
+  height: 36rem;
+  background: rgba(76, 29, 149, 0.22);
+}
+
+.eyebrow {
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid rgba(196, 181, 253, 0.22);
+  border-radius: 9999px;
+  background: rgba(139, 92, 246, 0.1);
+  padding: 0.55rem 0.9rem;
+  color: rgb(221 214 254);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-orb {
+    filter: blur(40px);
+  }
+}

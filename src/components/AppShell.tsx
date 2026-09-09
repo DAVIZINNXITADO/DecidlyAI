@@ -32,15 +32,6 @@ export function AppShell({
               <span className="text-slate-700">•</span>
 
               <a
-                href="https://URL-DO-STATUS.com"
-                className="transition-colors hover:text-violet-300"
-              >
-                Estado do Sistema
-              </a>
-
-              <span className="text-slate-700">•</span>
-
-              <a
                 href="mailto:decidlyia@outlook.com?subject=Suporte%20DecidlyAI"
                 className="transition-colors hover:text-violet-300"
               >
@@ -67,14 +58,6 @@ export function AppShell({
                 Ver planos
               </a>
 
-              <span className="text-slate-700">•</span>
-
-              <a
-                href="#creditos"
-                className="transition-colors hover:text-violet-300"
-              >
-                Créditos
-              </a>
             </div>
 
             {/* LINHA 3 */}
@@ -99,12 +82,6 @@ export function AppShell({
 
             {/* BLOG */}
 
-            <a
-              href="https://URL-DO-SEU-BLOG.com"
-              className="mt-2 transition-colors hover:text-violet-300"
-            >
-              • Nosso Blog •
-            </a>
           </div>
 
           {/* DIVISOR */}
