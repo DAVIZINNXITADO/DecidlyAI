@@ -64,6 +64,22 @@ async function getAiFunction(setLabel: (label: string) => void) {
   setLabel("Free");
   return "decidly-ai-free";
 }
+async function readFunctionError(functionError: unknown) {
+  const failure = functionError as { context?: Response; message?: string };
+  let status: number | undefined;
+  let backendMessage = "";
+  try {
+    status = failure.context?.status;
+    const body = await failure.context
+      ?.clone()
+      .json()
+      .catch(() => null);
+    if (typeof body?.error === "string") backendMessage = body.error;
+  } catch {
+    // Mantém uma mensagem amigável mesmo quando o backend não retorna JSON.
+  }
+  return { status, message: backendMessage || failure.message || "" };
+}
 
 function Conversation() {
   const { conversationId } = Route.useParams();
@@ -190,8 +206,16 @@ function Conversation() {
       const { data, error: invokeError } = await supabase.functions.invoke(functionName, {
         body: { message: text, history },
       });
-      if (invokeError) throw invokeError;
-      if (!data?.response) throw new Error("Resposta inválida");
+      if (invokeError) throw await readFunctionError(invokeError);
+      if (data?.error) {
+        throw {
+          status: typeof data.status === "number" ? data.status : undefined,
+          message: typeof data.error === "string" ? data.error : "",
+        };
+      }
+      if (typeof data?.response !== "string" || data.response.trim().length === 0) {
+        throw { message: "Resposta inválida" };
+      }
       const answer: Message = {
         id: `instant-ai-${Date.now()}`,
         conversation_id: conversationId,
@@ -262,7 +286,10 @@ function Conversation() {
         style={{ transform: `translate3d(-${WIDTH}px,0,0)` }}
       >
         <div className="flex items-center justify-between">
-          <strong>DecidlyAI</strong>
+          <div className="flex items-center gap-2">
+            <img src="/appicon.png" alt="DecidlyAI" className="h-7 w-7 rounded-lg object-cover" />
+            <strong>DecidlyAI</strong>
+          </div>
           <button
             onPointerDown={(e) => e.stopPropagation()}
             onClick={() => settle(false)}
