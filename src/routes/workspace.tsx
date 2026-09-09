@@ -49,28 +49,49 @@ type Subscription = {
 const SIDEBAR_MAX_WIDTH = 320;
 
 function Workspace() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarProgress, setSidebarProgress] = useState(0);
+  const [sidebarOpen, setSidebarOpen] =
+    useState(false);
+
+  const [sidebarProgress, setSidebarProgress] =
+    useState(0);
 
   const [search, setSearch] = useState("");
-  const [conversations, setConversations] = useState<
-    Conversation[]
-  >([]);
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [conversations, setConversations] =
+    useState<Conversation[]>([]);
+
+  const [messages, setMessages] =
+    useState<ChatMessage[]>([]);
+
   const [input, setInput] = useState("");
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] =
+    useState(false);
 
-  const [userId, setUserId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] =
+    useState("");
 
-  // Altura que o teclado está ocupando no visual viewport.
-  const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [userId, setUserId] =
+    useState<string | null>(null);
 
-  const sidebarRef = useRef<HTMLElement | null>(null);
-  const chatRef = useRef<HTMLElement | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  /*
+   * Altura real ocupada pelo teclado.
+   *
+   * IMPORTANTE:
+   * Não usamos isso para criar espaço no chat.
+   * Usamos somente para mover o composer.
+   */
+  const [keyboardOffset, setKeyboardOffset] =
+    useState(0);
+
+  const sidebarRef =
+    useRef<HTMLElement | null>(null);
+
+  const chatRef =
+    useRef<HTMLElement | null>(null);
+
+  const textareaRef =
+    useRef<HTMLTextAreaElement | null>(null);
 
   const dragState = useRef({
     active: false,
@@ -81,15 +102,13 @@ function Workspace() {
   /*
    * ============================================================
    * SIDEBAR
-   *
-   * O sidebar é FIXED e fica em uma camada própria.
-   * Ele não participa do layout do chat.
    * ============================================================
    */
 
   const getSidebarWidth = useCallback(() => {
     if (sidebarRef.current) {
-      return sidebarRef.current.getBoundingClientRect().width;
+      return sidebarRef.current.getBoundingClientRect()
+        .width;
     }
 
     return Math.min(
@@ -99,21 +118,29 @@ function Workspace() {
   }, []);
 
   const paintSidebar = useCallback(
-    (progress: number, animate = false) => {
+    (
+      progress: number,
+      animate = false,
+    ) => {
       const safeProgress = Math.max(
         0,
         Math.min(1, progress),
       );
 
-      setSidebarProgress(safeProgress);
+      setSidebarProgress(
+        safeProgress,
+      );
 
       if (sidebarRef.current) {
-        sidebarRef.current.style.transition = animate
-          ? "transform 220ms cubic-bezier(.2,.8,.2,1)"
-          : "none";
+        sidebarRef.current.style.transition =
+          animate
+            ? "transform 220ms cubic-bezier(.2,.8,.2,1)"
+            : "none";
 
         sidebarRef.current.style.transform =
-          `translate3d(${-100 + safeProgress * 100}%, 0, 0)`;
+          `translate3d(${
+            -100 + safeProgress * 100
+          }%, 0, 0)`;
       }
     },
     [],
@@ -122,7 +149,11 @@ function Workspace() {
   const settleSidebar = useCallback(
     (open: boolean) => {
       setSidebarOpen(open);
-      paintSidebar(open ? 1 : 0, true);
+
+      paintSidebar(
+        open ? 1 : 0,
+        true,
+      );
     },
     [paintSidebar],
   );
@@ -137,8 +168,6 @@ function Workspace() {
       return;
     }
 
-    const width = getSidebarWidth();
-
     dragState.current = {
       active: true,
       startX: event.clientX,
@@ -150,13 +179,6 @@ function Workspace() {
     event.currentTarget.setPointerCapture(
       event.pointerId,
     );
-
-    if (width > 0) {
-      paintSidebar(
-        dragState.current.startProgress,
-        false,
-      );
-    }
   };
 
   const moveSidebarDrag = (
@@ -180,7 +202,10 @@ function Workspace() {
       dragState.current.startProgress +
       delta / width;
 
-    paintSidebar(progress, false);
+    paintSidebar(
+      progress,
+      false,
+    );
   };
 
   const endSidebarDrag = () => {
@@ -190,12 +215,13 @@ function Workspace() {
 
     dragState.current.active = false;
 
-    setSidebarOpen(
-      sidebarProgress >= 0.45,
-    );
+    const shouldOpen =
+      sidebarProgress >= 0.45;
+
+    setSidebarOpen(shouldOpen);
 
     paintSidebar(
-      sidebarProgress >= 0.45 ? 1 : 0,
+      shouldOpen ? 1 : 0,
       true,
     );
   };
@@ -205,66 +231,96 @@ function Workspace() {
       sidebarOpen ? 1 : 0,
       false,
     );
-  }, [sidebarOpen, paintSidebar]);
+  }, [
+    sidebarOpen,
+    paintSidebar,
+  ]);
 
   /*
    * ============================================================
    * TECLADO MOBILE
    *
-   * Não espera animação.
-   * O composer acompanha diretamente o visualViewport.
+   * O composer é deslocado por TRANSFORM.
+   *
+   * Isso evita:
+   * - rodapé gigante
+   * - espaço vazio
+   * - alteração da altura do chat
+   * - composer ficando atrás do teclado
    * ============================================================
    */
 
   useEffect(() => {
-    const viewport = window.visualViewport;
+    const viewport =
+      window.visualViewport;
 
     if (!viewport) {
       return;
     }
 
-    let animationFrame = 0;
+    let frame = 0;
 
     const updateKeyboard = () => {
-      cancelAnimationFrame(animationFrame);
+      cancelAnimationFrame(frame);
 
-      animationFrame = requestAnimationFrame(() => {
-        const keyboardHeight = Math.max(
-          0,
-          Math.round(
-            window.innerHeight -
-              (viewport.height +
-                viewport.offsetTop),
-          ),
-        );
+      frame =
+        requestAnimationFrame(() => {
+          /*
+           * O visualViewport diminui quando o teclado
+           * aparece.
+           */
+          const keyboardHeight =
+            Math.max(
+              0,
+              Math.round(
+                window.innerHeight -
+                  viewport.height -
+                  viewport.offsetTop,
+              ),
+            );
 
-        setKeyboardOffset(keyboardHeight);
+          setKeyboardOffset(
+            keyboardHeight,
+          );
 
-        if (keyboardHeight > 0) {
-          const chat = chatRef.current;
+          /*
+           * Quando o teclado aparece, mantém o final
+           * do chat visível.
+           */
+          if (keyboardHeight > 0) {
+            const chat =
+              chatRef.current;
 
-          if (chat) {
-            chat.scrollTop =
-              chat.scrollHeight;
+            if (chat) {
+              chat.scrollTop =
+                chat.scrollHeight;
+            }
           }
-        }
-      });
+        });
     };
 
     viewport.addEventListener(
       "resize",
       updateKeyboard,
+      { passive: true },
     );
 
     viewport.addEventListener(
       "scroll",
       updateKeyboard,
+      { passive: true },
+    );
+
+    window.addEventListener(
+      "resize",
+      updateKeyboard,
+      { passive: true },
     );
 
     updateKeyboard();
 
     return () => {
-      cancelAnimationFrame(animationFrame);
+      cancelAnimationFrame(frame);
 
       viewport.removeEventListener(
         "resize",
@@ -273,6 +329,11 @@ function Workspace() {
 
       viewport.removeEventListener(
         "scroll",
+        updateKeyboard,
+      );
+
+      window.removeEventListener(
+        "resize",
         updateKeyboard,
       );
     };
@@ -285,7 +346,8 @@ function Workspace() {
    */
 
   useEffect(() => {
-    const chat = chatRef.current;
+    const chat =
+      chatRef.current;
 
     if (!chat) {
       return;
@@ -297,7 +359,10 @@ function Workspace() {
         behavior: "smooth",
       });
     });
-  }, [messages, isLoading]);
+  }, [
+    messages,
+    isLoading,
+  ]);
 
   /*
    * ============================================================
@@ -305,19 +370,23 @@ function Workspace() {
    * ============================================================
    */
 
-  const getAuthenticatedUser = useCallback(
-    async () => {
-      const { data, error } =
+  const getAuthenticatedUser =
+    useCallback(async () => {
+      const {
+        data,
+        error,
+      } =
         await supabase.auth.getUser();
 
-      if (error || !data.user) {
+      if (
+        error ||
+        !data.user
+      ) {
         return null;
       }
 
       return data.user;
-    },
-    [],
-  );
+    }, []);
 
   /*
    * ============================================================
@@ -325,45 +394,61 @@ function Workspace() {
    * ============================================================
    */
 
-  const loadConversations = useCallback(
-    async (currentUserId: string) => {
-      const { data } = await supabase
-        .from("conversations")
-        .select(
-          "id,title,created_at,updated_at",
-        )
-        .eq("user_id", currentUserId)
-        .order("updated_at", {
-          ascending: false,
-        })
-        .limit(30);
+  const loadConversations =
+    useCallback(
+      async (
+        currentUserId: string,
+      ) => {
+        const { data } =
+          await supabase
+            .from("conversations")
+            .select(
+              "id,title,created_at,updated_at",
+            )
+            .eq(
+              "user_id",
+              currentUserId,
+            )
+            .order(
+              "updated_at",
+              {
+                ascending: false,
+              },
+            )
+            .limit(30);
 
-      if (!data) {
-        return;
-      }
+        if (!data) {
+          return;
+        }
 
-      setConversations(
-        data as Conversation[],
-      );
-    },
-    [],
-  );
+        setConversations(
+          data as Conversation[],
+        );
+      },
+      [],
+    );
 
   useEffect(() => {
     let cancelled = false;
 
-    const initialize = async () => {
-      const user =
-        await getAuthenticatedUser();
+    const initialize =
+      async () => {
+        const user =
+          await getAuthenticatedUser();
 
-      if (!user || cancelled) {
-        return;
-      }
+        if (
+          !user ||
+          cancelled
+        ) {
+          return;
+        }
 
-      setUserId(user.id);
+        setUserId(user.id);
 
-      await loadConversations(user.id);
-    };
+        await loadConversations(
+          user.id,
+        );
+      };
 
     void initialize();
 
@@ -381,16 +466,18 @@ function Workspace() {
    * ============================================================
    */
 
-  const startNewConversation = () => {
-    setMessages([]);
-    setInput("");
-    setErrorMessage("");
-    setSidebarOpen(false);
+  const startNewConversation =
+    () => {
+      setMessages([]);
+      setInput("");
+      setErrorMessage("");
 
-    requestAnimationFrame(() => {
-      textareaRef.current?.focus();
-    });
-  };
+      settleSidebar(false);
+
+      requestAnimationFrame(() => {
+        textareaRef.current?.focus();
+      });
+    };
 
   /*
    * ============================================================
@@ -398,109 +485,130 @@ function Workspace() {
    * ============================================================
    */
 
-  const saveConversationTitle = async (
-    firstMessage: string,
-  ) => {
-    if (!userId) {
-      return;
-    }
+  const saveConversationTitle =
+    async (
+      firstMessage: string,
+    ) => {
+      if (!userId) {
+        return;
+      }
 
-    const title =
-      firstMessage.length > 70
-        ? `${firstMessage.slice(0, 67)}...`
-        : firstMessage;
+      const title =
+        firstMessage.length > 70
+          ? `${firstMessage.slice(
+              0,
+              67,
+            )}...`
+          : firstMessage;
 
-    const { data } = await supabase
-      .from("conversations")
-      .insert({
-        user_id: userId,
-        title,
-      })
-      .select(
-        "id,title,created_at,updated_at",
-      )
-      .single();
+      const { data } =
+        await supabase
+          .from("conversations")
+          .insert({
+            user_id: userId,
+            title,
+          })
+          .select(
+            "id,title,created_at,updated_at",
+          )
+          .single();
 
-    if (!data) {
-      return;
-    }
+      if (!data) {
+        return;
+      }
 
-    const conversation =
-      data as Conversation;
+      const conversation =
+        data as Conversation;
 
-    setConversations((current) => [
-      conversation,
-      ...current.filter(
-        (item) =>
-          item.id !== conversation.id,
-      ),
-    ]);
-  };
+      setConversations(
+        (current) => [
+          conversation,
+          ...current.filter(
+            (item) =>
+              item.id !==
+              conversation.id,
+          ),
+        ],
+      );
+    };
 
   /*
    * ============================================================
-   * ESCOLHA DA IA
+   * IA
    *
-   * Mantida a mesma lógica do ai-test.
+   * MESMA LÓGICA DO AI-TEST
    * ============================================================
    */
 
-  const getAiFunction = async (
-    currentUserId: string,
-  ) => {
-    const { data, error } =
-      await supabase
-        .from("subscription")
-        .select(
-          "plan,status,expires_at",
-        )
-        .eq(
-          "user_id",
-          currentUserId,
-        )
-        .order("created_at", {
-          ascending: false,
-        })
-        .limit(1)
-        .maybeSingle();
+  const getAiFunction =
+    async (
+      currentUserId: string,
+    ) => {
+      const {
+        data,
+        error,
+      } =
+        await supabase
+          .from("subscription")
+          .select(
+            "plan,status,expires_at",
+          )
+          .eq(
+            "user_id",
+            currentUserId,
+          )
+          .order(
+            "created_at",
+            {
+              ascending: false,
+            },
+          )
+          .limit(1)
+          .maybeSingle();
 
-    if (error || !data) {
+      if (
+        error ||
+        !data
+      ) {
+        return "decidly-ai-free";
+      }
+
+      const subscription =
+        data as Subscription;
+
+      const isVip =
+        subscription.plan ===
+          "vip" ||
+        subscription.plan ===
+          "VIP";
+
+      const isActive =
+        subscription.status ===
+          "active" ||
+        subscription.status ===
+          "ACTIVE";
+
+      const notExpired =
+        !subscription.expires_at ||
+        new Date(
+          subscription.expires_at,
+        ).getTime() >
+          Date.now();
+
+      if (
+        isVip &&
+        isActive &&
+        notExpired
+      ) {
+        return "decidly-ai";
+      }
+
       return "decidly-ai-free";
-    }
-
-    const subscription =
-      data as Subscription;
-
-    const isVip =
-      subscription.plan === "vip" ||
-      subscription.plan === "VIP";
-
-    const isActive =
-      subscription.status === "active" ||
-      subscription.status === "ACTIVE";
-
-    const notExpired =
-      !subscription.expires_at ||
-      new Date(
-        subscription.expires_at,
-      ).getTime() > Date.now();
-
-    if (
-      isVip &&
-      isActive &&
-      notExpired
-    ) {
-      return "decidly-ai";
-    }
-
-    return "decidly-ai-free";
-  };
+    };
 
   /*
    * ============================================================
-   * ERROS
-   *
-   * Nunca mostra detalhes técnicos do backend.
+   * ERROS AMIGÁVEIS
    * ============================================================
    */
 
@@ -538,146 +646,176 @@ function Workspace() {
    * ============================================================
    */
 
-  const sendMessage = async () => {
-    const text = input.trim();
+  const sendMessage =
+    async () => {
+      const text =
+        input.trim();
 
-    if (!text || isLoading) {
-      return;
-    }
-
-    setInput("");
-    setErrorMessage("");
-
-    if (textareaRef.current) {
-      textareaRef.current.style.height =
-        "58px";
-    }
-
-    const userMessage: ChatMessage = {
-      role: "user",
-      content: text,
-    };
-
-    const nextMessages = [
-      ...messages,
-      userMessage,
-    ];
-
-    setMessages(nextMessages);
-    setIsLoading(true);
-
-    try {
-      const user =
-        await getAuthenticatedUser();
-
-      if (!user) {
-        setErrorMessage(
-          "Sua sessão expirou. Recarregue a página e tente novamente.",
-        );
-
+      if (
+        !text ||
+        isLoading
+      ) {
         return;
       }
 
-      setUserId(user.id);
+      setInput("");
+      setErrorMessage("");
 
-      const functionName =
-        await getAiFunction(user.id);
-
-      const history = nextMessages
-        .slice(-12)
-        .map((message) => ({
-          role: message.role,
-          content: message.content,
-        }));
-
-      const {
-        data,
-        error,
-      } =
-        await supabase.functions.invoke(
-          functionName,
-          {
-            body: {
-              message: text,
-              history,
-            },
-          },
-        );
-
-      if (error) {
-        const context = (
-          error as {
-            context?: Response;
-          }
-        ).context;
-
-        setErrorMessage(
-          getFriendlyAiError(
-            context?.status,
-          ),
-        );
-
-        return;
+      if (
+        textareaRef.current
+      ) {
+        textareaRef.current.style.height =
+          "58px";
       }
 
-      const responseData =
-        data as {
-          response?: unknown;
-          answer?: unknown;
-        } | null;
-
-      const response =
-        typeof responseData?.response ===
-        "string"
-          ? responseData.response
-          : typeof responseData?.answer ===
-              "string"
-            ? responseData.answer
-            : "";
-
-      if (!response.trim()) {
-        setErrorMessage(
-          "A DecidlyAI não retornou uma resposta. Tente novamente.",
-        );
-
-        return;
-      }
-
-      setMessages((current) => [
-        ...current,
+      const userMessage: ChatMessage =
         {
-          role: "assistant",
-          content: response,
-        },
-      ]);
+          role: "user",
+          content: text,
+        };
 
-      if (messages.length === 0) {
-        void saveConversationTitle(text);
-      }
-    } catch {
-      setErrorMessage(
-        "Não consegui conectar à DecidlyAI agora. Tente novamente em instantes.",
+      const nextMessages = [
+        ...messages,
+        userMessage,
+      ];
+
+      setMessages(
+        nextMessages,
       );
-    } finally {
-      setIsLoading(false);
 
-      requestAnimationFrame(() => {
-        textareaRef.current?.focus();
+      setIsLoading(true);
 
-        const chat = chatRef.current;
+      try {
+        const user =
+          await getAuthenticatedUser();
 
-        if (chat) {
-          chat.scrollTop =
-            chat.scrollHeight;
+        if (!user) {
+          setErrorMessage(
+            "Sua sessão expirou. Recarregue a página e tente novamente.",
+          );
+
+          return;
         }
-      });
-    }
-  };
+
+        setUserId(user.id);
+
+        const functionName =
+          await getAiFunction(
+            user.id,
+          );
+
+        const history =
+          nextMessages
+            .slice(-12)
+            .map(
+              (message) => ({
+                role:
+                  message.role,
+                content:
+                  message.content,
+              }),
+            );
+
+        const {
+          data,
+          error,
+        } =
+          await supabase.functions.invoke(
+            functionName,
+            {
+              body: {
+                message: text,
+                history,
+              },
+            },
+          );
+
+        if (error) {
+          const context =
+            (
+              error as {
+                context?: Response;
+              }
+            ).context;
+
+          setErrorMessage(
+            getFriendlyAiError(
+              context?.status,
+            ),
+          );
+
+          return;
+        }
+
+        const responseData =
+          data as {
+            response?: unknown;
+            answer?: unknown;
+          } | null;
+
+        const response =
+          typeof responseData?.response ===
+          "string"
+            ? responseData.response
+            : typeof responseData?.answer ===
+                "string"
+              ? responseData.answer
+              : "";
+
+        if (
+          !response.trim()
+        ) {
+          setErrorMessage(
+            "A DecidlyAI não retornou uma resposta. Tente novamente.",
+          );
+
+          return;
+        }
+
+        setMessages(
+          (current) => [
+            ...current,
+            {
+              role: "assistant",
+              content:
+                response,
+            },
+          ],
+        );
+
+        if (
+          messages.length === 0
+        ) {
+          void saveConversationTitle(
+            text,
+          );
+        }
+      } catch {
+        setErrorMessage(
+          "Não consegui conectar à DecidlyAI agora. Tente novamente em instantes.",
+        );
+      } finally {
+        setIsLoading(false);
+
+        requestAnimationFrame(() => {
+          textareaRef.current?.focus();
+
+          const chat =
+            chatRef.current;
+
+          if (chat) {
+            chat.scrollTop =
+              chat.scrollHeight;
+          }
+        });
+      }
+    };
 
   const handleSubmit = (
     event: FormEvent,
   ) => {
     event.preventDefault();
+
     void sendMessage();
   };
 
@@ -687,57 +825,75 @@ function Workspace() {
    * ============================================================
    */
 
-  const resizeTextarea = (
-    element: HTMLTextAreaElement,
-  ) => {
-    element.style.height = "0px";
+  const resizeTextarea =
+    (
+      element: HTMLTextAreaElement,
+    ) => {
+      element.style.height =
+        "0px";
 
-    const nextHeight = Math.min(
-      Math.max(
-        element.scrollHeight,
-        58,
-      ),
-      140,
-    );
+      const nextHeight =
+        Math.min(
+          Math.max(
+            element.scrollHeight,
+            58,
+          ),
+          140,
+        );
 
-    element.style.height =
-      `${nextHeight}px`;
-  };
+      element.style.height =
+        `${nextHeight}px`;
+    };
 
   const handleInput = (
     value: string,
     element: HTMLTextAreaElement,
   ) => {
     setInput(value);
-    resizeTextarea(element);
+
+    resizeTextarea(
+      element,
+    );
   };
 
-  const handleTextareaKeyDown = (
-    event: KeyboardEvent<HTMLTextAreaElement>,
-  ) => {
-    if (
-      event.key === "Enter" &&
-      (event.ctrlKey || event.metaKey)
-    ) {
-      event.preventDefault();
-      void sendMessage();
-    }
-  };
+  const handleTextareaKeyDown =
+    (
+      event: KeyboardEvent<HTMLTextAreaElement>,
+    ) => {
+      if (
+        event.key === "Enter" &&
+        (event.ctrlKey ||
+          event.metaKey)
+      ) {
+        event.preventDefault();
 
-  const handleTextareaFocus = () => {
-    requestAnimationFrame(() => {
-      textareaRef.current?.scrollIntoView({
-        block: "nearest",
-      });
-
-      const chat = chatRef.current;
-
-      if (chat) {
-        chat.scrollTop =
-          chat.scrollHeight;
+        void sendMessage();
       }
-    });
-  };
+    };
+
+  /*
+   * Quando o usuário toca no textbox,
+   * garantimos que ele fique visível.
+   */
+  const handleTextareaFocus =
+    () => {
+      setTimeout(() => {
+        textareaRef.current?.scrollIntoView(
+          {
+            block: "nearest",
+            inline: "nearest",
+          },
+        );
+
+        const chat =
+          chatRef.current;
+
+        if (chat) {
+          chat.scrollTop =
+            chat.scrollHeight;
+        }
+      }, 50);
+    };
 
   const filteredConversations =
     conversations.filter(
@@ -751,7 +907,7 @@ function Workspace() {
 
   /*
    * ============================================================
-   * UI
+   * RENDER
    * ============================================================
    */
 
@@ -759,8 +915,7 @@ function Workspace() {
     <AppShell>
       <div className="relative min-h-[100dvh] overflow-hidden bg-[#0d0912] text-white">
         {/* ======================================================
-            SIDEBAR
-            FICA FORA DO FLUXO DO CHAT
+            SIDEBAR FIXO
             ====================================================== */}
 
         <aside
@@ -781,12 +936,15 @@ function Workspace() {
           style={{
             transform:
               "translate3d(-100%,0,0)",
-            willChange: "transform",
+            willChange:
+              "transform",
           }}
         >
           <div
             className="flex shrink-0 items-center justify-between px-4 py-4"
-            onPointerDown={(event) =>
+            onPointerDown={(
+              event,
+            ) =>
               event.stopPropagation()
             }
           >
@@ -808,7 +966,9 @@ function Workspace() {
             <button
               type="button"
               onClick={() =>
-                settleSidebar(false)
+                settleSidebar(
+                  false,
+                )
               }
               className="flex h-9 w-9 items-center justify-center rounded-xl text-white/45 transition hover:bg-white/[0.05] hover:text-white"
               aria-label="Fechar menu"
@@ -819,7 +979,9 @@ function Workspace() {
 
           <div
             className="px-3"
-            onPointerDown={(event) =>
+            onPointerDown={(
+              event,
+            ) =>
               event.stopPropagation()
             }
           >
@@ -837,7 +999,9 @@ function Workspace() {
 
           <div
             className="px-3 pt-4"
-            onPointerDown={(event) =>
+            onPointerDown={(
+              event,
+            ) =>
               event.stopPropagation()
             }
           >
@@ -849,9 +1013,12 @@ function Workspace() {
 
               <input
                 value={search}
-                onChange={(event) =>
+                onChange={(
+                  event,
+                ) =>
                   setSearch(
-                    event.target.value,
+                    event.target
+                      .value,
                   )
                 }
                 placeholder="Buscar decisões..."
@@ -862,7 +1029,9 @@ function Workspace() {
 
           <div
             className="min-h-0 flex-1 overflow-y-auto px-3 py-5"
-            onPointerDown={(event) =>
+            onPointerDown={(
+              event,
+            ) =>
               event.stopPropagation()
             }
           >
@@ -878,13 +1047,19 @@ function Workspace() {
             ) : (
               <div className="space-y-1">
                 {filteredConversations.map(
-                  (conversation) => (
+                  (
+                    conversation,
+                  ) => (
                     <div
-                      key={conversation.id}
+                      key={
+                        conversation.id
+                      }
                       className="rounded-xl px-3 py-3 text-sm text-white/55 transition hover:bg-white/[0.035] hover:text-white/80"
                     >
                       <p className="line-clamp-2 leading-5">
-                        {conversation.title}
+                        {
+                          conversation.title
+                        }
                       </p>
                     </div>
                   ),
@@ -894,12 +1069,17 @@ function Workspace() {
           </div>
         </aside>
 
-        {/* Backdrop fica atrás do sidebar */}
+        {/* ======================================================
+            BACKDROP
+            ====================================================== */}
+
         <button
           type="button"
           aria-label="Fechar menu"
           onClick={() =>
-            settleSidebar(false)
+            settleSidebar(
+              false,
+            )
           }
           className={`fixed inset-0 z-[90] bg-black/45 backdrop-blur-[1px] transition-opacity duration-200 ${
             sidebarOpen
@@ -920,7 +1100,9 @@ function Workspace() {
               <button
                 type="button"
                 onClick={() =>
-                  settleSidebar(true)
+                  settleSidebar(
+                    true,
+                  )
                 }
                 className="flex h-10 w-10 items-center justify-center rounded-xl text-white/65 transition hover:bg-white/[0.05] hover:text-white"
                 aria-label="Abrir menu"
@@ -944,15 +1126,21 @@ function Workspace() {
 
           {/* ====================================================
               CHAT
+
+              NÃO TEM PB-[180px]
+              NÃO TEM RODAPÉ ARTIFICIAL
               ==================================================== */}
 
           <section
             ref={chatRef}
-            className="h-[100dvh] overflow-y-auto overscroll-contain px-4 pt-24 pb-[180px]"
+            className="h-[100dvh] overflow-y-auto overscroll-contain px-4 pt-24 pb-28"
           >
             <div className="mx-auto w-full max-w-3xl">
-              {messages.length === 0 && (
-                <div className="flex min-h-[calc(100dvh-300px)] flex-col items-center justify-center px-4 pb-8 text-center">
+              {/* WELCOME */}
+
+              {messages.length ===
+                0 && (
+                <div className="flex min-h-[calc(100dvh-260px)] flex-col items-center justify-center px-4 pb-8 text-center">
                   <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#191020] shadow-[0_0_50px_rgba(139,92,246,0.08)]">
                     <img
                       src="/appicon.png"
@@ -962,24 +1150,32 @@ function Workspace() {
                   </div>
 
                   <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                    O que você está decidindo?
+                    O que você está
+                    decidindo?
                   </h1>
 
                   <p className="mt-3 max-w-md text-sm leading-6 text-white/35">
-                    Explique a situação, as
-                    opções que você tem e o que
-                    está te deixando em dúvida.
+                    Explique a situação,
+                    as opções que você
+                    tem e o que está te
+                    deixando em dúvida.
                   </p>
                 </div>
               )}
 
+              {/* MENSAGENS */}
+
               <div className="space-y-4">
                 {messages.map(
-                  (message, index) => (
+                  (
+                    message,
+                    index,
+                  ) => (
                     <div
                       key={`${message.role}-${index}`}
                       className={`flex ${
-                        message.role === "user"
+                        message.role ===
+                        "user"
                           ? "justify-end"
                           : "justify-start"
                       }`}
@@ -987,7 +1183,9 @@ function Workspace() {
                       {message.role ===
                       "user" ? (
                         <div className="max-w-[85%] rounded-[20px] bg-purple-600/90 px-4 py-3 text-sm leading-6 text-white shadow-lg shadow-purple-950/20">
-                          {message.content}
+                          {
+                            message.content
+                          }
                         </div>
                       ) : (
                         <div className="max-w-[90%] rounded-[20px] bg-white/[0.045] px-4 py-3 text-sm leading-6 text-white/85">
@@ -1008,7 +1206,9 @@ function Workspace() {
                   ),
                 )}
 
-                {/* MANTIDO: DecidlyAI está pensando... */}
+                {/* ==================================================
+                    LOADING
+                    ================================================== */}
 
                 {isLoading && (
                   <div className="flex justify-start">
@@ -1020,12 +1220,15 @@ function Workspace() {
                         />
 
                         <span className="text-xs text-white/45">
-                          DecidlyAI está pensando...
+                          DecidlyAI está
+                          pensando...
                         </span>
 
                         <div className="ml-1 flex gap-1">
                           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/40" />
+
                           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/40 [animation-delay:150ms]" />
+
                           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/40 [animation-delay:300ms]" />
                         </div>
                       </div>
@@ -1035,7 +1238,9 @@ function Workspace() {
 
                 {errorMessage && (
                   <div className="mx-auto max-w-lg rounded-2xl bg-red-500/[0.07] px-4 py-3 text-center text-xs leading-5 text-red-200/75">
-                    {errorMessage}
+                    {
+                      errorMessage
+                    }
                   </div>
                 )}
               </div>
@@ -1045,17 +1250,25 @@ function Workspace() {
           {/* ====================================================
               COMPOSER
 
+              AQUI ESTÁ A CORREÇÃO PRINCIPAL.
+
+              O composer não usa bottom para acompanhar
+              o teclado.
+
+              Ele fica em bottom: 0 e é levantado pelo
+              translate3d.
+
               SEM BORDA.
-              SEM BORDA AZUL.
-              SEM OUTLINE.
               ==================================================== */}
 
           <div
-            className="fixed inset-x-0 z-50 px-3 sm:px-4"
+            className="fixed inset-x-0 bottom-0 z-50 px-3 sm:px-4"
             style={{
-              bottom: keyboardOffset,
+              transform: `translate3d(0, -${keyboardOffset}px, 0)`,
+              willChange:
+                "transform",
               paddingBottom:
-                "calc(env(safe-area-inset-bottom) + 10px)",
+                "10px",
             }}
           >
             <form
@@ -1067,9 +1280,12 @@ function Workspace() {
                   <textarea
                     ref={textareaRef}
                     value={input}
-                    onChange={(event) =>
+                    onChange={(
+                      event,
+                    ) =>
                       handleInput(
-                        event.target.value,
+                        event.target
+                          .value,
                         event.target,
                       )
                     }
@@ -1079,18 +1295,21 @@ function Workspace() {
                     onFocus={
                       handleTextareaFocus
                     }
-                    disabled={isLoading}
+                    disabled={
+                      isLoading
+                    }
                     rows={1}
-                    /*
-                     * MANTIDO: use aqui exatamente o
-                     * placeholder completo que você já tinha.
-                     */
                     placeholder="Escreva sua decisão..."
                     className="block min-h-[58px] max-h-[140px] flex-1 resize-none overflow-y-auto bg-transparent px-3 py-4 text-[15px] leading-6 text-white caret-purple-300 placeholder:text-white/25 disabled:cursor-not-allowed disabled:opacity-50"
                     style={{
-                      border: "0",
-                      outline: "0",
-                      boxShadow: "none",
+                      border:
+                        "none",
+                      outline:
+                        "none",
+                      boxShadow:
+                        "none",
+                      WebkitAppearance:
+                        "none",
                     }}
                   />
 
@@ -1111,10 +1330,12 @@ function Workspace() {
                 </div>
               </div>
 
-              {/* MANTIDO: aviso da IA */}
+              {/* AVISO ORIGINAL */}
+
               <p className="mt-2 text-center text-[10px] text-white/20">
-                A DecidlyAI pode cometer erros.
-                Verifique informações importantes.
+                A DecidlyAI pode cometer
+                erros. Verifique informações
+                importantes.
               </p>
             </form>
           </div>
