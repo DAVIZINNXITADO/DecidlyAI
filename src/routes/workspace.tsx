@@ -19,6 +19,8 @@ import {
   ThumbsDown,
   Copy,
   Check,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -111,11 +113,13 @@ function Workspace() {
   const [errorMessage, setErrorMessage] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
+
+  /* MICROFONE */
   const [isListening, setIsListening] = useState(false);
 
-  const [likedMessages, setLikedMessages] = useState<
-    Record<string, boolean>
-  >({});
+  /* AÇÕES */
+  const [likedMessages, setLikedMessages] =
+    useState<Record<string, boolean>>({});
 
   const [dislikedMessages, setDislikedMessages] =
     useState<Record<string, boolean>>({});
@@ -123,8 +127,16 @@ function Workspace() {
   const [copiedMessageId, setCopiedMessageId] =
     useState<string | null>(null);
 
+  /* LEITOR */
+  const [readingMessageId, setReadingMessageId] =
+    useState<string | null>(null);
+
+  const [readingCharIndex, setReadingCharIndex] =
+    useState(-1);
+
   const sidebarRef = useRef<HTMLDivElement | null>(null);
   const chatRef = useRef<HTMLDivElement | null>(null);
+
   const textareaRef =
     useRef<HTMLTextAreaElement | null>(null);
 
@@ -133,7 +145,10 @@ function Workspace() {
 
   const lastTranscriptRef = useRef("");
 
-  const dragState = useRef<{
+  const speechRef =
+    useRef<SpeechSynthesisUtterance | null>(null);
+
+  const sidebarDragRef = useRef<{
     active: boolean;
     startX: number;
     startProgress: number;
@@ -142,6 +157,193 @@ function Workspace() {
     startX: 0,
     startProgress: 0,
   });
+
+  /*
+   * =========================================================
+   * SIDEBAR
+   * =========================================================
+   */
+
+  const paintSidebar = useCallback(
+    (progress: number) => {
+      const next = Math.min(
+        1,
+        Math.max(0, progress),
+      );
+
+      setSidebarProgress(next);
+
+      if (sidebarRef.current) {
+        sidebarRef.current.style.transform =
+          `translate3d(${
+            -100 + next * 100
+          }%, 0, 0)`;
+      }
+    },
+    [],
+  );
+
+  const openSidebar = () => {
+    setSidebarOpen(true);
+    paintSidebar(1);
+  };
+
+  const closeSidebar = () => {
+    setSidebarOpen(false);
+    paintSidebar(0);
+  };
+
+  const startSidebarDrag = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    /*
+     * Só começa o arrastar quando o toque
+     * estiver na região lateral da sidebar.
+     *
+     * Isso evita que clicar em conversa,
+     * pesquisar ou nova conversa arraste tudo.
+     */
+    const rect =
+      event.currentTarget.getBoundingClientRect();
+
+    const localX =
+      event.clientX - rect.left;
+
+    const isEdge =
+      localX >= rect.width - 28;
+
+    if (!isEdge) return;
+
+    sidebarDragRef.current = {
+      active: true,
+      startX: event.clientX,
+      startProgress: sidebarProgress,
+    };
+
+    event.currentTarget.setPointerCapture(
+      event.pointerId,
+    );
+  };
+
+  const moveSidebarDrag = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    if (!sidebarDragRef.current.active) {
+      return;
+    }
+
+    const delta =
+      event.clientX -
+      sidebarDragRef.current.startX;
+
+    const progress =
+      sidebarDragRef.current.startProgress +
+      delta / SIDEBAR_MAX_WIDTH;
+
+    paintSidebar(progress);
+  };
+
+  const endSidebarDrag = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    if (!sidebarDragRef.current.active) {
+      return;
+    }
+
+    sidebarDragRef.current.active = false;
+
+    try {
+      event.currentTarget.releasePointerCapture(
+        event.pointerId,
+      );
+    } catch {
+      // noop
+    }
+
+    const finalProgress =
+      sidebarProgress;
+
+    if (finalProgress > 0.5) {
+      openSidebar();
+    } else {
+      closeSidebar();
+    }
+  };
+
+  /*
+   * =========================================================
+   * EDGE SWIPE PARA ABRIR
+   * =========================================================
+   */
+
+  const edgeDragRef = useRef<{
+    active: boolean;
+    startX: number;
+  }>({
+    active: false,
+    startX: 0,
+  });
+
+  const handleEdgePointerDown = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    if (sidebarOpen) return;
+
+    edgeDragRef.current = {
+      active: true,
+      startX: event.clientX,
+    };
+
+    event.currentTarget.setPointerCapture(
+      event.pointerId,
+    );
+  };
+
+  const handleEdgePointerMove = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    if (!edgeDragRef.current.active) {
+      return;
+    }
+
+    const delta =
+      event.clientX -
+      edgeDragRef.current.startX;
+
+    if (delta <= 0) return;
+
+    const progress =
+      Math.min(
+        1,
+        delta / SIDEBAR_MAX_WIDTH,
+      );
+
+    paintSidebar(progress);
+  };
+
+  const handleEdgePointerUp = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    if (!edgeDragRef.current.active) {
+      return;
+    }
+
+    edgeDragRef.current.active = false;
+
+    try {
+      event.currentTarget.releasePointerCapture(
+        event.pointerId,
+      );
+    } catch {
+      // noop
+    }
+
+    if (sidebarProgress >= 0.35) {
+      openSidebar();
+    } else {
+      closeSidebar();
+    }
+  };
 
   /*
    * =========================================================
@@ -164,14 +366,17 @@ function Workspace() {
         ),
       );
 
-      setKeyboardOffset(keyboardHeight);
+      setKeyboardOffset(
+        keyboardHeight,
+      );
 
       if (keyboardHeight > 0) {
         requestAnimationFrame(() => {
           const chat = chatRef.current;
 
           if (chat) {
-            chat.scrollTop = chat.scrollHeight;
+            chat.scrollTop =
+              chat.scrollHeight;
           }
         });
       }
@@ -213,7 +418,8 @@ function Workspace() {
       const chat = chatRef.current;
 
       if (chat) {
-        chat.scrollTop = chat.scrollHeight;
+        chat.scrollTop =
+          chat.scrollHeight;
       }
     });
   }, [messages, isLoading]);
@@ -252,137 +458,43 @@ function Workspace() {
    * =========================================================
    */
 
-  const loadConversations = useCallback(
-    async (currentUserId: string) => {
-      const { data } = await supabase
-        .from("conversations")
-        .select(
-          "id,title,created_at,updated_at",
-        )
-        .eq("user_id", currentUserId)
-        .order("updated_at", {
-          ascending: false,
-        })
-        .limit(30);
+  const loadConversations =
+    useCallback(
+      async (currentUserId: string) => {
+        const { data } =
+          await supabase
+            .from("conversations")
+            .select(
+              "id,title,created_at,updated_at",
+            )
+            .eq(
+              "user_id",
+              currentUserId,
+            )
+            .order("updated_at", {
+              ascending: false,
+            })
+            .limit(30);
 
-      if (data) {
-        setConversations(data);
-      }
-    },
-    [],
-  );
+        if (data) {
+          setConversations(data);
+        }
+      },
+      [],
+    );
 
   useEffect(() => {
     if (!userId) return;
 
     loadConversations(userId);
-  }, [userId, loadConversations]);
+  }, [
+    userId,
+    loadConversations,
+  ]);
 
   /*
    * =========================================================
-   * SIDEBAR
-   * =========================================================
-   */
-
-  const paintSidebar = useCallback(
-    (progress: number) => {
-      const next = Math.min(
-        1,
-        Math.max(0, progress),
-      );
-
-      setSidebarProgress(next);
-
-      if (sidebarRef.current) {
-        sidebarRef.current.style.transform =
-          `translate3d(${
-            -100 + next * 100
-          }%, 0, 0)`;
-      }
-    },
-    [],
-  );
-
-  const settleSidebar = useCallback(
-    (progress: number) => {
-      const next =
-        progress >= 0.5 ? 1 : 0;
-
-      setSidebarProgress(next);
-
-      if (sidebarRef.current) {
-        sidebarRef.current.style.transition =
-          "transform 220ms cubic-bezier(.22,.61,.36,1)";
-
-        sidebarRef.current.style.transform =
-          `translate3d(${
-            -100 + next * 100
-          }%, 0, 0)`;
-
-        window.setTimeout(() => {
-          if (sidebarRef.current) {
-            sidebarRef.current.style.transition =
-              "";
-          }
-        }, 230);
-      }
-
-      setSidebarOpen(next === 1);
-    },
-    [],
-  );
-
-  const startSidebarDrag = (
-    event: ReactPointerEvent<HTMLDivElement>,
-  ) => {
-    dragState.current = {
-      active: true,
-      startX: event.clientX,
-      startProgress: sidebarProgress,
-    };
-
-    event.currentTarget.setPointerCapture(
-      event.pointerId,
-    );
-  };
-
-  const moveSidebarDrag = (
-    event: ReactPointerEvent<HTMLDivElement>,
-  ) => {
-    if (!dragState.current.active) return;
-
-    const delta =
-      event.clientX -
-      dragState.current.startX;
-
-    const progress =
-      dragState.current.startProgress +
-      delta / SIDEBAR_MAX_WIDTH;
-
-    paintSidebar(progress);
-  };
-
-  const endSidebarDrag = (
-    event: ReactPointerEvent<HTMLDivElement>,
-  ) => {
-    if (!dragState.current.active) return;
-
-    dragState.current.active = false;
-
-    try {
-      event.currentTarget.releasePointerCapture(
-        event.pointerId,
-      );
-    } catch {
-      // noop
-    }
-
-    settleSidebar(sidebarProgress);
-  };
-
-  /*
-   * =========================================================
-   * NEW CONVERSATION
+   * NOVA CONVERSA
    * =========================================================
    */
 
@@ -390,9 +502,13 @@ function Workspace() {
     setMessages([]);
     setInput("");
     setErrorMessage("");
-    setSidebarOpen(false);
-    setSidebarProgress(0);
 
+    closeSidebar();
+
+    /*
+     * Aqui o foco continua porque foi
+     * uma ação direta do usuário.
+     */
     requestAnimationFrame(() => {
       textareaRef.current?.focus();
     });
@@ -404,28 +520,32 @@ function Workspace() {
    * =========================================================
    */
 
-  const saveConversationTitle = async (
-    currentUserId: string,
-    text: string,
-  ) => {
-    const title =
-      text.trim().length > 60
-        ? `${text.trim().slice(0, 60)}...`
-        : text.trim();
+  const saveConversationTitle =
+    async (
+      currentUserId: string,
+      text: string,
+    ) => {
+      const title =
+        text.trim().length > 60
+          ? `${text.trim().slice(
+              0,
+              60,
+            )}...`
+          : text.trim();
 
-    if (!title) return;
+      if (!title) return;
 
-    await supabase
-      .from("conversations")
-      .insert({
-        user_id: currentUserId,
-        title,
-      });
+      await supabase
+        .from("conversations")
+        .insert({
+          user_id: currentUserId,
+          title,
+        });
 
-    await loadConversations(
-      currentUserId,
-    );
-  };
+      await loadConversations(
+        currentUserId,
+      );
+    };
 
   /*
    * =========================================================
@@ -436,17 +556,24 @@ function Workspace() {
   const getAIModel = async (
     currentUserId: string,
   ) => {
-    const { data } = await supabase
-      .from("subscription")
-      .select(
-        "id,user_id,plan,status,current_period_end",
-      )
-      .eq("user_id", currentUserId)
-      .order("current_period_end", {
-        ascending: false,
-      })
-      .limit(1)
-      .maybeSingle<Subscription>();
+    const { data } =
+      await supabase
+        .from("subscription")
+        .select(
+          "id,user_id,plan,status,current_period_end",
+        )
+        .eq(
+          "user_id",
+          currentUserId,
+        )
+        .order(
+          "current_period_end",
+          {
+            ascending: false,
+          },
+        )
+        .limit(1)
+        .maybeSingle<Subscription>();
 
     if (!data) {
       return "decidly-ai-free";
@@ -464,9 +591,13 @@ function Workspace() {
     const isVip =
       data.plan === "vip" ||
       data.plan === "VIP" ||
-      data.plan === "decidly-ai-vip";
+      data.plan ===
+        "decidly-ai-vip";
 
-    if (isActive && isVip) {
+    if (
+      isActive &&
+      isVip
+    ) {
       return "decidly-ai";
     }
 
@@ -476,7 +607,9 @@ function Workspace() {
   const sendMessage = async () => {
     const text = input.trim();
 
-    if (!text || isLoading) return;
+    if (!text || isLoading) {
+      return;
+    }
 
     if (!userId) {
       setErrorMessage(
@@ -499,11 +632,12 @@ function Workspace() {
     setInput("");
     setIsLoading(true);
 
-    const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: text,
-    };
+    const userMessage: ChatMessage =
+      {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: text,
+      };
 
     setMessages((current) => [
       ...current,
@@ -525,15 +659,16 @@ function Workspace() {
       const {
         data,
         error,
-      } = await supabase.functions.invoke(
-        model,
-        {
-          body: {
-            message: text,
-            history,
+      } =
+        await supabase.functions.invoke(
+          model,
+          {
+            body: {
+              message: text,
+              history,
+            },
           },
-        },
-      );
+        );
 
       if (error) {
         const status =
@@ -581,7 +716,8 @@ function Workspace() {
         data?.content;
 
       if (
-        typeof answer !== "string" ||
+        typeof answer !==
+          "string" ||
         !answer.trim()
       ) {
         throw new Error(
@@ -589,11 +725,12 @@ function Workspace() {
         );
       }
 
-      const assistantMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: answer,
-      };
+      const assistantMessage:
+        ChatMessage = {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: answer,
+        };
 
       setMessages((current) => [
         ...current,
@@ -614,8 +751,11 @@ function Workspace() {
       );
     } finally {
       /*
-       * Não focamos novamente no textarea.
-       * Assim o teclado não abre sozinho.
+       * IMPORTANTE:
+       * não fazemos focus aqui.
+       *
+       * Isso evita o teclado abrir
+       * sozinho quando a IA responde.
        */
       setIsLoading(false);
     }
@@ -627,81 +767,91 @@ function Workspace() {
    * =========================================================
    */
 
-  const resizeTextarea = useCallback(() => {
-    const textarea =
-      textareaRef.current;
+  const resizeTextarea =
+    useCallback(() => {
+      const textarea =
+        textareaRef.current;
 
-    if (!textarea) return;
+      if (!textarea) return;
 
-    textarea.style.height = "auto";
+      textarea.style.height =
+        "auto";
 
-    const nextHeight = Math.min(
-      Math.max(
-        textarea.scrollHeight,
-        58,
-      ),
-      140,
-    );
+      const nextHeight =
+        Math.min(
+          Math.max(
+            textarea.scrollHeight,
+            58,
+          ),
+          140,
+        );
 
-    textarea.style.height =
-      `${nextHeight}px`;
-  }, []);
+      textarea.style.height =
+        `${nextHeight}px`;
+    }, []);
 
   useEffect(() => {
     resizeTextarea();
-  }, [input, resizeTextarea]);
+  }, [
+    input,
+    resizeTextarea,
+  ]);
 
-  const handleTextareaKeyDown = (
-    event: React.KeyboardEvent<HTMLTextAreaElement>,
-  ) => {
-    if (
-      event.key === "Enter" &&
-      (event.ctrlKey ||
-        event.metaKey)
-    ) {
-      event.preventDefault();
-      sendMessage();
-    }
-  };
-
-  const handleTextareaFocus = () => {
-    setTimeout(() => {
-      textareaRef.current?.scrollIntoView(
-        {
-          behavior: "smooth",
-          block: "center",
-        },
-      );
-
-      const chat = chatRef.current;
-
-      if (chat) {
-        chat.scrollTop =
-          chat.scrollHeight;
+  const handleTextareaKeyDown =
+    (
+      event: React.KeyboardEvent<HTMLTextAreaElement>,
+    ) => {
+      if (
+        event.key === "Enter" &&
+        (event.ctrlKey ||
+          event.metaKey)
+      ) {
+        event.preventDefault();
+        sendMessage();
       }
-    }, 100);
-  };
+    };
+
+  const handleTextareaFocus =
+    () => {
+      setTimeout(() => {
+        textareaRef.current?.scrollIntoView(
+          {
+            behavior: "smooth",
+            block: "center",
+          },
+        );
+
+        const chat =
+          chatRef.current;
+
+        if (chat) {
+          chat.scrollTop =
+            chat.scrollHeight;
+        }
+      }, 100);
+    };
 
   /*
    * =========================================================
-   * MICROPHONE
+   * MICROFONE
    * =========================================================
    */
 
-  const stopListening = useCallback(() => {
-    const recognition =
-      recognitionRef.current;
+  const stopListening =
+    useCallback(() => {
+      const recognition =
+        recognitionRef.current;
 
-    if (recognition) {
-      try {
-        recognition.stop();
-      } catch {
-        // noop
+      if (recognition) {
+        try {
+          recognition.stop();
+        } catch {
+          // noop
+        }
       }
-    }
 
-    setIsListening(false);
-  }, []);
+      setIsListening(false);
+    }, []);
 
   const startListening =
     useCallback(() => {
@@ -725,11 +875,8 @@ function Workspace() {
 
       setErrorMessage("");
 
-      /*
-       * Zera o último resultado antes de
-       * iniciar uma nova gravação.
-       */
-      lastTranscriptRef.current = "";
+      lastTranscriptRef.current =
+        "";
 
       const recognition =
         new SpeechRecognition();
@@ -738,165 +885,158 @@ function Workspace() {
         navigator.language ||
         "pt-BR";
 
-      /*
-       * Uma gravação por vez.
-       */
-      recognition.continuous = false;
-      recognition.interimResults = false;
+      recognition.continuous =
+        false;
+
+      recognition.interimResults =
+        false;
 
       recognition.onstart = () => {
         setIsListening(true);
       };
 
-      recognition.onresult = (
-        event,
-      ) => {
-        const index =
-          event.resultIndex;
+      recognition.onresult =
+        (event) => {
+          const index =
+            event.resultIndex;
 
-        const result =
-          event.results[index];
-
-        if (!result || !result.isFinal) {
-          return;
-        }
-
-        const transcript =
-          result[0]?.transcript
-            ?.trim();
-
-        if (!transcript) return;
-
-        /*
-         * Evita o navegador mandar
-         * exatamente o mesmo resultado
-         * duas ou mais vezes.
-         */
-        const normalizedTranscript =
-          transcript
-            .replace(/\s+/g, " ")
-            .trim()
-            .toLowerCase();
-
-        if (
-          lastTranscriptRef.current ===
-          normalizedTranscript
-        ) {
-          return;
-        }
-
-        lastTranscriptRef.current =
-          normalizedTranscript;
-
-        setInput((current) => {
-          const existing =
-            current
-              .replace(/\s+/g, " ")
-              .trim();
-
-          if (!existing) {
-            return transcript;
-          }
-
-          /*
-           * Proteção contra:
-           *
-           * Oi
-           * Oi
-           * Oi
-           * Oi
-           *
-           * virar:
-           * Oi Oi Oi Oi
-           */
-
-          const existingWords =
-            existing.split(" ");
-
-          const transcriptWords =
-            transcript.split(" ");
-
-          const lastWords =
-            existingWords.slice(
-              -transcriptWords.length,
-            );
+          const result =
+            event.results[index];
 
           if (
-            lastWords.length ===
-              transcriptWords.length &&
-            lastWords.join(" ")
-              .toLowerCase() ===
-              transcriptWords
-                .join(" ")
-                .toLowerCase()
+            !result ||
+            !result.isFinal
           ) {
-            return current;
+            return;
           }
 
-          return `${existing} ${transcript}`;
-        });
-      };
+          const transcript =
+            result[0]?.transcript
+              ?.trim();
 
-      recognition.onerror = (
-        event,
-      ) => {
-        setIsListening(false);
+          if (!transcript) return;
 
-        if (
-          event.error ===
-          "not-allowed"
-        ) {
+          const normalized =
+            transcript
+              .replace(
+                /\s+/g,
+                " ",
+              )
+              .trim()
+              .toLowerCase();
+
+          /*
+           * Evita o mesmo resultado
+           * várias vezes.
+           */
+          if (
+            lastTranscriptRef.current ===
+            normalized
+          ) {
+            return;
+          }
+
+          lastTranscriptRef.current =
+            normalized;
+
+          setInput((current) => {
+            const existing =
+              current
+                .replace(
+                  /\s+/g,
+                  " ",
+                )
+                .trim();
+
+            if (!existing) {
+              return transcript;
+            }
+
+            const existingWords =
+              existing.split(" ");
+
+            const transcriptWords =
+              transcript.split(" ");
+
+            const lastWords =
+              existingWords.slice(
+                -transcriptWords.length,
+              );
+
+            /*
+             * Protege contra:
+             * Oi Oi Oi Oi
+             */
+            if (
+              lastWords.length ===
+                transcriptWords.length &&
+              lastWords
+                .join(" ")
+                .toLowerCase() ===
+                transcriptWords
+                  .join(" ")
+                  .toLowerCase()
+            ) {
+              return current;
+            }
+
+            return `${existing} ${transcript}`;
+          });
+        };
+
+      recognition.onerror =
+        (event) => {
+          setIsListening(false);
+
+          if (
+            event.error ===
+            "not-allowed"
+          ) {
+            setErrorMessage(
+              "Permissão do microfone bloqueada. Permita o acesso ao microfone no navegador.",
+            );
+            return;
+          }
+
+          if (
+            event.error ===
+            "no-speech"
+          ) {
+            setErrorMessage(
+              "Não consegui ouvir sua voz. Tente falar novamente.",
+            );
+            return;
+          }
+
+          if (
+            event.error ===
+            "audio-capture"
+          ) {
+            setErrorMessage(
+              "Não foi possível acessar o microfone.",
+            );
+            return;
+          }
+
           setErrorMessage(
-            "Permissão do microfone bloqueada. Permita o acesso ao microfone no navegador.",
+            "Não foi possível usar o microfone agora.",
           );
-          return;
-        }
+        };
 
-        if (
-          event.error ===
-          "no-speech"
-        ) {
-          setErrorMessage(
-            "Não consegui ouvir sua voz. Tente falar novamente.",
+      recognition.onend =
+        () => {
+          setIsListening(false);
+
+          recognitionRef.current =
+            null;
+
+          requestAnimationFrame(
+            () => {
+              textareaRef.current?.focus();
+              resizeTextarea();
+            },
           );
-          return;
-        }
-
-        if (
-          event.error ===
-          "audio-capture"
-        ) {
-          setErrorMessage(
-            "Não foi possível acessar o microfone.",
-          );
-          return;
-        }
-
-        if (
-          event.error ===
-          "network"
-        ) {
-          setErrorMessage(
-            "O reconhecimento de voz precisa de conexão com a internet.",
-          );
-          return;
-        }
-
-        setErrorMessage(
-          "Não foi possível usar o microfone agora.",
-        );
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-        recognitionRef.current =
-          null;
-
-        requestAnimationFrame(() => {
-          textareaRef.current?.focus();
-          resizeTextarea();
-        });
-      };
+        };
 
       recognitionRef.current =
         recognition;
@@ -922,7 +1062,9 @@ function Workspace() {
 
   useEffect(() => {
     return () => {
-      if (recognitionRef.current) {
+      if (
+        recognitionRef.current
+      ) {
         try {
           recognitionRef.current.abort();
         } catch {
@@ -937,6 +1079,223 @@ function Workspace() {
 
   /*
    * =========================================================
+   * LEITOR DE TEXTO
+   * =========================================================
+   */
+
+  const stopReading = useCallback(
+    () => {
+      if (
+        typeof window !==
+        "undefined"
+      ) {
+        window.speechSynthesis.cancel();
+      }
+
+      speechRef.current =
+        null;
+
+      setReadingMessageId(null);
+      setReadingCharIndex(-1);
+    },
+    [],
+  );
+
+  const readMessage = useCallback(
+    (message: ChatMessage) => {
+      if (
+        typeof window ===
+        "undefined" ||
+        !("speechSynthesis" in window)
+      ) {
+        setErrorMessage(
+          "A leitura de texto não é compatível com este navegador.",
+        );
+        return;
+      }
+
+      /*
+       * Se clicou na mesma mensagem
+       * enquanto ela está lendo,
+       * para a leitura.
+       */
+      if (
+        readingMessageId ===
+        message.id
+      ) {
+        stopReading();
+        return;
+      }
+
+      /*
+       * Cancela qualquer leitura anterior.
+       */
+      window.speechSynthesis.cancel();
+
+      setReadingMessageId(
+        message.id,
+      );
+
+      setReadingCharIndex(0);
+
+      const utterance =
+        new SpeechSynthesisUtterance(
+          message.content,
+        );
+
+      /*
+       * Velocidade razoável e rápida.
+       */
+      utterance.rate = 1.15;
+
+      utterance.pitch = 1;
+
+      utterance.volume = 1;
+
+      /*
+       * Tenta usar português quando
+       * o navegador tiver uma voz PT-BR.
+       */
+      const voices =
+        window.speechSynthesis.getVoices();
+
+      const portugueseVoice =
+        voices.find((voice) =>
+          voice.lang
+            .toLowerCase()
+            .startsWith("pt"),
+        );
+
+      if (portugueseVoice) {
+        utterance.voice =
+          portugueseVoice;
+        utterance.lang =
+          portugueseVoice.lang;
+      } else {
+        utterance.lang =
+          navigator.language ||
+          "pt-BR";
+      }
+
+      utterance.onboundary =
+        (event) => {
+          if (
+            event.name ===
+              "word" &&
+            typeof event.charIndex ===
+              "number"
+          ) {
+            setReadingCharIndex(
+              event.charIndex,
+            );
+          }
+        };
+
+      utterance.onend = () => {
+        speechRef.current =
+          null;
+
+        setReadingMessageId(
+          null,
+        );
+
+        setReadingCharIndex(
+          -1,
+        );
+      };
+
+      utterance.onerror = () => {
+        speechRef.current =
+          null;
+
+        setReadingMessageId(
+          null,
+        );
+
+        setReadingCharIndex(
+          -1,
+        );
+      };
+
+      speechRef.current =
+        utterance;
+
+      window.speechSynthesis.speak(
+        utterance,
+      );
+    },
+    [
+      readingMessageId,
+      stopReading,
+    ],
+  );
+
+  /*
+   * =========================================================
+   * DESTACAR PALAVRA SENDO LIDA
+   * =========================================================
+   */
+
+  const renderReadingText = (
+    text: string,
+    charIndex: number,
+  ) => {
+    if (charIndex < 0) {
+      return text;
+    }
+
+    const before =
+      text.slice(
+        0,
+        charIndex,
+      );
+
+    const remaining =
+      text.slice(charIndex);
+
+    /*
+     * Pega a primeira palavra a partir
+     * do índice informado pelo navegador.
+     */
+    const match =
+      remaining.match(
+        /^\S+/,
+      );
+
+    if (!match) {
+      return text;
+    }
+
+    const word =
+      match[0];
+
+    const wordStart =
+      charIndex;
+
+    const wordEnd =
+      wordStart +
+      word.length;
+
+    return (
+      <>
+        {before}
+
+        <mark
+          className="rounded-md bg-[#A78BFA]/35 px-1 text-white transition-colors"
+        >
+          {text.slice(
+            wordStart,
+            wordEnd,
+          )}
+        </mark>
+
+        {text.slice(wordEnd)}
+      </>
+    );
+  };
+
+  /*
+   * =========================================================
    * LIKE / DISLIKE
    * =========================================================
    */
@@ -944,29 +1303,39 @@ function Workspace() {
   const handleLike = (
     messageId: string,
   ) => {
-    setLikedMessages((current) => ({
-      ...current,
-      [messageId]: !current[messageId],
-    }));
+    setLikedMessages(
+      (current) => ({
+        ...current,
+        [messageId]:
+          !current[messageId],
+      }),
+    );
 
-    setDislikedMessages((current) => ({
-      ...current,
-      [messageId]: false,
-    }));
+    setDislikedMessages(
+      (current) => ({
+        ...current,
+        [messageId]: false,
+      }),
+    );
   };
 
   const handleDislike = (
     messageId: string,
   ) => {
-    setDislikedMessages((current) => ({
-      ...current,
-      [messageId]: !current[messageId],
-    }));
+    setDislikedMessages(
+      (current) => ({
+        ...current,
+        [messageId]:
+          !current[messageId],
+      }),
+    );
 
-    setLikedMessages((current) => ({
-      ...current,
-      [messageId]: false,
-    }));
+    setLikedMessages(
+      (current) => ({
+        ...current,
+        [messageId]: false,
+      }),
+    );
   };
 
   /*
@@ -990,7 +1359,8 @@ function Workspace() {
       window.setTimeout(() => {
         setCopiedMessageId(
           (current) =>
-            current === message.id
+            current ===
+            message.id
               ? null
               : current,
         );
@@ -1028,6 +1398,28 @@ function Workspace() {
     <div className="relative min-h-[100dvh] overflow-hidden bg-[#0d0912] text-white">
 
       {/* =====================================================
+          ÁREA INVISÍVEL PARA SWIPE DA BORDA
+          ===================================================== */}
+
+      {!sidebarOpen && (
+        <div
+          className="fixed bottom-0 left-0 top-0 z-[105] w-6 touch-none"
+          onPointerDown={
+            handleEdgePointerDown
+          }
+          onPointerMove={
+            handleEdgePointerMove
+          }
+          onPointerUp={
+            handleEdgePointerUp
+          }
+          onPointerCancel={
+            handleEdgePointerUp
+          }
+        />
+      )}
+
+      {/* =====================================================
           SIDEBAR
           ===================================================== */}
 
@@ -1058,9 +1450,11 @@ function Workspace() {
 
         <div className="flex h-full flex-col">
 
-          <div className="flex items-center justify-between px-4 py-4">
+          {/* HEADER DA SIDEBAR */}
 
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between px-5 py-5">
+
+            <div className="flex items-center gap-3">
 
               <img
                 src="/appicon.png"
@@ -1076,17 +1470,18 @@ function Workspace() {
 
             <button
               type="button"
-              onClick={() => {
-                setSidebarOpen(false);
-                setSidebarProgress(0);
-              }}
-              className="rounded-xl p-2 text-white/60 transition hover:bg-white/10 hover:text-white"
+              onClick={
+                closeSidebar
+              }
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-white/60 transition hover:bg-white/10 hover:text-white"
               aria-label="Fechar menu"
             >
-              <X size={20} />
+              <X size={21} />
             </button>
 
           </div>
+
+          {/* NOVA CONVERSA */}
 
           <div className="px-3">
 
@@ -1097,18 +1492,20 @@ function Workspace() {
               }
               className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition hover:bg-white/10"
             >
-              <Plus size={18} />
+              <Plus size={20} />
               Nova conversa
             </button>
 
           </div>
+
+          {/* PESQUISA */}
 
           <div className="px-3 pt-4">
 
             <div className="flex items-center gap-2 rounded-2xl bg-white/[0.06] px-3 py-2.5">
 
               <Search
-                size={17}
+                size={18}
                 className="text-white/40"
               />
 
@@ -1126,6 +1523,8 @@ function Workspace() {
             </div>
 
           </div>
+
+          {/* CONVERSAS */}
 
           <div className="flex-1 overflow-y-auto px-3 py-4">
 
@@ -1164,6 +1563,13 @@ function Workspace() {
 
           </div>
 
+          {/* ÁREA DE ARRASTAR PARA FECHAR */}
+
+          <div
+            className="absolute bottom-0 right-0 top-0 w-7 cursor-ew-resize touch-none"
+            aria-hidden="true"
+          />
+
         </div>
 
       </div>
@@ -1177,34 +1583,35 @@ function Workspace() {
           type="button"
           aria-label="Fechar menu"
           className="fixed inset-0 z-[90] bg-black/50"
-          onClick={() => {
-            setSidebarOpen(false);
-            setSidebarProgress(0);
-          }}
+          onClick={
+            closeSidebar
+          }
         />
       )}
 
       {/* =====================================================
-          MENU FIXO
+          BOTÃO MENU
           ===================================================== */}
 
-      <button
-        type="button"
-        onClick={() => {
-          setSidebarOpen(true);
-          setSidebarProgress(1);
-        }}
-        className="fixed left-4 top-4 z-[110] flex h-11 w-11 items-center justify-center rounded-2xl bg-[#17111e]/90 text-white shadow-lg backdrop-blur-md transition hover:bg-[#211827]"
-        aria-label="Abrir menu"
-      >
-        <Menu size={21} />
-      </button>
+      {!sidebarOpen && (
+        <button
+          type="button"
+          onClick={
+            openSidebar
+          }
+          className="fixed left-4 top-4 z-[110] flex h-11 w-11 items-center justify-center rounded-2xl bg-[#17111e]/95 text-white shadow-lg backdrop-blur-md transition hover:bg-[#211827]"
+          aria-label="Abrir menu"
+        >
+          <Menu size={21} />
+        </button>
+      )}
 
       {/* =====================================================
-          LOGO/NOME — SOMENTE NA TELA INICIAL
+          LOGO/NOME — SOMENTE INÍCIO
           ===================================================== */}
 
-      {messages.length === 0 && (
+      {messages.length ===
+        0 && (
         <header className="pointer-events-none fixed left-0 right-0 top-0 z-40 flex h-16 items-center justify-center">
 
           <div className="flex items-center gap-2">
@@ -1267,7 +1674,9 @@ function Workspace() {
               {messages.map(
                 (message) => (
                   <div
-                    key={message.id}
+                    key={
+                      message.id
+                    }
                     className={
                       message.role ===
                       "user"
@@ -1289,7 +1698,17 @@ function Workspace() {
                       "assistant" ? (
                         <>
 
-                          <div>
+                          {/* RESPOSTA */}
+
+                          {readingMessageId ===
+                          message.id ? (
+                            <div className="whitespace-pre-wrap">
+                              {renderReadingText(
+                                message.content,
+                                readingCharIndex,
+                              )}
+                            </div>
+                          ) : (
                             <ReactMarkdown
                               remarkPlugins={[
                                 remarkGfm,
@@ -1299,13 +1718,13 @@ function Workspace() {
                                 message.content
                               }
                             </ReactMarkdown>
-                          </div>
+                          )}
 
-                          {/* =================================
-                              AÇÕES DA RESPOSTA
-                              ================================= */}
+                          {/* AÇÕES */}
 
                           <div className="mt-3 flex items-center gap-1">
+
+                            {/* LIKE */}
 
                             <button
                               type="button"
@@ -1345,6 +1764,8 @@ function Workspace() {
                               />
                             </button>
 
+                            {/* DISLIKE */}
+
                             <button
                               type="button"
                               onClick={() =>
@@ -1383,6 +1804,8 @@ function Workspace() {
                               />
                             </button>
 
+                            {/* COPIAR */}
+
                             <button
                               type="button"
                               onClick={() =>
@@ -1401,6 +1824,50 @@ function Workspace() {
                               ) : (
                                 <Copy
                                   size={16}
+                                />
+                              )}
+                            </button>
+
+                            {/* OUVIR */}
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                readMessage(
+                                  message,
+                                )
+                              }
+                              className={`
+                                flex
+                                h-8
+                                w-8
+                                items-center
+                                justify-center
+                                rounded-lg
+                                transition
+
+                                ${
+                                  readingMessageId ===
+                                  message.id
+                                    ? "bg-[#8B5CF6]/20 text-[#A78BFA]"
+                                    : "text-white/30 hover:bg-white/[0.06] hover:text-white/70"
+                                }
+                              `}
+                              aria-label={
+                                readingMessageId ===
+                                message.id
+                                  ? "Parar leitura"
+                                  : "Ouvir mensagem"
+                              }
+                            >
+                              {readingMessageId ===
+                              message.id ? (
+                                <VolumeX
+                                  size={17}
+                                />
+                              ) : (
+                                <Volume2
+                                  size={17}
                                 />
                               )}
                             </button>
