@@ -6,12 +6,15 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   useCallback,
   useEffect,
   useRef,
   useState,
 } from "react";
+
 import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/workspace")({
@@ -32,64 +35,188 @@ type Message = {
   content: string;
 };
 
+type AiMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+type Subscription = {
+  plan: string | null;
+  status: string | null;
+  expires_at: string | null;
+};
+
 const WIDTH = 320;
+
+/*
+ * ============================================================
+ * ERROS AMIGÁVEIS DA AI
+ * ============================================================
+ */
+
+function getFriendlyAiError(
+  status?: number,
+  backendMessage?: string,
+): string {
+  const message = (
+    backendMessage || ""
+  ).toLowerCase();
+
+  if (
+    status === 402 ||
+    message.includes("crédito") ||
+    message.includes("credit")
+  ) {
+    return "Desculpe pelo inconveniente, mas no momento você não possui créditos disponíveis para continuar usando a DecidlyAI. Pedimos desculpas pelo transtorno. Quando houver créditos disponíveis novamente, tente enviar sua mensagem outra vez.";
+  }
+
+  if (
+    status === 429 ||
+    message.includes("quota") ||
+    message.includes("rate limit") ||
+    message.includes("resource_exhausted") ||
+    message.includes("limite de requisições")
+  ) {
+    return "Opa, nosso serviço atingiu temporariamente o limite de requisições para esta IA. Pedimos desculpas pelo inconveniente e agradecemos pela sua paciência. Por favor, tente novamente mais tarde.";
+  }
+
+  if (
+    status === 401 ||
+    status === 403 ||
+    message.includes("authentication") ||
+    message.includes("unauthorized")
+  ) {
+    return "Desculpe pelo inconveniente. No momento não consegui confirmar sua sessão corretamente. Por favor, tente entrar novamente e depois envie sua mensagem mais uma vez.";
+  }
+
+  if (
+    status === 500 ||
+    status === 502 ||
+    status === 503 ||
+    status === 504
+  ) {
+    return "Desculpe pelo inconveniente. Estou enfrentando uma dificuldade temporária no nosso serviço e não consegui processar sua mensagem agora. Por favor, tente novamente mais tarde.";
+  }
+
+  if (
+    message.includes("timeout") ||
+    message.includes("timed out") ||
+    message.includes("tempo limite")
+  ) {
+    return "Desculpe pelo inconveniente. Demorei mais do que o esperado para processar sua mensagem e não consegui concluir a resposta desta vez. Por favor, tente novamente mais tarde.";
+  }
+
+  if (
+    message.includes("network") ||
+    message.includes("fetch") ||
+    message.includes("connection") ||
+    message.includes("conectar")
+  ) {
+    return "Desculpe pelo inconveniente. No momento estou com uma dificuldade temporária para me conectar ao nosso serviço. Por favor, tente novamente mais tarde.";
+  }
+
+  return "Desculpe pelo inconveniente. Ocorreu uma dificuldade temporária enquanto eu processava sua mensagem. Nossa equipe ou sistemas podem estar passando por uma instabilidade momentânea. Por favor, tente novamente mais tarde.";
+}
+
+/*
+ * ============================================================
+ * WORKSPACE
+ * ============================================================
+ */
 
 function Workspace() {
   const navigate = useNavigate();
 
   const [userId, setUserId] = useState<string | null>(null);
+
   const [input, setInput] = useState("");
-  const [items, setItems] = useState<Conversation[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
+
+  const [items, setItems] = useState<
+    Conversation[]
+  >([]);
+
+  const [messages, setMessages] = useState<
+    Message[]
+  >([]);
+
   const [query, setQuery] = useState("");
+
   const [busy, setBusy] = useState(false);
+
   const [open, setOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const [error, setError] = useState<
+    string | null
+  >(null);
+
   const [activeConversation, setActiveConversation] =
     useState<string | null>(null);
 
-  const contentRef = useRef<HTMLElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const composerRef = useRef<HTMLDivElement>(null);
-  const sidebarRef = useRef<HTMLElement>(null);
-  const backdropRef = useRef<HTMLDivElement>(null);
+  const [modelLabel, setModelLabel] =
+    useState<"Free" | "VIP" | null>(null);
+
+  const sidebarRef =
+    useRef<HTMLElement>(null);
+
+  const backdropRef =
+    useRef<HTMLDivElement>(null);
+
+  const contentRef =
+    useRef<HTMLElement>(null);
+
+  const textareaRef =
+    useRef<HTMLTextAreaElement>(null);
+
+  const composerRef =
+    useRef<HTMLDivElement>(null);
 
   const progress = useRef(0);
   const startX = useRef(0);
   const startProgress = useRef(0);
   const dragging = useRef(false);
+
   const raf = useRef<number | null>(null);
 
   /*
-   * ------------------------------------------------------------
+   * ==========================================================
    * SIDEBAR
-   * ------------------------------------------------------------
+   * ==========================================================
    */
 
-  const paint = useCallback((value: number) => {
-    progress.current = Math.max(0, Math.min(1, value));
+  const paint = useCallback(
+    (value: number) => {
+      progress.current = Math.max(
+        0,
+        Math.min(1, value),
+      );
 
-    if (raf.current !== null) {
-      cancelAnimationFrame(raf.current);
-    }
-
-    raf.current = requestAnimationFrame(() => {
-      const current = progress.current;
-
-      if (sidebarRef.current) {
-        sidebarRef.current.style.transform =
-          `translate3d(${-WIDTH + WIDTH * current}px,0,0)`;
+      if (raf.current !== null) {
+        cancelAnimationFrame(raf.current);
       }
 
-      if (backdropRef.current) {
-        backdropRef.current.style.opacity =
-          String(current * 0.72);
+      raf.current =
+        requestAnimationFrame(() => {
+          const current =
+            progress.current;
 
-        backdropRef.current.style.pointerEvents =
-          current > 0.01 ? "auto" : "none";
-      }
-    });
-  }, []);
+          if (sidebarRef.current) {
+            sidebarRef.current.style.transform =
+              `translate3d(${-WIDTH + WIDTH * current}px,0,0)`;
+          }
+
+          if (backdropRef.current) {
+            backdropRef.current.style.opacity =
+              String(current * 0.72);
+
+            backdropRef.current.style.pointerEvents =
+              current > 0.01
+                ? "auto"
+                : "none";
+          }
+        });
+    },
+    [],
+  );
 
   const settle = useCallback(
     (shouldOpen: boolean) => {
@@ -105,15 +232,19 @@ function Workspace() {
           "opacity 260ms ease";
       }
 
-      paint(shouldOpen ? 1 : 0);
+      paint(
+        shouldOpen ? 1 : 0,
+      );
 
       window.setTimeout(() => {
         if (sidebarRef.current) {
-          sidebarRef.current.style.transition = "none";
+          sidebarRef.current.style.transition =
+            "none";
         }
 
         if (backdropRef.current) {
-          backdropRef.current.style.transition = "none";
+          backdropRef.current.style.transition =
+            "none";
         }
       }, 280);
     },
@@ -123,18 +254,18 @@ function Workspace() {
   const beginDrag = (
     event: React.PointerEvent<HTMLElement>,
   ) => {
-    event.currentTarget.setPointerCapture(event.pointerId);
+    event.currentTarget.setPointerCapture(
+      event.pointerId,
+    );
 
     dragging.current = true;
     startX.current = event.clientX;
-    startProgress.current = progress.current;
+    startProgress.current =
+      progress.current;
 
     if (sidebarRef.current) {
-      sidebarRef.current.style.transition = "none";
-    }
-
-    if (backdropRef.current) {
-      backdropRef.current.style.transition = "none";
+      sidebarRef.current.style.transition =
+        "none";
     }
   };
 
@@ -144,9 +275,14 @@ function Workspace() {
     if (!dragging.current) return;
 
     const delta =
-      (event.clientX - startX.current) / WIDTH;
+      (event.clientX -
+        startX.current) /
+      WIDTH;
 
-    paint(startProgress.current + delta);
+    paint(
+      startProgress.current +
+        delta,
+    );
   };
 
   const endDrag = () => {
@@ -154,59 +290,77 @@ function Workspace() {
 
     dragging.current = false;
 
-    settle(progress.current > 0.5);
+    settle(
+      progress.current > 0.5,
+    );
   };
 
   /*
-   * ------------------------------------------------------------
-   * CARREGAMENTO DO USUÁRIO E CONVERSAS
-   * ------------------------------------------------------------
+   * ==========================================================
+   * AUTENTICAÇÃO + HISTÓRICO
+   * ==========================================================
    */
 
   useEffect(() => {
     let alive = true;
 
-    const load = async () => {
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
+    const loadWorkspace =
+      async () => {
+        const {
+          data: { user },
+          error: authError,
+        } =
+          await supabase.auth.getUser();
 
-      if (!alive) return;
+        if (!alive) return;
 
-      if (authError || !user) {
-        await navigate({ to: "/login" });
-        return;
-      }
+        if (authError || !user) {
+          await navigate({
+            to: "/login",
+          });
 
-      setUserId(user.id);
+          return;
+        }
 
-      const { data, error: conversationsError } =
-        await supabase
+        setUserId(user.id);
+
+        const {
+          data,
+          error:
+            conversationsError,
+        } = await supabase
           .from("conversations")
           .select(
             "id,user_id,title,created_at,updated_at",
           )
-          .eq("user_id", user.id)
-          .order("updated_at", {
-            ascending: false,
-          });
+          .eq(
+            "user_id",
+            user.id,
+          )
+          .order(
+            "updated_at",
+            {
+              ascending: false,
+            },
+          );
 
-      if (!alive) return;
+        if (!alive) return;
 
-      if (conversationsError) {
-        setError(
-          "Não foi possível carregar suas decisões.",
+        if (conversationsError) {
+          setError(
+            "Não foi possível carregar suas decisões.",
+          );
+
+          return;
+        }
+
+        setItems(
+          (data ??
+            []) as Conversation[],
         );
-        return;
-      }
+      };
 
-      setItems(
-        (data ?? []) as Conversation[],
-      );
-    };
-
-    void load();
+    void loadWorkspace();
 
     return () => {
       alive = false;
@@ -214,82 +368,88 @@ function Workspace() {
   }, [navigate]);
 
   /*
-   * ------------------------------------------------------------
-   * SCROLL
-   * ------------------------------------------------------------
-   */
-
-  const scrollToBottom = useCallback(() => {
-    requestAnimationFrame(() => {
-      const element = contentRef.current;
-
-      if (!element) return;
-
-      element.scrollTo({
-        top: element.scrollHeight,
-        behavior: "smooth",
-      });
-    });
-  }, []);
-
-  /*
-   * ------------------------------------------------------------
+   * ==========================================================
    * CARREGAR CONVERSA
-   * ------------------------------------------------------------
-   *
-   * Tudo continua dentro de /workspace.
+   * ==========================================================
    */
 
-  const openConversation = async (
-    conversation: Conversation,
-  ) => {
-    if (!userId) return;
+  const loadConversation =
+    async (
+      conversation: Conversation,
+    ) => {
+      if (!userId) return;
 
-    setError(null);
-    setActiveConversation(conversation.id);
-    settle(false);
+      setError(null);
 
-    /*
-     * Troque "messages" pelos nomes reais da sua tabela
-     * caso ela tenha outra estrutura.
-     */
-    const { data, error: messagesError } =
-      await supabase
-        .from("messages")
-        .select("id,role,content")
-        .eq("conversation_id", conversation.id)
-        .eq("user_id", userId)
-        .order("created_at", {
-          ascending: true,
-        });
-
-    if (messagesError) {
-      /*
-       * Caso sua tabela messages ainda não exista,
-       * mostramos a conversa vazia em vez de quebrar
-       * completamente o workspace.
-       */
-      setMessages([]);
-      setError(
-        "Não foi possível carregar as mensagens.",
+      setActiveConversation(
+        conversation.id,
       );
-      return;
-    }
 
-    setMessages(
-      (data ?? []) as Message[],
-    );
+      settle(false);
 
-    scrollToBottom();
-  };
+      /*
+       * Importante:
+       * user_id é filtrado junto com conversation_id.
+       *
+       * Mesmo se alguém tentar manipular o ID,
+       * o RLS do Supabase deve bloquear acesso
+       * a mensagens de outro usuário.
+       */
+      const {
+        data,
+        error: messagesError,
+      } = await supabase
+        .from("messages")
+        .select(
+          "id,role,content",
+        )
+        .eq(
+          "conversation_id",
+          conversation.id,
+        )
+        .eq(
+          "user_id",
+          userId,
+        )
+        .order(
+          "created_at",
+          {
+            ascending: true,
+          },
+        );
+
+      if (messagesError) {
+        setMessages([]);
+
+        setError(
+          "Não foi possível carregar essa decisão.",
+        );
+
+        return;
+      }
+
+      setMessages(
+        (data ??
+          []) as Message[],
+      );
+
+      requestAnimationFrame(() => {
+        contentRef.current?.scrollTo({
+          top:
+            contentRef.current
+              ?.scrollHeight ?? 0,
+          behavior: "smooth",
+        });
+      });
+    };
 
   /*
-   * ------------------------------------------------------------
-   * NOVA CONVERSA
-   * ------------------------------------------------------------
+   * ==========================================================
+   * NOVA DECISÃO
+   * ==========================================================
    */
 
-  const newConversation = () => {
+  const newDecision = () => {
     setActiveConversation(null);
     setMessages([]);
     setInput("");
@@ -303,27 +463,144 @@ function Workspace() {
   };
 
   /*
-   * ------------------------------------------------------------
-   * CRIAR CONVERSA
-   * ------------------------------------------------------------
+   * ==========================================================
+   * SELEÇÃO DA AI
+   * ==========================================================
+   *
+   * Esta é a mesma lógica do ai-test.
    */
 
-  const createConversation = async (
-    text: string,
-  ) => {
-    if (!userId) {
-      throw new Error("Usuário não autenticado.");
-    }
+  const getAiFunction =
+    async () => {
+      const {
+        data: { user },
+        error: userError,
+      } =
+        await supabase.auth.getUser();
 
-    const id = crypto.randomUUID();
+      if (
+        userError ||
+        !user
+      ) {
+        throw {
+          status: 401,
+          message:
+            "Usuário não autenticado",
+        };
+      }
 
-    const title =
-      text.length > 70
-        ? `${text.slice(0, 70)}…`
-        : text;
+      const {
+        data: subscription,
+        error:
+          subscriptionError,
+      } = await supabase
+        .from("subscription")
+        .select(`
+          plan,
+          status,
+          expires_at
+        `)
+        .eq(
+          "user_id",
+          user.id,
+        )
+        .order(
+          "created_at",
+          {
+            ascending: false,
+          },
+        )
+        .limit(1)
+        .maybeSingle<Subscription>();
 
-    const { data, error: insertError } =
-      await supabase
+      if (subscriptionError) {
+        console.error(
+          "Erro ao buscar assinatura:",
+          subscriptionError,
+        );
+
+        setModelLabel("Free");
+
+        return "decidly-ai-free";
+      }
+
+      const now = new Date();
+
+      const plan =
+        subscription?.plan
+          ?.trim()
+          .toLowerCase();
+
+      const status =
+        subscription?.status
+          ?.trim()
+          .toLowerCase();
+
+      const expiresAt =
+        subscription?.expires_at
+          ? new Date(
+              subscription.expires_at,
+            )
+          : null;
+
+      const hasExpired =
+        expiresAt !== null &&
+        expiresAt.getTime() <
+          now.getTime();
+
+      const isVip =
+        plan === "vip" &&
+        (
+          status === "active" ||
+          status === "ativo"
+        ) &&
+        !hasExpired;
+
+      if (isVip) {
+        setModelLabel("VIP");
+
+        return "decidly-ai";
+      }
+
+      setModelLabel("Free");
+
+      return "decidly-ai-free";
+    };
+
+  /*
+   * ==========================================================
+   * CRIAR CONVERSA
+   * ==========================================================
+   */
+
+  const createConversation =
+    async (
+      text: string,
+    ) => {
+      if (!userId) {
+        throw {
+          status: 401,
+          message:
+            "Usuário não autenticado",
+        };
+      }
+
+      const id =
+        crypto.randomUUID();
+
+      const title =
+        text.length > 70
+          ? `${text.slice(
+              0,
+              70,
+            )}…`
+          : text;
+
+      const {
+        data,
+        error:
+          insertError,
+      } = await supabase
         .from("conversations")
         .insert({
           id,
@@ -335,280 +612,532 @@ function Workspace() {
         )
         .single();
 
-    if (insertError) {
-      throw new Error(
-        "Não foi possível criar a conversa.",
-      );
-    }
+      if (insertError) {
+        throw {
+          status: insertError.code,
+          message:
+            insertError.message,
+        };
+      }
 
-    if (data) {
-      setItems((current) => [
-        data as Conversation,
-        ...current,
-      ]);
-    }
+      if (data) {
+        setItems(
+          (current) => [
+            data as Conversation,
+            ...current,
+          ],
+        );
+      }
 
-    setActiveConversation(id);
+      setActiveConversation(id);
 
-    return id;
-  };
+      return id;
+    };
 
   /*
-   * ------------------------------------------------------------
+   * ==========================================================
    * ENVIAR MENSAGEM
-   * ------------------------------------------------------------
+   * ==========================================================
    */
 
-  const sendMessage = async () => {
-    const text = input.trim();
+  const sendMessage =
+    async () => {
+      const trimmedMessage =
+        input.trim();
 
-    if (!text || busy) return;
+      if (
+        !trimmedMessage ||
+        busy
+      ) {
+        return;
+      }
 
-    setBusy(true);
-    setError(null);
+      setError(null);
 
-    try {
+      /*
+       * Descobre/cria a conversa.
+       */
+
       let conversationId =
         activeConversation;
 
-      /*
-       * Se ainda não existe conversa, criamos uma.
-       */
-      if (!conversationId) {
-        conversationId =
-          await createConversation(text);
+      try {
+        if (!conversationId) {
+          conversationId =
+            await createConversation(
+              trimmedMessage,
+            );
+        }
+      } catch (err) {
+        setMessages(
+          (current) => [
+            ...current,
+            {
+              id:
+                crypto.randomUUID(),
+              role: "assistant",
+              content:
+                getFriendlyAiError(
+                  typeof err ===
+                    "object" &&
+                    err !== null
+                    ? (err as any)
+                        .status
+                    : undefined,
+                  typeof err ===
+                    "object" &&
+                    err !== null
+                    ? (err as any)
+                        .message
+                    : "",
+                ),
+            },
+          ],
+        );
+
+        return;
       }
 
+      /*
+       * Mensagem do usuário.
+       */
+
       const userMessage: Message = {
-        id: crypto.randomUUID(),
+        id:
+          crypto.randomUUID(),
         role: "user",
-        content: text,
+        content:
+          trimmedMessage,
       };
 
-      setMessages((current) => [
-        ...current,
-        userMessage,
-      ]);
+      const updatedMessages: Message[] =
+        [
+          ...messages,
+          userMessage,
+        ];
+
+      setMessages(
+        updatedMessages,
+      );
 
       setInput("");
 
       if (textareaRef.current) {
-        textareaRef.current.style.height = "61px";
+        textareaRef.current.style.height =
+          "61px";
       }
 
-      scrollToBottom();
-
-      /*
-       * --------------------------------------------------------
-       * AQUI ENTRA SUA CONEXÃO COM A AI
-       * --------------------------------------------------------
-       *
-       * Não coloque uma API key secreta aqui.
-       *
-       * O ideal é chamar uma Edge Function / API própria,
-       * que guarda a chave do provedor de AI no servidor.
-       *
-       * Exemplo:
-       *
-       * const { data, error } = await supabase.functions.invoke(
-       *   "chat",
-       *   {
-       *     body: {
-       *       conversationId,
-       *       message: text,
-       *     },
-       *   },
-       * );
-       *
-       * Depois, use data.answer.
-       */
-
-      const {
-        data: aiData,
-        error: aiError,
-      } =
-        await supabase.functions.invoke(
-          "chat",
-          {
-            body: {
-              conversationId,
-              message: text,
-            },
-          },
-        );
-
-      if (aiError) {
-        throw new Error(
-          "Não foi possível obter uma resposta da IA.",
-        );
-      }
-
-      const answer =
-        typeof aiData?.answer === "string"
-          ? aiData.answer
-          : "Não consegui gerar uma resposta agora.";
-
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: answer,
-      };
-
-      setMessages((current) => [
-        ...current,
-        assistantMessage,
-      ]);
-
-      scrollToBottom();
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "Ocorreu um erro ao enviar sua decisão.",
-      );
-    } finally {
-      setBusy(false);
+      setBusy(true);
 
       requestAnimationFrame(() => {
-        textareaRef.current?.focus();
+        contentRef.current?.scrollTo({
+          top:
+            contentRef.current
+              ?.scrollHeight ?? 0,
+          behavior: "smooth",
+        });
       });
-    }
-  };
+
+      try {
+        /*
+         * Usa exatamente a mesma seleção
+         * Free/VIP do ai-test.
+         */
+
+        const functionName =
+          await getAiFunction();
+
+        /*
+         * Enviamos somente as últimas 12
+         * mensagens para manter o contexto.
+         */
+
+        const history: AiMessage[] =
+          updatedMessages
+            .slice(-12)
+            .map(
+              ({
+                role,
+                content,
+              }) => ({
+                role,
+                content,
+              }),
+            );
+
+        const {
+          data,
+          error:
+            functionError,
+        } =
+          await supabase.functions.invoke(
+            functionName,
+            {
+              body: {
+                message:
+                  trimmedMessage,
+                history,
+              },
+            },
+          );
+
+        /*
+         * Erro HTTP da Edge Function.
+         */
+
+        if (functionError) {
+          let status:
+            | number
+            | undefined;
+
+          let backendMessage = "";
+
+          try {
+            const context =
+              (functionError as any)
+                .context;
+
+            status =
+              context?.status;
+
+            if (context) {
+              const errorBody =
+                await context
+                  .clone()
+                  .json()
+                  .catch(
+                    () => null,
+                  );
+
+              if (
+                errorBody &&
+                typeof errorBody.error ===
+                  "string"
+              ) {
+                backendMessage =
+                  errorBody.error;
+              }
+            }
+          } catch {
+            /*
+             * Nunca expomos erro técnico.
+             */
+          }
+
+          throw {
+            status,
+            message:
+              backendMessage ||
+              functionError.message ||
+              "",
+          };
+        }
+
+        /*
+         * Backend pode retornar 200
+         * com { error: "..." }.
+         */
+
+        if (data?.error) {
+          throw {
+            status:
+              typeof data.status ===
+              "number"
+                ? data.status
+                : undefined,
+
+            message:
+              typeof data.error ===
+              "string"
+                ? data.error
+                : "",
+          };
+        }
+
+        /*
+         * Resposta inválida.
+         */
+
+        if (
+          typeof data?.response !==
+            "string" ||
+          data.response
+            .trim()
+            .length === 0
+        ) {
+          throw {
+            message:
+              "Resposta inválida",
+          };
+        }
+
+        const assistantMessage: Message =
+          {
+            id:
+              crypto.randomUUID(),
+            role: "assistant",
+            content:
+              data.response,
+          };
+
+        setMessages(
+          (current) => [
+            ...current,
+            assistantMessage,
+          ],
+        );
+
+        /*
+         * Salva as mensagens no banco.
+         *
+         * Se sua Edge Function já salva mensagens,
+         * remova este bloco para não duplicar.
+         */
+
+        const { error: saveError } =
+          await supabase
+            .from("messages")
+            .insert([
+              {
+                id: userMessage.id,
+                conversation_id:
+                  conversationId,
+                user_id: userId,
+                role: "user",
+                content:
+                  trimmedMessage,
+              },
+              {
+                id:
+                  assistantMessage.id,
+                conversation_id:
+                  conversationId,
+                user_id: userId,
+                role: "assistant",
+                content:
+                  data.response,
+              },
+            ]);
+
+        if (saveError) {
+          console.error(
+            "Erro ao salvar mensagens:",
+            saveError,
+          );
+        }
+
+        /*
+         * Atualiza o timestamp da conversa.
+         */
+
+        await supabase
+          .from("conversations")
+          .update({
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq(
+            "id",
+            conversationId,
+          )
+          .eq(
+            "user_id",
+            userId,
+          );
+      } catch (err) {
+        let status:
+          | number
+          | undefined;
+
+        let errorMessage = "";
+
+        if (
+          err &&
+          typeof err === "object"
+        ) {
+          status =
+            (err as any).status;
+
+          errorMessage =
+            (err as any).message ||
+            "";
+        }
+
+        const friendlyMessage =
+          getFriendlyAiError(
+            status,
+            errorMessage,
+          );
+
+        setMessages(
+          (current) => [
+            ...current,
+            {
+              id:
+                crypto.randomUUID(),
+              role: "assistant",
+              content:
+                friendlyMessage,
+            },
+          ],
+        );
+      } finally {
+        setBusy(false);
+
+        requestAnimationFrame(() => {
+          textareaRef.current?.focus();
+
+          contentRef.current?.scrollTo({
+            top:
+              contentRef.current
+                ?.scrollHeight ?? 0,
+            behavior: "smooth",
+          });
+        });
+      }
+    };
 
   /*
-   * ------------------------------------------------------------
+   * ==========================================================
    * TEXTAREA
-   * ------------------------------------------------------------
+   * ==========================================================
    */
 
   const handleInput = (
     event: React.ChangeEvent<HTMLTextAreaElement>,
   ) => {
-    const value = event.target.value;
+    const value =
+      event.target.value;
 
     setInput(value);
 
-    const element = event.currentTarget;
-
-    element.style.height = "auto";
+    const element =
+      event.currentTarget;
 
     element.style.height =
-      `${Math.min(element.scrollHeight, 150)}px`;
-  };
+      "auto";
 
-  /*
-   * Ctrl + Enter / Cmd + Enter
-   */
+    element.style.height =
+      `${Math.min(
+        element.scrollHeight,
+        150,
+      )}px`;
+  };
 
   const handleKeyDown = (
     event: React.KeyboardEvent<HTMLTextAreaElement>,
   ) => {
     if (
       event.key === "Enter" &&
-      (event.ctrlKey || event.metaKey)
+      (event.ctrlKey ||
+        event.metaKey)
     ) {
       event.preventDefault();
+
       void sendMessage();
     }
   };
 
   /*
-   * ------------------------------------------------------------
+   * ==========================================================
    * TECLADO MOBILE
-   * ------------------------------------------------------------
-   *
-   * visualViewport acompanha a área realmente visível
-   * quando o teclado virtual aparece.
+   * ==========================================================
    */
 
   useEffect(() => {
-    const viewport = window.visualViewport;
+    const viewport =
+      window.visualViewport;
 
     if (!viewport) return;
 
-    const updateKeyboardPosition = () => {
-      const keyboardHeight = Math.max(
-        0,
-        window.innerHeight - viewport.height,
-      );
+    const updateKeyboard =
+      () => {
+        const keyboardHeight =
+          Math.max(
+            0,
+            window.innerHeight -
+              viewport.height -
+              viewport.offsetTop,
+          );
 
-      if (composerRef.current) {
-        composerRef.current.style.transform =
-          `translateY(-${keyboardHeight}px)`;
-      }
+        if (composerRef.current) {
+          composerRef.current.style.transform =
+            `translate3d(0,-${keyboardHeight}px,0)`;
+        }
 
-      /*
-       * Mantém o conteúdo visível acima do composer.
-       */
-      if (contentRef.current) {
-        contentRef.current.style.paddingBottom =
-          `${Math.max(250, keyboardHeight + 180)}px`;
-      }
-    };
+        if (contentRef.current) {
+          contentRef.current.style.paddingBottom =
+            `${Math.max(
+              250,
+              keyboardHeight + 190,
+            )}px`;
+        }
+      };
 
     viewport.addEventListener(
       "resize",
-      updateKeyboardPosition,
+      updateKeyboard,
     );
 
     viewport.addEventListener(
       "scroll",
-      updateKeyboardPosition,
+      updateKeyboard,
     );
 
-    updateKeyboardPosition();
+    updateKeyboard();
 
     return () => {
       viewport.removeEventListener(
         "resize",
-        updateKeyboardPosition,
+        updateKeyboard,
       );
 
       viewport.removeEventListener(
         "scroll",
-        updateKeyboardPosition,
+        updateKeyboard,
       );
     };
   }, []);
 
   /*
-   * Quando o usuário toca no textarea, garantimos que
-   * a posição fique correta depois da abertura do teclado.
+   * ==========================================================
+   * FILTRO
+   * ==========================================================
    */
 
-  const handleFocus = () => {
-    window.setTimeout(() => {
-      textareaRef.current?.scrollIntoView({
-        block: "nearest",
-        behavior: "smooth",
-      });
-    }, 250);
-  };
+  const filtered =
+    items.filter((item) =>
+      item.title
+        .toLowerCase()
+        .includes(
+          query
+            .trim()
+            .toLowerCase(),
+        ),
+    );
 
   /*
-   * ------------------------------------------------------------
-   * FILTRO DO HISTÓRICO
-   * ------------------------------------------------------------
-   */
-
-  const filtered = items.filter((item) =>
-    item.title
-      .toLowerCase()
-      .includes(query.trim().toLowerCase()),
-  );
-
-  /*
-   * ------------------------------------------------------------
+   * ==========================================================
    * RENDER
-   * ------------------------------------------------------------
+   * ==========================================================
    */
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[#0d0a11] text-white">
-      {/* Backdrop */}
+    <div
+      className="
+        min-h-screen
+        overflow-hidden
+        bg-[#0d0a11]
+        text-white
+      "
+    >
+      {/* BACKDROP */}
+
       <div
         ref={backdropRef}
-        onClick={() => settle(false)}
+        onClick={() =>
+          settle(false)
+        }
         className="
           pointer-events-none
           fixed
@@ -619,13 +1148,22 @@ function Workspace() {
         "
       />
 
-      {/* Sidebar */}
+      {/* SIDEBAR */}
+
       <aside
         ref={sidebarRef}
-        onPointerDown={beginDrag}
-        onPointerMove={moveDrag}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
+        onPointerDown={
+          beginDrag
+        }
+        onPointerMove={
+          moveDrag
+        }
+        onPointerUp={
+          endDrag
+        }
+        onPointerCancel={
+          endDrag
+        }
         className="
           fixed
           inset-y-0
@@ -647,17 +1185,22 @@ function Workspace() {
             `translate3d(-${WIDTH}px,0,0)`,
         }}
       >
-        {/* Sidebar header */}
         <div className="flex items-center justify-between font-semibold">
-          <span>DecidlyAI</span>
+          <span>
+            DecidlyAI
+          </span>
 
           <button
             type="button"
             aria-label="Fechar menu"
-            onPointerDown={(event) =>
+            onPointerDown={(
+              event,
+            ) =>
               event.stopPropagation()
             }
-            onClick={() => settle(false)}
+            onClick={() =>
+              settle(false)
+            }
             className="
               grid
               h-9
@@ -673,13 +1216,16 @@ function Workspace() {
           </button>
         </div>
 
-        {/* New decision */}
         <button
           type="button"
-          onPointerDown={(event) =>
+          onPointerDown={(
+            event,
+          ) =>
             event.stopPropagation()
           }
-          onClick={newConversation}
+          onClick={
+            newDecision
+          }
           className="
             mt-[25px]
             rounded-xl
@@ -699,9 +1245,10 @@ function Workspace() {
           </span>
         </button>
 
-        {/* Search */}
         <label
-          onPointerDown={(event) =>
+          onPointerDown={(
+            event,
+          ) =>
             event.stopPropagation()
           }
           className="
@@ -721,8 +1268,13 @@ function Workspace() {
 
           <input
             value={query}
-            onChange={(event) =>
-              setQuery(event.target.value)
+            onChange={(
+              event,
+            ) =>
+              setQuery(
+                event.target
+                  .value,
+              )
             }
             placeholder="Pesquisar decisões"
             aria-label="Pesquisar decisões"
@@ -739,9 +1291,10 @@ function Workspace() {
           />
         </label>
 
-        {/* History */}
         <div
-          onPointerDown={(event) =>
+          onPointerDown={(
+            event,
+          ) =>
             event.stopPropagation()
           }
           className="
@@ -752,42 +1305,49 @@ function Workspace() {
             text-[13px]
           "
         >
-          {filtered.length === 0 ? (
+          {filtered.length ===
+          0 ? (
             <p className="px-2.5 py-3 text-white/35">
               Nenhuma decisão encontrada.
             </p>
           ) : (
-            filtered.map((item) => (
-              <button
-                type="button"
-                key={item.id}
-                onClick={() => {
-                  void openConversation(item);
-                }}
-                className={`
-                  block
-                  w-full
-                  truncate
-                  rounded-[10px]
-                  px-2.5
-                  py-2.5
-                  text-left
-                  text-sm
-                  transition
-                  ${
-                    activeConversation === item.id
-                      ? "bg-white/[.08] text-white"
-                      : "text-white/65 hover:bg-white/[.06]"
+            filtered.map(
+              (item) => (
+                <button
+                  type="button"
+                  key={item.id}
+                  onClick={() =>
+                    void loadConversation(
+                      item,
+                    )
                   }
-                `}
-              >
-                {item.title}
-              </button>
-            ))
+                  className={`
+                    block
+                    w-full
+                    truncate
+                    rounded-[10px]
+                    px-2.5
+                    py-2.5
+                    text-left
+                    text-sm
+                    transition
+                    ${
+                      activeConversation ===
+                      item.id
+                        ? "bg-white/[.08] text-white"
+                        : "text-white/65 hover:bg-white/[.06]"
+                    }
+                  `}
+                >
+                  {
+                    item.title
+                  }
+                </button>
+              ),
+            )
           )}
         </div>
 
-        {/* Account */}
         <div
           className="
             border-t
@@ -801,7 +1361,8 @@ function Workspace() {
         </div>
       </aside>
 
-      {/* Edge swipe */}
+      {/* ÁREA DE SWIPE */}
+
       <div
         className="
           fixed
@@ -812,15 +1373,25 @@ function Workspace() {
           w-5
           touch-none
         "
-        onPointerDown={beginDrag}
-        onPointerMove={moveDrag}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
+        onPointerDown={
+          beginDrag
+        }
+        onPointerMove={
+          moveDrag
+        }
+        onPointerUp={
+          endDrag
+        }
+        onPointerCancel={
+          endDrag
+        }
       />
 
-      {/* Main */}
+      {/* MAIN */}
+
       <main className="flex min-h-screen flex-col">
-        {/* Topbar */}
+        {/* TOPBAR */}
+
         <header
           className="
             flex
@@ -836,7 +1407,9 @@ function Workspace() {
           <button
             type="button"
             aria-label="Abrir menu"
-            onClick={() => settle(!open)}
+            onClick={() =>
+              settle(!open)
+            }
             className="
               grid
               h-10
@@ -863,7 +1436,8 @@ function Workspace() {
           </span>
         </header>
 
-        {/* Chat */}
+        {/* CHAT */}
+
         <section
           ref={contentRef}
           className="
@@ -876,9 +1450,18 @@ function Workspace() {
           "
         >
           <div className="mx-auto flex w-full max-w-[720px] flex-col gap-[22px]">
-            {/* Empty state */}
-            {messages.length === 0 && (
-              <div className="welcome mt-5 mb-2 text-center text-white/45">
+            {/* WELCOME */}
+
+            {messages.length ===
+              0 && (
+              <div
+                className="
+                  mt-5
+                  mb-2
+                  text-center
+                  text-white/45
+                "
+              >
                 <div
                   className="
                     mx-auto
@@ -895,14 +1478,16 @@ function Workspace() {
                     src="/appicon.png"
                     alt="DecidlyAI"
                     className="h-full w-full object-cover"
-                    draggable={false}
+                    draggable={
+                      false
+                    }
                   />
                 </div>
 
                 <h1
                   className="
                     mt-4
-                    text-2xl
+                    text-[24px]
                     font-semibold
                     tracking-tight
                     text-white
@@ -912,48 +1497,98 @@ function Workspace() {
                 </h1>
 
                 <p className="mt-2 text-sm">
-                  Descreva sua situação e organize suas
-                  possibilidades.
+                  Descreva sua situação e
+                  organize suas possibilidades.
                 </p>
               </div>
             )}
 
-            {/* Messages */}
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`
-                  max-w-[82%]
-                  whitespace-pre-wrap
-                  break-words
-                  rounded-[18px]
-                  px-4
-                  py-[13px]
-                  text-sm
-                  leading-[1.55]
-                  ${
-                    message.role === "user"
-                      ? `
-                        ml-auto
-                        rounded-br-[5px]
-                        bg-[#7651e8]
-                      `
-                      : `
-                        mr-auto
-                        rounded-bl-[5px]
-                        border
-                        border-white/10
-                        bg-white/[.045]
-                        text-white/[.78]
-                      `
-                  }
-                `}
-              >
-                {message.content}
-              </div>
-            ))}
+            {/* MENSAGENS */}
 
-            {/* AI loading */}
+            {messages.map(
+              (chatMessage) => (
+                <div
+                  key={
+                    chatMessage.id
+                  }
+                  className={`
+                    max-w-[82%]
+                    whitespace-pre-wrap
+                    break-words
+                    rounded-[18px]
+                    px-4
+                    py-[13px]
+                    text-sm
+                    leading-[1.55]
+                    ${
+                      chatMessage.role ===
+                      "user"
+                        ? "ml-auto rounded-br-[5px] bg-[#7651e8] text-white"
+                        : "mr-auto rounded-bl-[5px] border border-white/10 bg-white/[.045] text-white/[.78]"
+                    }
+                  `}
+                >
+                  {chatMessage.role ===
+                  "assistant" ? (
+                    <div className="max-w-full overflow-x-auto">
+                      <div
+                        className="
+                          prose
+                          prose-invert
+                          max-w-none
+                          break-words
+
+                          prose-p:my-2
+                          prose-p:leading-relaxed
+
+                          prose-headings:mt-4
+                          prose-headings:mb-2
+
+                          prose-h1:text-xl
+                          prose-h2:text-lg
+                          prose-h3:text-base
+
+                          prose-headings:text-white
+
+                          prose-strong:text-white
+
+                          prose-ul:my-2
+                          prose-ol:my-2
+
+                          prose-li:my-1
+
+                          prose-table:my-3
+                          prose-table:text-sm
+
+                          prose-th:px-3
+                          prose-th:py-2
+
+                          prose-td:px-3
+                          prose-td:py-2
+
+                          prose-hr:border-white/10
+                        "
+                      >
+                        <ReactMarkdown
+                          remarkPlugins={[
+                            remarkGfm,
+                          ]}
+                        >
+                          {
+                            chatMessage.content
+                          }
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  ) : (
+                    chatMessage.content
+                  )}
+                </div>
+              ),
+            )}
+
+            {/* LOADING */}
+
             {busy && (
               <div
                 className="
@@ -972,23 +1607,18 @@ function Workspace() {
                   text-white/45
                 "
               >
-                <Sparkles size={15} />
+                <Sparkles
+                  size={15}
+                />
 
-                <span className="flex gap-1">
-                  <span className="animate-pulse">
-                    •
-                  </span>
-                  <span className="animate-pulse [animation-delay:150ms]">
-                    •
-                  </span>
-                  <span className="animate-pulse [animation-delay:300ms]">
-                    •
-                  </span>
+                <span>
+                  DecidlyAI está pensando...
                 </span>
               </div>
             )}
 
-            {/* Error */}
+            {/* ERRO */}
+
             {error && (
               <div
                 role="alert"
@@ -1009,7 +1639,8 @@ function Workspace() {
           </div>
         </section>
 
-        {/* Composer */}
+        {/* COMPOSER */}
+
         <div
           ref={composerRef}
           className="
@@ -1026,17 +1657,12 @@ function Workspace() {
           style={{
             paddingBottom:
               "max(12px, env(safe-area-inset-bottom))",
+
             background:
               "linear-gradient(to top, #0d0a11 72%, transparent)",
           }}
         >
           <div className="mx-auto w-full max-w-[720px]">
-            {/*
-             * Sem borda no textarea.
-             *
-             * A única borda fica no container externo,
-             * como no preview original.
-             */}
             <div
               className="
                 rounded-[20px]
@@ -1050,11 +1676,13 @@ function Workspace() {
             >
               <textarea
                 ref={textareaRef}
-                id="workspace-input"
                 value={input}
-                onChange={handleInput}
-                onKeyDown={handleKeyDown}
-                onFocus={handleFocus}
+                onChange={
+                  handleInput
+                }
+                onKeyDown={
+                  handleKeyDown
+                }
                 rows={2}
                 disabled={busy}
                 placeholder="Mande o que você quer decidir para a DecidlyAI te ajudar"
@@ -1066,18 +1694,22 @@ function Workspace() {
                   resize-none
                   overflow-y-auto
                   border-0
-                  outline-none
-                  ring-0
                   bg-transparent
                   px-2
                   py-1.5
                   text-[15px]
                   leading-[1.45]
                   text-white
+                  outline-none
+                  ring-0
                   placeholder:text-white/55
+
                   focus:border-0
                   focus:outline-none
                   focus:ring-0
+
+                  disabled:cursor-not-allowed
+                  disabled:opacity-60
                 "
               />
 
@@ -1097,8 +1729,13 @@ function Workspace() {
                 <button
                   type="button"
                   aria-label="Enviar"
-                  onClick={() => void sendMessage()}
-                  disabled={!input.trim() || busy}
+                  onClick={() =>
+                    void sendMessage()
+                  }
+                  disabled={
+                    !input.trim() ||
+                    busy
+                  }
                   className="
                     grid
                     h-9
@@ -1144,9 +1781,9 @@ function Workspace() {
                 text-white/[.38]
               "
             >
-              DecidlyAI é um agente de AI que pode cometer
-              erros, olhe duas vezes a resposta dela antes
-              de usar.
+              DecidlyAI é um agente de AI que pode
+              cometer erros, olhe duas vezes a resposta
+              dela antes de usar.
             </p>
           </div>
         </div>
