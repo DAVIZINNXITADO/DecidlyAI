@@ -1137,9 +1137,9 @@ function Workspace() {
 
                     <div
                       className={
-                        message.role ===
-                        "user"
-                          ? "max-w-[85%] rounded-2xl bg-white/[0.08] px-4 py-3 text-sm leading-6"
+                        message.role === "user"
+  ? "max-w-[85%] rounded-2xl bg-[#8B5CF6] px-4 py-3 text-sm leading-6 text-white shadow-[0_4px_18px_rgba(139,92,246,0.18)]"
+
                           : "max-w-[90%] text-sm leading-7 text-white/85"
                       }
                     >
