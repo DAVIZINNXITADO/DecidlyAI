@@ -1,6 +1,17 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
-import { Menu, Plus, Search, Sparkles, X } from "lucide-react";
+import {
+  Menu,
+  Plus,
+  Search,
+  Sparkles,
+  X,
+} from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/workspace")({
@@ -15,6 +26,12 @@ type Conversation = {
   updated_at: string;
 };
 
+type Message = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+};
+
 const WIDTH = 320;
 
 function Workspace() {
@@ -23,13 +40,19 @@ function Workspace() {
   const [userId, setUserId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [items, setItems] = useState<Conversation[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeConversation, setActiveConversation] =
+    useState<string | null>(null);
 
-  const sidebar = useRef<HTMLElement>(null);
-  const backdrop = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
 
   const progress = useRef(0);
   const startX = useRef(0);
@@ -38,12 +61,12 @@ function Workspace() {
   const raf = useRef<number | null>(null);
 
   /*
-   * Atualiza visualmente a posição do menu.
-   *
-   * O valor nunca passa de 0..1.
-   * Isso evita que o sidebar seja arrastado para posições inesperadas.
+   * ------------------------------------------------------------
+   * SIDEBAR
+   * ------------------------------------------------------------
    */
-  const paint = (value: number) => {
+
+  const paint = useCallback((value: number) => {
     progress.current = Math.max(0, Math.min(1, value));
 
     if (raf.current !== null) {
@@ -53,53 +76,97 @@ function Workspace() {
     raf.current = requestAnimationFrame(() => {
       const current = progress.current;
 
-      if (sidebar.current) {
-        sidebar.current.style.transform =
-          `translate3d(${-WIDTH + WIDTH * current}px, 0, 0)`;
+      if (sidebarRef.current) {
+        sidebarRef.current.style.transform =
+          `translate3d(${-WIDTH + WIDTH * current}px,0,0)`;
       }
 
-      if (backdrop.current) {
-        backdrop.current.style.opacity = String(current * 0.72);
-        backdrop.current.style.pointerEvents =
+      if (backdropRef.current) {
+        backdropRef.current.style.opacity =
+          String(current * 0.72);
+
+        backdropRef.current.style.pointerEvents =
           current > 0.01 ? "auto" : "none";
       }
     });
+  }, []);
+
+  const settle = useCallback(
+    (shouldOpen: boolean) => {
+      setOpen(shouldOpen);
+
+      if (sidebarRef.current) {
+        sidebarRef.current.style.transition =
+          "transform 260ms cubic-bezier(.22,1,.36,1)";
+      }
+
+      if (backdropRef.current) {
+        backdropRef.current.style.transition =
+          "opacity 260ms ease";
+      }
+
+      paint(shouldOpen ? 1 : 0);
+
+      window.setTimeout(() => {
+        if (sidebarRef.current) {
+          sidebarRef.current.style.transition = "none";
+        }
+
+        if (backdropRef.current) {
+          backdropRef.current.style.transition = "none";
+        }
+      }, 280);
+    },
+    [paint],
+  );
+
+  const beginDrag = (
+    event: React.PointerEvent<HTMLElement>,
+  ) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+
+    dragging.current = true;
+    startX.current = event.clientX;
+    startProgress.current = progress.current;
+
+    if (sidebarRef.current) {
+      sidebarRef.current.style.transition = "none";
+    }
+
+    if (backdropRef.current) {
+      backdropRef.current.style.transition = "none";
+    }
   };
 
-  const settle = (shouldOpen: boolean) => {
-    setOpen(shouldOpen);
+  const moveDrag = (
+    event: React.PointerEvent<HTMLElement>,
+  ) => {
+    if (!dragging.current) return;
 
-    if (sidebar.current) {
-      sidebar.current.style.transition =
-        "transform 260ms cubic-bezier(.22,1,.36,1)";
-    }
+    const delta =
+      (event.clientX - startX.current) / WIDTH;
 
-    if (backdrop.current) {
-      backdrop.current.style.transition = "opacity 260ms ease";
-    }
+    paint(startProgress.current + delta);
+  };
 
-    paint(shouldOpen ? 1 : 0);
+  const endDrag = () => {
+    if (!dragging.current) return;
 
-    window.setTimeout(() => {
-      if (sidebar.current) {
-        sidebar.current.style.transition = "none";
-      }
+    dragging.current = false;
 
-      if (backdrop.current) {
-        backdrop.current.style.transition = "none";
-      }
-    }, 280);
+    settle(progress.current > 0.5);
   };
 
   /*
-   * Carrega somente as conversas pertencentes ao usuário autenticado.
-   *
-   * A segurança definitiva deve estar no RLS do Supabase.
+   * ------------------------------------------------------------
+   * CARREGAMENTO DO USUÁRIO E CONVERSAS
+   * ------------------------------------------------------------
    */
+
   useEffect(() => {
     let alive = true;
 
-    const loadWorkspace = async () => {
+    const load = async () => {
       const {
         data: { user },
         error: authError,
@@ -114,23 +181,32 @@ function Workspace() {
 
       setUserId(user.id);
 
-      const { data, error: conversationsError } = await supabase
-        .from("conversations")
-        .select("id, user_id, title, created_at, updated_at")
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false });
+      const { data, error: conversationsError } =
+        await supabase
+          .from("conversations")
+          .select(
+            "id,user_id,title,created_at,updated_at",
+          )
+          .eq("user_id", user.id)
+          .order("updated_at", {
+            ascending: false,
+          });
 
       if (!alive) return;
 
       if (conversationsError) {
-        setError("Não foi possível carregar suas decisões.");
+        setError(
+          "Não foi possível carregar suas decisões.",
+        );
         return;
       }
 
-      setItems((data ?? []) as Conversation[]);
+      setItems(
+        (data ?? []) as Conversation[],
+      );
     };
 
-    void loadWorkspace();
+    void load();
 
     return () => {
       alive = false;
@@ -138,13 +214,152 @@ function Workspace() {
   }, [navigate]);
 
   /*
-   * Cria uma nova conversa.
-   *
-   * Não enviamos dados sensíveis para a URL.
-   * O texto inicial fica temporariamente em sessionStorage apenas
-   * para a próxima rota conseguir iniciar a conversa.
+   * ------------------------------------------------------------
+   * SCROLL
+   * ------------------------------------------------------------
    */
-  const create = async () => {
+
+  const scrollToBottom = useCallback(() => {
+    requestAnimationFrame(() => {
+      const element = contentRef.current;
+
+      if (!element) return;
+
+      element.scrollTo({
+        top: element.scrollHeight,
+        behavior: "smooth",
+      });
+    });
+  }, []);
+
+  /*
+   * ------------------------------------------------------------
+   * CARREGAR CONVERSA
+   * ------------------------------------------------------------
+   *
+   * Tudo continua dentro de /workspace.
+   */
+
+  const openConversation = async (
+    conversation: Conversation,
+  ) => {
+    if (!userId) return;
+
+    setError(null);
+    setActiveConversation(conversation.id);
+    settle(false);
+
+    /*
+     * Troque "messages" pelos nomes reais da sua tabela
+     * caso ela tenha outra estrutura.
+     */
+    const { data, error: messagesError } =
+      await supabase
+        .from("messages")
+        .select("id,role,content")
+        .eq("conversation_id", conversation.id)
+        .eq("user_id", userId)
+        .order("created_at", {
+          ascending: true,
+        });
+
+    if (messagesError) {
+      /*
+       * Caso sua tabela messages ainda não exista,
+       * mostramos a conversa vazia em vez de quebrar
+       * completamente o workspace.
+       */
+      setMessages([]);
+      setError(
+        "Não foi possível carregar as mensagens.",
+      );
+      return;
+    }
+
+    setMessages(
+      (data ?? []) as Message[],
+    );
+
+    scrollToBottom();
+  };
+
+  /*
+   * ------------------------------------------------------------
+   * NOVA CONVERSA
+   * ------------------------------------------------------------
+   */
+
+  const newConversation = () => {
+    setActiveConversation(null);
+    setMessages([]);
+    setInput("");
+    setError(null);
+
+    settle(false);
+
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+    });
+  };
+
+  /*
+   * ------------------------------------------------------------
+   * CRIAR CONVERSA
+   * ------------------------------------------------------------
+   */
+
+  const createConversation = async (
+    text: string,
+  ) => {
+    if (!userId) {
+      throw new Error("Usuário não autenticado.");
+    }
+
+    const id = crypto.randomUUID();
+
+    const title =
+      text.length > 70
+        ? `${text.slice(0, 70)}…`
+        : text;
+
+    const { data, error: insertError } =
+      await supabase
+        .from("conversations")
+        .insert({
+          id,
+          user_id: userId,
+          title,
+        })
+        .select(
+          "id,user_id,title,created_at,updated_at",
+        )
+        .single();
+
+    if (insertError) {
+      throw new Error(
+        "Não foi possível criar a conversa.",
+      );
+    }
+
+    if (data) {
+      setItems((current) => [
+        data as Conversation,
+        ...current,
+      ]);
+    }
+
+    setActiveConversation(id);
+
+    return id;
+  };
+
+  /*
+   * ------------------------------------------------------------
+   * ENVIAR MENSAGEM
+   * ------------------------------------------------------------
+   */
+
+  const sendMessage = async () => {
     const text = input.trim();
 
     if (!text || busy) return;
@@ -153,72 +368,228 @@ function Workspace() {
     setError(null);
 
     try {
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      const currentUserId = user?.id ?? userId;
-
-      if (authError || !currentUserId) {
-        setError(
-          "Sua sessão expirou. Faça login novamente para continuar.",
-        );
-
-        await navigate({ to: "/login" });
-        return;
-      }
-
-      const id = crypto.randomUUID();
-
-      const title =
-        text.length > 70
-          ? `${text.slice(0, 70)}…`
-          : text;
-
-      const { error: insertError } = await supabase
-        .from("conversations")
-        .insert({
-          id,
-          user_id: currentUserId,
-          title,
-        });
-
-      if (insertError) {
-        setError(
-          "Não foi possível criar a conversa. Tente novamente.",
-        );
-        return;
-      }
+      let conversationId =
+        activeConversation;
 
       /*
-       * O texto inicial não vai para a URL.
-       * sessionStorage é isolado por origem e não é enviado
-       * automaticamente para o servidor.
+       * Se ainda não existe conversa, criamos uma.
        */
-      sessionStorage.setItem(
-        `decidly-pending-${id}`,
-        text,
-      );
+      if (!conversationId) {
+        conversationId =
+          await createConversation(text);
+      }
+
+      const userMessage: Message = {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: text,
+      };
+
+      setMessages((current) => [
+        ...current,
+        userMessage,
+      ]);
 
       setInput("");
 
-      await navigate({
-        to: "/workspace/$conversationId",
-        params: {
-          conversationId: id,
-        },
-      });
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "61px";
+      }
+
+      scrollToBottom();
+
+      /*
+       * --------------------------------------------------------
+       * AQUI ENTRA SUA CONEXÃO COM A AI
+       * --------------------------------------------------------
+       *
+       * Não coloque uma API key secreta aqui.
+       *
+       * O ideal é chamar uma Edge Function / API própria,
+       * que guarda a chave do provedor de AI no servidor.
+       *
+       * Exemplo:
+       *
+       * const { data, error } = await supabase.functions.invoke(
+       *   "chat",
+       *   {
+       *     body: {
+       *       conversationId,
+       *       message: text,
+       *     },
+       *   },
+       * );
+       *
+       * Depois, use data.answer.
+       */
+
+      const {
+        data: aiData,
+        error: aiError,
+      } =
+        await supabase.functions.invoke(
+          "chat",
+          {
+            body: {
+              conversationId,
+              message: text,
+            },
+          },
+        );
+
+      if (aiError) {
+        throw new Error(
+          "Não foi possível obter uma resposta da IA.",
+        );
+      }
+
+      const answer =
+        typeof aiData?.answer === "string"
+          ? aiData.answer
+          : "Não consegui gerar uma resposta agora.";
+
+      const assistantMessage: Message = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: answer,
+      };
+
+      setMessages((current) => [
+        ...current,
+        assistantMessage,
+      ]);
+
+      scrollToBottom();
     } catch (cause) {
       setError(
         cause instanceof Error
           ? cause.message
-          : "Não foi possível iniciar a conversa.",
+          : "Ocorreu um erro ao enviar sua decisão.",
       );
     } finally {
       setBusy(false);
+
+      requestAnimationFrame(() => {
+        textareaRef.current?.focus();
+      });
     }
   };
+
+  /*
+   * ------------------------------------------------------------
+   * TEXTAREA
+   * ------------------------------------------------------------
+   */
+
+  const handleInput = (
+    event: React.ChangeEvent<HTMLTextAreaElement>,
+  ) => {
+    const value = event.target.value;
+
+    setInput(value);
+
+    const element = event.currentTarget;
+
+    element.style.height = "auto";
+
+    element.style.height =
+      `${Math.min(element.scrollHeight, 150)}px`;
+  };
+
+  /*
+   * Ctrl + Enter / Cmd + Enter
+   */
+
+  const handleKeyDown = (
+    event: React.KeyboardEvent<HTMLTextAreaElement>,
+  ) => {
+    if (
+      event.key === "Enter" &&
+      (event.ctrlKey || event.metaKey)
+    ) {
+      event.preventDefault();
+      void sendMessage();
+    }
+  };
+
+  /*
+   * ------------------------------------------------------------
+   * TECLADO MOBILE
+   * ------------------------------------------------------------
+   *
+   * visualViewport acompanha a área realmente visível
+   * quando o teclado virtual aparece.
+   */
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+
+    if (!viewport) return;
+
+    const updateKeyboardPosition = () => {
+      const keyboardHeight = Math.max(
+        0,
+        window.innerHeight - viewport.height,
+      );
+
+      if (composerRef.current) {
+        composerRef.current.style.transform =
+          `translateY(-${keyboardHeight}px)`;
+      }
+
+      /*
+       * Mantém o conteúdo visível acima do composer.
+       */
+      if (contentRef.current) {
+        contentRef.current.style.paddingBottom =
+          `${Math.max(250, keyboardHeight + 180)}px`;
+      }
+    };
+
+    viewport.addEventListener(
+      "resize",
+      updateKeyboardPosition,
+    );
+
+    viewport.addEventListener(
+      "scroll",
+      updateKeyboardPosition,
+    );
+
+    updateKeyboardPosition();
+
+    return () => {
+      viewport.removeEventListener(
+        "resize",
+        updateKeyboardPosition,
+      );
+
+      viewport.removeEventListener(
+        "scroll",
+        updateKeyboardPosition,
+      );
+    };
+  }, []);
+
+  /*
+   * Quando o usuário toca no textarea, garantimos que
+   * a posição fique correta depois da abertura do teclado.
+   */
+
+  const handleFocus = () => {
+    window.setTimeout(() => {
+      textareaRef.current?.scrollIntoView({
+        block: "nearest",
+        behavior: "smooth",
+      });
+    }, 250);
+  };
+
+  /*
+   * ------------------------------------------------------------
+   * FILTRO DO HISTÓRICO
+   * ------------------------------------------------------------
+   */
 
   const filtered = items.filter((item) =>
     item.title
@@ -227,66 +598,44 @@ function Workspace() {
   );
 
   /*
-   * Gestos do sidebar.
+   * ------------------------------------------------------------
+   * RENDER
+   * ------------------------------------------------------------
    */
-
-  const begin = (
-    event: React.PointerEvent<HTMLElement>,
-  ) => {
-    event.currentTarget.setPointerCapture(event.pointerId);
-
-    dragging.current = true;
-    startX.current = event.clientX;
-    startProgress.current = progress.current;
-
-    if (sidebar.current) {
-      sidebar.current.style.transition = "none";
-    }
-
-    if (backdrop.current) {
-      backdrop.current.style.transition = "none";
-    }
-  };
-
-  const move = (
-    event: React.PointerEvent<HTMLElement>,
-  ) => {
-    if (!dragging.current) return;
-
-    const delta =
-      (event.clientX - startX.current) / WIDTH;
-
-    paint(startProgress.current + delta);
-  };
-
-  const end = () => {
-    if (!dragging.current) return;
-
-    dragging.current = false;
-
-    settle(progress.current > 0.5);
-  };
 
   return (
     <div className="min-h-screen overflow-hidden bg-[#0d0a11] text-white">
       {/* Backdrop */}
       <div
-        ref={backdrop}
+        ref={backdropRef}
         onClick={() => settle(false)}
-        className="pointer-events-none fixed inset-0 z-20 bg-black opacity-0"
+        className="
+          pointer-events-none
+          fixed
+          inset-0
+          z-20
+          bg-black
+          opacity-0
+        "
       />
 
       {/* Sidebar */}
       <aside
-        ref={sidebar}
-        onPointerDown={begin}
-        onPointerMove={move}
-        onPointerUp={end}
-        onPointerCancel={end}
+        ref={sidebarRef}
+        onPointerDown={beginDrag}
+        onPointerMove={moveDrag}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
         className="
-          fixed inset-y-0 left-0 z-30
-          flex w-[min(86vw,320px)] flex-col
-          border-r border-white/10
+          fixed
+          inset-y-0
+          left-0
+          z-30
+          flex
+          w-[min(86vw,320px)]
+          flex-col
+          border-r
+          border-white/10
           bg-[#17111f]
           p-[18px_15px]
           shadow-[20px_0_55px_rgba(0,0,0,.45)]
@@ -294,10 +643,11 @@ function Workspace() {
           touch-pan-y
         "
         style={{
-          transform: `translate3d(-${WIDTH}px,0,0)`,
+          transform:
+            `translate3d(-${WIDTH}px,0,0)`,
         }}
       >
-        {/* Header */}
+        {/* Sidebar header */}
         <div className="flex items-center justify-between font-semibold">
           <span>DecidlyAI</span>
 
@@ -309,7 +659,10 @@ function Workspace() {
             }
             onClick={() => settle(false)}
             className="
-              grid h-9 w-9 place-items-center
+              grid
+              h-9
+              w-9
+              place-items-center
               rounded-[10px]
               bg-white/5
               text-white
@@ -320,22 +673,13 @@ function Workspace() {
           </button>
         </div>
 
-        {/* New conversation */}
+        {/* New decision */}
         <button
           type="button"
           onPointerDown={(event) =>
             event.stopPropagation()
           }
-          onClick={() => {
-            settle(false);
-            requestAnimationFrame(() => {
-              document
-                .querySelector<HTMLTextAreaElement>(
-                  "#workspace-input",
-                )
-                ?.focus();
-            });
-          }}
+          onClick={newConversation}
           className="
             mt-[25px]
             rounded-xl
@@ -362,9 +706,12 @@ function Workspace() {
           }
           className="
             mt-3.5
-            flex items-center gap-2
+            flex
+            items-center
+            gap-2
             rounded-xl
-            border border-white/10
+            border
+            border-white/10
             bg-white/[.04]
             px-3
             text-white/40
@@ -415,16 +762,9 @@ function Workspace() {
                 type="button"
                 key={item.id}
                 onClick={() => {
-                  void navigate({
-                    to: "/workspace/$conversationId",
-                    params: {
-                      conversationId: item.id,
-                    },
-                  });
-
-                  settle(false);
+                  void openConversation(item);
                 }}
-                className="
+                className={`
                   block
                   w-full
                   truncate
@@ -432,10 +772,14 @@ function Workspace() {
                   px-2.5
                   py-2.5
                   text-left
-                  text-white/65
+                  text-sm
                   transition
-                  hover:bg-white/[.06]
-                "
+                  ${
+                    activeConversation === item.id
+                      ? "bg-white/[.08] text-white"
+                      : "text-white/65 hover:bg-white/[.06]"
+                  }
+                `}
               >
                 {item.title}
               </button>
@@ -457,7 +801,7 @@ function Workspace() {
         </div>
       </aside>
 
-      {/* Edge swipe area */}
+      {/* Edge swipe */}
       <div
         className="
           fixed
@@ -468,13 +812,13 @@ function Workspace() {
           w-5
           touch-none
         "
-        onPointerDown={begin}
-        onPointerMove={move}
-        onPointerUp={end}
-        onPointerCancel={end}
+        onPointerDown={beginDrag}
+        onPointerMove={moveDrag}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
       />
 
-      {/* Main application */}
+      {/* Main */}
       <main className="flex min-h-screen flex-col">
         {/* Topbar */}
         <header
@@ -514,105 +858,160 @@ function Workspace() {
             DecidlyAI
           </strong>
 
-          <span
-            className="
-              ml-auto
-              text-xs
-              text-white/35
-            "
-          >
+          <span className="ml-auto text-xs text-white/35">
             Workspace
           </span>
         </header>
 
-        {/* Content */}
+        {/* Chat */}
         <section
+          ref={contentRef}
           className="
-            flex
             min-h-0
             flex-1
-            justify-center
             overflow-y-auto
             px-[18px]
             pb-[250px]
             pt-7
           "
         >
-          <div className="w-full max-w-[720px]">
-            <div
-              className="
-                mx-auto
-                mt-5
-                max-w-[720px]
-                text-center
-                text-white/45
-              "
-            >
-              <div
-                className="
-                  mx-auto
-                  grid
-                  h-[52px]
-                  w-[52px]
-                  place-items-center
-                  overflow-hidden
-                  rounded-[17px]
-                  bg-violet-600/20
-                "
-              >
-                <img
-                  src="/appicon.png"
-                  alt="DecidlyAI"
-                  className="h-full w-full object-cover"
-                  draggable={false}
-                />
-              </div>
-
-              <h1
-                className="
-                  mt-4
-                  text-2xl
-                  font-semibold
-                  tracking-tight
-                  text-white
-                  sm:text-[24px]
-                "
-              >
-                Qual decisão você precisa analisar?
-              </h1>
-
-              <p className="mt-2 text-sm">
-                Descreva sua situação e organize suas
-                possibilidades.
-              </p>
-
-              {error && (
+          <div className="mx-auto flex w-full max-w-[720px] flex-col gap-[22px]">
+            {/* Empty state */}
+            {messages.length === 0 && (
+              <div className="welcome mt-5 mb-2 text-center text-white/45">
                 <div
-                  role="alert"
                   className="
                     mx-auto
-                    mt-5
-                    max-w-[720px]
-                    rounded-xl
-                    border
-                    border-red-400/20
-                    bg-red-400/10
-                    px-4
-                    py-3
-                    text-left
-                    text-sm
-                    text-red-200
+                    grid
+                    h-[52px]
+                    w-[52px]
+                    place-items-center
+                    overflow-hidden
+                    rounded-[17px]
+                    bg-violet-600/20
                   "
                 >
-                  {error}
+                  <img
+                    src="/appicon.png"
+                    alt="DecidlyAI"
+                    className="h-full w-full object-cover"
+                    draggable={false}
+                  />
                 </div>
-              )}
-            </div>
+
+                <h1
+                  className="
+                    mt-4
+                    text-2xl
+                    font-semibold
+                    tracking-tight
+                    text-white
+                  "
+                >
+                  Qual decisão você precisa analisar?
+                </h1>
+
+                <p className="mt-2 text-sm">
+                  Descreva sua situação e organize suas
+                  possibilidades.
+                </p>
+              </div>
+            )}
+
+            {/* Messages */}
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`
+                  max-w-[82%]
+                  whitespace-pre-wrap
+                  break-words
+                  rounded-[18px]
+                  px-4
+                  py-[13px]
+                  text-sm
+                  leading-[1.55]
+                  ${
+                    message.role === "user"
+                      ? `
+                        ml-auto
+                        rounded-br-[5px]
+                        bg-[#7651e8]
+                      `
+                      : `
+                        mr-auto
+                        rounded-bl-[5px]
+                        border
+                        border-white/10
+                        bg-white/[.045]
+                        text-white/[.78]
+                      `
+                  }
+                `}
+              >
+                {message.content}
+              </div>
+            ))}
+
+            {/* AI loading */}
+            {busy && (
+              <div
+                className="
+                  mr-auto
+                  flex
+                  items-center
+                  gap-2
+                  rounded-[18px]
+                  rounded-bl-[5px]
+                  border
+                  border-white/10
+                  bg-white/[.045]
+                  px-4
+                  py-[13px]
+                  text-sm
+                  text-white/45
+                "
+              >
+                <Sparkles size={15} />
+
+                <span className="flex gap-1">
+                  <span className="animate-pulse">
+                    •
+                  </span>
+                  <span className="animate-pulse [animation-delay:150ms]">
+                    •
+                  </span>
+                  <span className="animate-pulse [animation-delay:300ms]">
+                    •
+                  </span>
+                </span>
+              </div>
+            )}
+
+            {/* Error */}
+            {error && (
+              <div
+                role="alert"
+                className="
+                  rounded-xl
+                  border
+                  border-red-400/20
+                  bg-red-400/10
+                  px-4
+                  py-3
+                  text-sm
+                  text-red-200
+                "
+              >
+                {error}
+              </div>
+            )}
           </div>
         </section>
 
         {/* Composer */}
         <div
+          ref={composerRef}
           className="
             fixed
             inset-x-0
@@ -620,6 +1019,8 @@ function Workspace() {
             z-10
             px-3
             pt-[9px]
+            transition-transform
+            duration-75
             sm:px-3.5
           "
           style={{
@@ -630,6 +1031,12 @@ function Workspace() {
           }}
         >
           <div className="mx-auto w-full max-w-[720px]">
+            {/*
+             * Sem borda no textarea.
+             *
+             * A única borda fica no container externo,
+             * como no preview original.
+             */}
             <div
               className="
                 rounded-[20px]
@@ -642,49 +1049,35 @@ function Workspace() {
               "
             >
               <textarea
+                ref={textareaRef}
                 id="workspace-input"
-                autoFocus
-                rows={2}
                 value={input}
-                onChange={(event) =>
-                  setInput(event.target.value)
-                }
-                onInput={(event) => {
-                  const element = event.currentTarget;
-
-                  element.style.height = "auto";
-
-                  element.style.height =
-                    `${Math.min(
-                      element.scrollHeight,
-                      150,
-                    )}px`;
-                }}
-                onKeyDown={(event) => {
-                  if (
-                    event.key === "Enter" &&
-                    (event.ctrlKey || event.metaKey)
-                  ) {
-                    event.preventDefault();
-                    void create();
-                  }
-                }}
+                onChange={handleInput}
+                onKeyDown={handleKeyDown}
+                onFocus={handleFocus}
+                rows={2}
+                disabled={busy}
                 placeholder="Mande o que você quer decidir para a DecidlyAI te ajudar"
                 className="
                   block
                   min-h-[61px]
                   max-h-[150px]
                   w-full
-                  resize-y
+                  resize-none
+                  overflow-y-auto
                   border-0
+                  outline-none
+                  ring-0
                   bg-transparent
                   px-2
                   py-1.5
                   text-[15px]
                   leading-[1.45]
                   text-white
-                  outline-none
                   placeholder:text-white/55
+                  focus:border-0
+                  focus:outline-none
+                  focus:ring-0
                 "
               />
 
@@ -704,7 +1097,7 @@ function Workspace() {
                 <button
                   type="button"
                   aria-label="Enviar"
-                  onClick={() => void create()}
+                  onClick={() => void sendMessage()}
                   disabled={!input.trim() || busy}
                   className="
                     grid
