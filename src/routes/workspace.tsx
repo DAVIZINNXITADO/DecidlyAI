@@ -15,6 +15,10 @@ import {
   Mic,
   MicOff,
   ArrowUp,
+  ThumbsUp,
+  ThumbsDown,
+  Copy,
+  Check,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -109,6 +113,16 @@ function Workspace() {
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [isListening, setIsListening] = useState(false);
 
+  const [likedMessages, setLikedMessages] = useState<
+    Record<string, boolean>
+  >({});
+
+  const [dislikedMessages, setDislikedMessages] =
+    useState<Record<string, boolean>>({});
+
+  const [copiedMessageId, setCopiedMessageId] =
+    useState<string | null>(null);
+
   const sidebarRef = useRef<HTMLDivElement | null>(null);
   const chatRef = useRef<HTMLDivElement | null>(null);
   const textareaRef =
@@ -116,6 +130,8 @@ function Workspace() {
 
   const recognitionRef =
     useRef<SpeechRecognitionInstance | null>(null);
+
+  const lastTranscriptRef = useRef("");
 
   const dragState = useRef<{
     active: boolean;
@@ -469,6 +485,16 @@ function Workspace() {
       return;
     }
 
+    if (isListening) {
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        // noop
+      }
+
+      setIsListening(false);
+    }
+
     setErrorMessage("");
     setInput("");
     setIsLoading(true);
@@ -588,10 +614,8 @@ function Workspace() {
       );
     } finally {
       /*
-       * NÃO damos foco ao textarea aqui.
-       *
-       * Isso impede o teclado do celular
-       * de abrir novamente quando a IA termina.
+       * Não focamos novamente no textarea.
+       * Assim o teclado não abre sozinho.
        */
       setIsLoading(false);
     }
@@ -701,19 +725,21 @@ function Workspace() {
 
       setErrorMessage("");
 
+      /*
+       * Zera o último resultado antes de
+       * iniciar uma nova gravação.
+       */
+      lastTranscriptRef.current = "";
+
       const recognition =
         new SpeechRecognition();
 
-      /*
-       * Usa o idioma do navegador.
-       * Não existe seletor ocupando espaço.
-       */
       recognition.lang =
         navigator.language ||
         "pt-BR";
 
       /*
-       * Uma ativação por vez.
+       * Uma gravação por vez.
        */
       recognition.continuous = false;
       recognition.interimResults = false;
@@ -725,20 +751,15 @@ function Workspace() {
       recognition.onresult = (
         event,
       ) => {
-        /*
-         * Só pega o resultado correspondente
-         * ao resultIndex atual.
-         *
-         * Isso evita:
-         * "hi hi hi hi hi"
-         */
         const index =
           event.resultIndex;
 
         const result =
           event.results[index];
 
-        if (!result) return;
+        if (!result || !result.isFinal) {
+          return;
+        }
 
         const transcript =
           result[0]?.transcript
@@ -746,12 +767,70 @@ function Workspace() {
 
         if (!transcript) return;
 
+        /*
+         * Evita o navegador mandar
+         * exatamente o mesmo resultado
+         * duas ou mais vezes.
+         */
+        const normalizedTranscript =
+          transcript
+            .replace(/\s+/g, " ")
+            .trim()
+            .toLowerCase();
+
+        if (
+          lastTranscriptRef.current ===
+          normalizedTranscript
+        ) {
+          return;
+        }
+
+        lastTranscriptRef.current =
+          normalizedTranscript;
+
         setInput((current) => {
           const existing =
-            current.trim();
+            current
+              .replace(/\s+/g, " ")
+              .trim();
 
           if (!existing) {
             return transcript;
+          }
+
+          /*
+           * Proteção contra:
+           *
+           * Oi
+           * Oi
+           * Oi
+           * Oi
+           *
+           * virar:
+           * Oi Oi Oi Oi
+           */
+
+          const existingWords =
+            existing.split(" ");
+
+          const transcriptWords =
+            transcript.split(" ");
+
+          const lastWords =
+            existingWords.slice(
+              -transcriptWords.length,
+            );
+
+          if (
+            lastWords.length ===
+              transcriptWords.length &&
+            lastWords.join(" ")
+              .toLowerCase() ===
+              transcriptWords
+                .join(" ")
+                .toLowerCase()
+          ) {
+            return current;
           }
 
           return `${existing} ${transcript}`;
@@ -813,11 +892,6 @@ function Workspace() {
         recognitionRef.current =
           null;
 
-        /*
-         * Aqui podemos devolver o foco
-         * somente quando o usuário terminou
-         * de falar pelo microfone.
-         */
         requestAnimationFrame(() => {
           textareaRef.current?.focus();
           resizeTextarea();
@@ -860,6 +934,73 @@ function Workspace() {
       }
     };
   }, []);
+
+  /*
+   * =========================================================
+   * LIKE / DISLIKE
+   * =========================================================
+   */
+
+  const handleLike = (
+    messageId: string,
+  ) => {
+    setLikedMessages((current) => ({
+      ...current,
+      [messageId]: !current[messageId],
+    }));
+
+    setDislikedMessages((current) => ({
+      ...current,
+      [messageId]: false,
+    }));
+  };
+
+  const handleDislike = (
+    messageId: string,
+  ) => {
+    setDislikedMessages((current) => ({
+      ...current,
+      [messageId]: !current[messageId],
+    }));
+
+    setLikedMessages((current) => ({
+      ...current,
+      [messageId]: false,
+    }));
+  };
+
+  /*
+   * =========================================================
+   * COPIAR
+   * =========================================================
+   */
+
+  const handleCopy = async (
+    message: ChatMessage,
+  ) => {
+    try {
+      await navigator.clipboard.writeText(
+        message.content,
+      );
+
+      setCopiedMessageId(
+        message.id,
+      );
+
+      window.setTimeout(() => {
+        setCopiedMessageId(
+          (current) =>
+            current === message.id
+              ? null
+              : current,
+        );
+      }, 1800);
+    } catch {
+      setErrorMessage(
+        "Não foi possível copiar a mensagem.",
+      );
+    }
+  };
 
   /*
    * =========================================================
@@ -1137,24 +1278,143 @@ function Workspace() {
 
                     <div
                       className={
-                        message.role === "user"
-  ? "max-w-[85%] rounded-2xl bg-[#8B5CF6] px-4 py-3 text-sm leading-6 text-white shadow-[0_4px_18px_rgba(139,92,246,0.18)]"
-
+                        message.role ===
+                        "user"
+                          ? "max-w-[85%] rounded-2xl bg-[#8B5CF6] px-4 py-3 text-sm leading-6 text-white shadow-[0_4px_18px_rgba(139,92,246,0.18)]"
                           : "max-w-[90%] text-sm leading-7 text-white/85"
                       }
                     >
 
                       {message.role ===
                       "assistant" ? (
-                        <ReactMarkdown
-                          remarkPlugins={[
-                            remarkGfm,
-                          ]}
-                        >
-                          {
-                            message.content
-                          }
-                        </ReactMarkdown>
+                        <>
+
+                          <div>
+                            <ReactMarkdown
+                              remarkPlugins={[
+                                remarkGfm,
+                              ]}
+                            >
+                              {
+                                message.content
+                              }
+                            </ReactMarkdown>
+                          </div>
+
+                          {/* =================================
+                              AÇÕES DA RESPOSTA
+                              ================================= */}
+
+                          <div className="mt-3 flex items-center gap-1">
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleLike(
+                                  message.id,
+                                )
+                              }
+                              className={`
+                                flex
+                                h-8
+                                w-8
+                                items-center
+                                justify-center
+                                rounded-lg
+                                transition
+
+                                ${
+                                  likedMessages[
+                                    message.id
+                                  ]
+                                    ? "bg-[#8B5CF6]/20 text-[#A78BFA]"
+                                    : "text-white/30 hover:bg-white/[0.06] hover:text-white/70"
+                                }
+                              `}
+                              aria-label="Gostei"
+                            >
+                              <ThumbsUp
+                                size={16}
+                                fill={
+                                  likedMessages[
+                                    message.id
+                                  ]
+                                    ? "currentColor"
+                                    : "none"
+                                }
+                              />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleDislike(
+                                  message.id,
+                                )
+                              }
+                              className={`
+                                flex
+                                h-8
+                                w-8
+                                items-center
+                                justify-center
+                                rounded-lg
+                                transition
+
+                                ${
+                                  dislikedMessages[
+                                    message.id
+                                  ]
+                                    ? "bg-white/[0.08] text-white"
+                                    : "text-white/30 hover:bg-white/[0.06] hover:text-white/70"
+                                }
+                              `}
+                              aria-label="Não gostei"
+                            >
+                              <ThumbsDown
+                                size={16}
+                                fill={
+                                  dislikedMessages[
+                                    message.id
+                                  ]
+                                    ? "currentColor"
+                                    : "none"
+                                }
+                              />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleCopy(
+                                  message,
+                                )
+                              }
+                              className="flex h-8 w-8 items-center justify-center rounded-lg text-white/30 transition hover:bg-white/[0.06] hover:text-white/70"
+                              aria-label="Copiar mensagem"
+                            >
+                              {copiedMessageId ===
+                              message.id ? (
+                                <Check
+                                  size={16}
+                                />
+                              ) : (
+                                <Copy
+                                  size={16}
+                                />
+                              )}
+                            </button>
+
+                            {copiedMessageId ===
+                              message.id && (
+                              <span className="ml-1 text-[11px] text-white/35">
+                                Copiado
+                              </span>
+                            )}
+
+                          </div>
+
+                        </>
                       ) : (
                         message.content
                       )}
@@ -1211,9 +1471,7 @@ function Workspace() {
 
             <div className="flex items-end gap-2">
 
-              {/* =================================================
-                  TEXTAREA SEM BORDA
-                  ================================================= */}
+              {/* TEXTAREA */}
 
               <textarea
                 ref={textareaRef}
@@ -1274,9 +1532,7 @@ function Workspace() {
                 }}
               />
 
-              {/* =================================================
-                  MICROFONE
-                  ================================================= */}
+              {/* MICROFONE */}
 
               <button
                 type="button"
@@ -1325,9 +1581,7 @@ function Workspace() {
 
               </button>
 
-              {/* =================================================
-                  BOTÃO ENVIAR ROXO
-                  ================================================= */}
+              {/* ENVIAR */}
 
               <button
                 type="button"
