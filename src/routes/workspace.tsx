@@ -1,7 +1,6 @@
-// src/routes/workspace.tsx
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Menu, Plus, Search, Send, X } from "lucide-react";
+import { Menu, Plus, Search, Sparkles, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/workspace")({
@@ -10,719 +9,755 @@ export const Route = createFileRoute("/workspace")({
 
 type Conversation = {
   id: string;
+  user_id: string;
   title: string;
   created_at: string;
   updated_at: string;
 };
 
-type Message = {
-  id?: string;
-  role: "user" | "assistant";
-  content: string;
-};
+const WIDTH = 320;
 
 function Workspace() {
   const navigate = useNavigate();
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const [userId, setUserId] = useState<string | null>(null);
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [sending, setSending] = useState(false);
-  const [loadingHistory, setLoadingHistory] = useState(true);
-  const [search, setSearch] = useState("");
+  const [items, setItems] = useState<Conversation[]>([]);
+  const [query, setQuery] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const sidebar = useRef<HTMLElement>(null);
+  const backdrop = useRef<HTMLDivElement>(null);
 
-  const sidebarRef = useRef<HTMLElement>(null);
-  const backdropRef = useRef<HTMLDivElement>(null);
+  const progress = useRef(0);
+  const startX = useRef(0);
+  const startProgress = useRef(0);
+  const dragging = useRef(false);
+  const raf = useRef<number | null>(null);
 
-  const dragRef = useRef({
-    active: false,
-    moved: false,
-    startX: 0,
-    startProgress: 0,
-    progress: 0,
-    width: 320,
-    pointerId: -1,
-  });
+  /*
+   * Atualiza visualmente a posição do menu.
+   *
+   * O valor nunca passa de 0..1.
+   * Isso evita que o sidebar seja arrastado para posições inesperadas.
+   */
+  const paint = (value: number) => {
+    progress.current = Math.max(0, Math.min(1, value));
 
-  const frameRef = useRef<number | null>(null);
+    if (raf.current !== null) {
+      cancelAnimationFrame(raf.current);
+    }
 
-  useEffect(() => {
-    loadConversations();
-  }, []);
+    raf.current = requestAnimationFrame(() => {
+      const current = progress.current;
 
-  useEffect(() => {
-    requestAnimationFrame(() => {
-      const el = contentRef.current;
-      if (el) el.scrollTop = el.scrollHeight;
+      if (sidebar.current) {
+        sidebar.current.style.transform =
+          `translate3d(${-WIDTH + WIDTH * current}px, 0, 0)`;
+      }
+
+      if (backdrop.current) {
+        backdrop.current.style.opacity = String(current * 0.72);
+        backdrop.current.style.pointerEvents =
+          current > 0.01 ? "auto" : "none";
+      }
     });
-  }, [messages, sending]);
+  };
 
-  function paint(progress: number) {
-    const d = dragRef.current;
-    d.progress = Math.max(0, Math.min(1, progress));
+  const settle = (shouldOpen: boolean) => {
+    setOpen(shouldOpen);
 
-    if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    if (sidebar.current) {
+      sidebar.current.style.transition =
+        "transform 260ms cubic-bezier(.22,1,.36,1)";
+    }
 
-    frameRef.current = requestAnimationFrame(() => {
-      const sidebar = sidebarRef.current;
-      const backdrop = backdropRef.current;
-      if (!sidebar || !backdrop) return;
+    if (backdrop.current) {
+      backdrop.current.style.transition = "opacity 260ms ease";
+    }
 
-      const x = -d.width + d.width * d.progress;
-
-      sidebar.style.transform = `translate3d(${x}px,0,0)`;
-      backdrop.style.opacity = String(d.progress * 0.72);
-      backdrop.style.pointerEvents = d.progress > 0.01 ? "auto" : "none";
-    });
-  }
-
-  function settle(open: boolean) {
-    const sidebar = sidebarRef.current;
-    const backdrop = backdropRef.current;
-    const d = dragRef.current;
-
-    if (!sidebar || !backdrop) return;
-
-    d.progress = open ? 1 : 0;
-
-    sidebar.style.transition =
-      "transform .26s cubic-bezier(.22,1,.36,1)";
-    backdrop.style.transition = "opacity .26s ease";
-
-    paint(d.progress);
+    paint(shouldOpen ? 1 : 0);
 
     window.setTimeout(() => {
-      if (sidebarRef.current) {
-        sidebarRef.current.style.transition = "none";
+      if (sidebar.current) {
+        sidebar.current.style.transition = "none";
       }
-      if (backdropRef.current) {
-        backdropRef.current.style.transition = "none";
+
+      if (backdrop.current) {
+        backdrop.current.style.transition = "none";
       }
     }, 280);
+  };
 
-    setSidebarOpen(open);
-  }
-
+  /*
+   * Carrega somente as conversas pertencentes ao usuário autenticado.
+   *
+   * A segurança definitiva deve estar no RLS do Supabase.
+   */
   useEffect(() => {
-    paint(0);
+    let alive = true;
 
-    const down = (e: PointerEvent) => {
-      if (e.pointerType === "mouse" && e.button !== 0) return;
+    const loadWorkspace = async () => {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
 
-      const sidebar = sidebarRef.current;
-      if (!sidebar) return;
+      if (!alive) return;
 
-      const d = dragRef.current;
-      d.active = true;
-      d.moved = false;
-      d.startX = e.clientX;
-      d.startProgress = d.progress;
-      d.width = sidebar.offsetWidth || 320;
-      d.pointerId = e.pointerId;
-
-      sidebar.style.transition = "none";
-    };
-
-    const move = (e: PointerEvent) => {
-      const d = dragRef.current;
-      if (!d.active || e.pointerId !== d.pointerId) return;
-
-      const dx = e.clientX - d.startX;
-
-      if (!d.moved && Math.abs(dx) < 8) return;
-
-      if (!d.moved) {
-        d.moved = true;
-      }
-
-      const next = d.startProgress + dx / d.width;
-
-      paint(next);
-
-      if (Math.abs(dx) > 8) {
-        e.preventDefault();
-      }
-    };
-
-    const up = (e: PointerEvent) => {
-      const d = dragRef.current;
-      if (!d.active || e.pointerId !== d.pointerId) return;
-
-      d.active = false;
-
-      if (!d.moved) {
+      if (authError || !user) {
+        await navigate({ to: "/login" });
         return;
       }
 
-      settle(d.progress > 0.5);
+      setUserId(user.id);
+
+      const { data, error: conversationsError } = await supabase
+        .from("conversations")
+        .select("id, user_id, title, created_at, updated_at")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false });
+
+      if (!alive) return;
+
+      if (conversationsError) {
+        setError("Não foi possível carregar suas decisões.");
+        return;
+      }
+
+      setItems((data ?? []) as Conversation[]);
     };
 
-    window.addEventListener("pointerdown", down);
-    window.addEventListener("pointermove", move, { passive: false });
-    window.addEventListener("pointerup", up);
-    window.addEventListener("pointercancel", up);
+    void loadWorkspace();
 
     return () => {
-      window.removeEventListener("pointerdown", down);
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-      window.removeEventListener("pointercancel", up);
-
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      alive = false;
     };
-  }, []);
+  }, [navigate]);
 
-  async function loadConversations() {
-    setLoadingHistory(true);
+  /*
+   * Cria uma nova conversa.
+   *
+   * Não enviamos dados sensíveis para a URL.
+   * O texto inicial fica temporariamente em sessionStorage apenas
+   * para a próxima rota conseguir iniciar a conversa.
+   */
+  const create = async () => {
+    const text = input.trim();
 
-    const { data: auth } = await supabase.auth.getUser();
+    if (!text || busy) return;
 
-    if (!auth.user) {
-      navigate({ to: "/login" });
-      return;
-    }
+    setBusy(true);
+    setError(null);
 
-    const { data } = await supabase
-      .from("conversations")
-      .select("id,title,created_at,updated_at")
-      .eq("user_id", auth.user.id)
-      .order("updated_at", { ascending: false });
+    try {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
 
-    setConversations(data ?? []);
-    setLoadingHistory(false);
-  }
+      const currentUserId = user?.id ?? userId;
 
-  async function createConversation(firstMessage: string) {
-    const { data: auth } = await supabase.auth.getUser();
+      if (authError || !currentUserId) {
+        setError(
+          "Sua sessão expirou. Faça login novamente para continuar.",
+        );
 
-    if (!auth.user) {
-      navigate({ to: "/login" });
-      return;
-    }
+        await navigate({ to: "/login" });
+        return;
+      }
 
-    const title =
-      firstMessage.length > 48
-        ? `${firstMessage.slice(0, 48)}…`
-        : firstMessage;
+      const id = crypto.randomUUID();
 
-    const { data: conversation, error: conversationError } =
-      await supabase
+      const title =
+        text.length > 70
+          ? `${text.slice(0, 70)}…`
+          : text;
+
+      const { error: insertError } = await supabase
         .from("conversations")
         .insert({
-          user_id: auth.user.id,
+          id,
+          user_id: currentUserId,
           title,
-        })
-        .select("id,title,created_at,updated_at")
-        .single();
+        });
 
-    if (conversationError || !conversation) {
-      console.error(conversationError);
-      return;
-    }
+      if (insertError) {
+        setError(
+          "Não foi possível criar a conversa. Tente novamente.",
+        );
+        return;
+      }
 
-    const { error: messageError } = await supabase
-      .from("messages")
-      .insert({
-        conversation_id: conversation.id,
-        user_id: auth.user.id,
-        role: "user",
-        content: firstMessage,
+      /*
+       * O texto inicial não vai para a URL.
+       * sessionStorage é isolado por origem e não é enviado
+       * automaticamente para o servidor.
+       */
+      sessionStorage.setItem(
+        `decidly-pending-${id}`,
+        text,
+      );
+
+      setInput("");
+
+      await navigate({
+        to: "/workspace/$conversationId",
+        params: {
+          conversationId: id,
+        },
       });
-
-    if (messageError) {
-      console.error(messageError);
-      return;
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Não foi possível iniciar a conversa.",
+      );
+    } finally {
+      setBusy(false);
     }
+  };
 
-    navigate({
-      to: "/workspace/$conversationId",
-      params: { conversationId: conversation.id },
-    });
-  }
-
-  function send() {
-    const value = input.trim();
-    if (!value || sending) return;
-
-    setInput("");
-    createConversation(value);
-  }
-
-  function autoResize() {
-    const el = textareaRef.current;
-    if (!el) return;
-
-    el.style.height = "0px";
-    el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
-  }
-
-  const filtered = conversations.filter((c) =>
-    c.title.toLowerCase().includes(search.toLowerCase()),
+  const filtered = items.filter((item) =>
+    item.title
+      .toLowerCase()
+      .includes(query.trim().toLowerCase()),
   );
 
+  /*
+   * Gestos do sidebar.
+   */
+
+  const begin = (
+    event: React.PointerEvent<HTMLElement>,
+  ) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+
+    dragging.current = true;
+    startX.current = event.clientX;
+    startProgress.current = progress.current;
+
+    if (sidebar.current) {
+      sidebar.current.style.transition = "none";
+    }
+
+    if (backdrop.current) {
+      backdrop.current.style.transition = "none";
+    }
+  };
+
+  const move = (
+    event: React.PointerEvent<HTMLElement>,
+  ) => {
+    if (!dragging.current) return;
+
+    const delta =
+      (event.clientX - startX.current) / WIDTH;
+
+    paint(startProgress.current + delta);
+  };
+
+  const end = () => {
+    if (!dragging.current) return;
+
+    dragging.current = false;
+
+    settle(progress.current > 0.5);
+  };
+
   return (
-    <div
-      className="workspace-root"
-      style={{
-        height: "100dvh",
-        width: "100%",
-        overflow: "hidden",
-        background:
-          "radial-gradient(circle at 50% -20%, rgba(118,81,232,.14), transparent 45%), #0d0a11",
-        color: "white",
-        fontFamily:
-          'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
-        touchAction: "pan-y",
-      }}
-    >
-      <header
-        style={{
-          height: 68,
-          minHeight: 68,
-          display: "flex",
-          alignItems: "center",
-          padding: "0 16px",
-          borderBottom: "1px solid rgba(255,255,255,.08)",
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => settle(true)}
-          aria-label="Abrir menu"
-          style={{
-            width: 40,
-            height: 40,
-            display: "grid",
-            placeItems: "center",
-            border: 0,
-            outline: 0,
-            background: "transparent",
-            color: "rgba(255,255,255,.82)",
-            cursor: "pointer",
-          }}
-        >
-          <Menu size={22} />
-        </button>
-
-        <div style={{ marginLeft: 10, fontWeight: 700, fontSize: 18 }}>
-          DecidlyAI
-        </div>
-
-        <div
-          style={{
-            marginLeft: 12,
-            fontSize: 12,
-            color: "rgba(255,255,255,.4)",
-          }}
-        >
-          Workspace
-        </div>
-      </header>
-
-      <main
-        ref={contentRef}
-        style={{
-          height: "calc(100dvh - 68px)",
-          overflowY: "auto",
-          padding: "36px 18px 250px",
-          boxSizing: "border-box",
-        }}
-      >
-        <div
-          style={{
-            width: "100%",
-            maxWidth: 720,
-            margin: "0 auto",
-          }}
-        >
-          {messages.length === 0 ? (
-            <div style={{ textAlign: "center", paddingTop: 100 }}>
-              <h1
-                style={{
-                  margin: 0,
-                  fontSize: 30,
-                  fontWeight: 700,
-                  letterSpacing: "-.03em",
-                }}
-              >
-                O que você precisa decidir?
-              </h1>
-
-              <p
-                style={{
-                  margin: "14px auto 28px",
-                  maxWidth: 560,
-                  color: "rgba(255,255,255,.48)",
-                  lineHeight: 1.6,
-                }}
-              >
-                Compare opções, organize seus pensamentos e tome decisões
-                com mais clareza.
-              </p>
-
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  justifyContent: "center",
-                  gap: 8,
-                }}
-              >
-                {[
-                  "Preciso tomar uma decisão",
-                  "Compare duas opções para mim",
-                  "Quais são os prós e contras?",
-                  "Estou em dúvida entre duas escolhas",
-                ].map((text) => (
-                  <button
-                    key={text}
-                    type="button"
-                    onClick={() => {
-                      setInput(text);
-                      requestAnimationFrame(() => {
-                        textareaRef.current?.focus();
-                        autoResize();
-                      });
-                    }}
-                    style={{
-                      border: "1px solid rgba(255,255,255,.1)",
-                      borderRadius: 999,
-                      padding: "10px 14px",
-                      background: "rgba(255,255,255,.035)",
-                      color: "rgba(255,255,255,.72)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {text}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            messages.map((message, index) => (
-              <div
-                key={message.id ?? `${message.role}-${index}`}
-                style={{
-                  display: "flex",
-                  justifyContent:
-                    message.role === "user" ? "flex-end" : "flex-start",
-                  marginBottom: 18,
-                }}
-              >
-                <div
-                  style={{
-                    maxWidth: "82%",
-                    padding: "12px 15px",
-                    borderRadius: 18,
-                    background:
-                      message.role === "user"
-                        ? "#7651e8"
-                        : "rgba(255,255,255,.045)",
-                    border:
-                      message.role === "assistant"
-                        ? "1px solid rgba(255,255,255,.09)"
-                        : "none",
-                    lineHeight: 1.6,
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
-                  {message.content}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </main>
-
+    <div className="min-h-screen overflow-hidden bg-[#0d0a11] text-white">
+      {/* Backdrop */}
       <div
-        style={{
-          position: "fixed",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 20,
-          padding: "16px 18px 18px",
-          background:
-            "linear-gradient(to top, #0d0a11 55%, transparent)",
-          pointerEvents: "none",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 720,
-            margin: "0 auto",
-            pointerEvents: "auto",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-end",
-              gap: 10,
-              padding: 10,
-              borderRadius: 20,
-              background: "#141019",
-              border: "1px solid rgba(255,255,255,.1)",
-              boxShadow: "0 12px 40px rgba(0,0,0,.35)",
-            }}
-          >
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => {
-                setInput(e.target.value);
-                autoResize();
-              }}
-              onKeyDown={(e) => {
-                if (
-                  e.key === "Enter" &&
-                  (e.ctrlKey || e.metaKey) &&
-                  !e.shiftKey
-                ) {
-                  e.preventDefault();
-                  send();
-                }
-              }}
-              placeholder="Digite sua decisão..."
-              rows={1}
-              disabled={sending}
-              style={{
-                flex: 1,
-                minWidth: 0,
-                maxHeight: 180,
-                resize: "none",
-                overflowY: "auto",
-                padding: "9px 7px",
-                background: "transparent",
-                color: "white",
-                border: "0 !important",
-                outline: "none",
-                boxShadow: "none",
-                WebkitAppearance: "none",
-                appearance: "none",
-                font: "inherit",
-                lineHeight: 1.45,
-              }}
-            />
-
-            <button
-              type="button"
-              onClick={send}
-              disabled={!input.trim() || sending}
-              aria-label="Enviar"
-              style={{
-                flexShrink: 0,
-                width: 42,
-                height: 42,
-                border: 0,
-                outline: 0,
-                borderRadius: 13,
-                display: "grid",
-                placeItems: "center",
-                background: input.trim() ? "#7651e8" : "rgba(255,255,255,.08)",
-                color: "white",
-                cursor: input.trim() ? "pointer" : "default",
-              }}
-            >
-              <Send size={18} />
-            </button>
-          </div>
-
-          <div
-            style={{
-              textAlign: "center",
-              marginTop: 9,
-              fontSize: 11,
-              color: "rgba(255,255,255,.32)",
-            }}
-          >
-            DecidlyAI é um agente de AI que pode cometer erros, olhe duas
-            vezes a resposta dela antes de usar.
-          </div>
-        </div>
-      </div>
-
-      <div
-        ref={backdropRef}
+        ref={backdrop}
         onClick={() => settle(false)}
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 40,
-          background: "rgba(0,0,0,.72)",
-          opacity: 0,
-          pointerEvents: "none",
-        }}
+        className="pointer-events-none fixed inset-0 z-20 bg-black opacity-0"
       />
 
+      {/* Sidebar */}
       <aside
-        ref={sidebarRef}
+        ref={sidebar}
+        onPointerDown={begin}
+        onPointerMove={move}
+        onPointerUp={end}
+        onPointerCancel={end}
+        className="
+          fixed inset-y-0 left-0 z-30
+          flex w-[min(86vw,320px)] flex-col
+          border-r border-white/10
+          bg-[#17111f]
+          p-[18px_15px]
+          shadow-[20px_0_55px_rgba(0,0,0,.45)]
+          will-change-transform
+          touch-pan-y
+        "
         style={{
-          position: "fixed",
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: "min(86vw,320px)",
-          zIndex: 50,
-          background: "#141019",
-          borderRight: "1px solid rgba(255,255,255,.1)",
-          transform: "translate3d(-100%,0,0)",
-          willChange: "transform",
-          display: "flex",
-          flexDirection: "column",
-          boxSizing: "border-box",
-          touchAction: "pan-y",
+          transform: `translate3d(-${WIDTH}px,0,0)`,
         }}
       >
-        <div
-          style={{
-            height: 68,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 14px 0 18px",
-            borderBottom: "1px solid rgba(255,255,255,.08)",
-          }}
-        >
-          <strong>DecidlyAI</strong>
+        {/* Header */}
+        <div className="flex items-center justify-between font-semibold">
+          <span>DecidlyAI</span>
 
           <button
             type="button"
+            aria-label="Fechar menu"
+            onPointerDown={(event) =>
+              event.stopPropagation()
+            }
             onClick={() => settle(false)}
-            style={{
-              width: 38,
-              height: 38,
-              border: 0,
-              outline: 0,
-              background: "transparent",
-              color: "rgba(255,255,255,.65)",
-              cursor: "pointer",
-            }}
+            className="
+              grid h-9 w-9 place-items-center
+              rounded-[10px]
+              bg-white/5
+              text-white
+              hover:bg-white/10
+            "
           >
             <X size={20} />
           </button>
         </div>
 
+        {/* New conversation */}
         <button
           type="button"
-          onClick={() => settle(false)}
-          style={{
-            margin: 14,
-            height: 44,
-            border: 0,
-            borderRadius: 12,
-            background: "#7651e8",
-            color: "white",
-            display: "flex",
-            alignItems: "center",
-            gap: 9,
-            padding: "0 14px",
-            fontWeight: 600,
-            cursor: "pointer",
+          onPointerDown={(event) =>
+            event.stopPropagation()
+          }
+          onClick={() => {
+            settle(false);
+            requestAnimationFrame(() => {
+              document
+                .querySelector<HTMLTextAreaElement>(
+                  "#workspace-input",
+                )
+                ?.focus();
+            });
           }}
+          className="
+            mt-[25px]
+            rounded-xl
+            bg-[#7651e8]
+            px-3
+            py-3
+            text-center
+            text-sm
+            font-semibold
+            transition
+            hover:bg-violet-500
+          "
         >
-          <Plus size={18} />
-          Nova conversa
+          <span className="flex items-center justify-center gap-2">
+            <Plus size={17} />
+            Nova decisão
+          </span>
         </button>
 
-        <div style={{ padding: "0 14px 12px" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              height: 40,
-              padding: "0 11px",
-              borderRadius: 10,
-              background: "rgba(255,255,255,.05)",
-              border: "1px solid rgba(255,255,255,.08)",
-            }}
-          >
-            <Search size={16} color="rgba(255,255,255,.4)" />
-
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Pesquisar"
-              style={{
-                flex: 1,
-                minWidth: 0,
-                border: 0,
-                outline: 0,
-                boxShadow: "none",
-                background: "transparent",
-                color: "white",
-              }}
-            />
-          </div>
-        </div>
-
-        <div
-          style={{
-            flex: 1,
-            overflowY: "auto",
-            padding: "4px 10px",
-          }}
+        {/* Search */}
+        <label
+          onPointerDown={(event) =>
+            event.stopPropagation()
+          }
+          className="
+            mt-3.5
+            flex items-center gap-2
+            rounded-xl
+            border border-white/10
+            bg-white/[.04]
+            px-3
+            text-white/40
+          "
         >
-          <div
-            style={{
-              padding: "8px 8px 10px",
-              fontSize: 11,
-              color: "rgba(255,255,255,.35)",
-              textTransform: "uppercase",
-              letterSpacing: ".08em",
-            }}
-          >
-            Histórico
-          </div>
+          <Search size={16} />
 
-          {loadingHistory ? null : filtered.length === 0 ? (
-            <div
-              style={{
-                padding: 12,
-                color: "rgba(255,255,255,.35)",
-                fontSize: 13,
-              }}
-            >
-              Nenhuma conversa.
-            </div>
+          <input
+            value={query}
+            onChange={(event) =>
+              setQuery(event.target.value)
+            }
+            placeholder="Pesquisar decisões"
+            aria-label="Pesquisar decisões"
+            className="
+              min-w-0
+              flex-1
+              bg-transparent
+              py-2.5
+              text-sm
+              text-white
+              outline-none
+              placeholder:text-white/35
+            "
+          />
+        </label>
+
+        {/* History */}
+        <div
+          onPointerDown={(event) =>
+            event.stopPropagation()
+          }
+          className="
+            mt-[18px]
+            flex-1
+            space-y-1
+            overflow-y-auto
+            text-[13px]
+          "
+        >
+          {filtered.length === 0 ? (
+            <p className="px-2.5 py-3 text-white/35">
+              Nenhuma decisão encontrada.
+            </p>
           ) : (
-            filtered.map((conversation) => (
+            filtered.map((item) => (
               <button
-                key={conversation.id}
                 type="button"
+                key={item.id}
                 onClick={() => {
-                  settle(false);
-                  navigate({
+                  void navigate({
                     to: "/workspace/$conversationId",
-                    params: { conversationId: conversation.id },
+                    params: {
+                      conversationId: item.id,
+                    },
                   });
+
+                  settle(false);
                 }}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "11px 10px",
-                  marginBottom: 3,
-                  border: 0,
-                  borderRadius: 9,
-                  background: "transparent",
-                  color: "rgba(255,255,255,.72)",
-                  cursor: "pointer",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
+                className="
+                  block
+                  w-full
+                  truncate
+                  rounded-[10px]
+                  px-2.5
+                  py-2.5
+                  text-left
+                  text-white/65
+                  transition
+                  hover:bg-white/[.06]
+                "
               >
-                {conversation.title}
+                {item.title}
               </button>
             ))
           )}
         </div>
+
+        {/* Account */}
+        <div
+          className="
+            border-t
+            border-white/10
+            pt-[15px]
+            text-xs
+            text-white/40
+          "
+        >
+          Minha conta
+        </div>
       </aside>
+
+      {/* Edge swipe area */}
+      <div
+        className="
+          fixed
+          left-0
+          top-[68px]
+          bottom-0
+          z-10
+          w-5
+          touch-none
+        "
+        onPointerDown={begin}
+        onPointerMove={move}
+        onPointerUp={end}
+        onPointerCancel={end}
+      />
+
+      {/* Main application */}
+      <main className="flex min-h-screen flex-col">
+        {/* Topbar */}
+        <header
+          className="
+            flex
+            h-[68px]
+            shrink-0
+            items-center
+            gap-3.5
+            border-b
+            border-white/[.07]
+            px-[18px]
+          "
+        >
+          <button
+            type="button"
+            aria-label="Abrir menu"
+            onClick={() => settle(!open)}
+            className="
+              grid
+              h-10
+              w-10
+              place-items-center
+              rounded-xl
+              border
+              border-white/10
+              bg-white/[.04]
+              text-white
+              transition
+              hover:bg-white/[.08]
+            "
+          >
+            <Menu size={21} />
+          </button>
+
+          <strong className="font-semibold tracking-tight">
+            DecidlyAI
+          </strong>
+
+          <span
+            className="
+              ml-auto
+              text-xs
+              text-white/35
+            "
+          >
+            Workspace
+          </span>
+        </header>
+
+        {/* Content */}
+        <section
+          className="
+            flex
+            min-h-0
+            flex-1
+            justify-center
+            overflow-y-auto
+            px-[18px]
+            pb-[250px]
+            pt-7
+          "
+        >
+          <div className="w-full max-w-[720px]">
+            <div
+              className="
+                mx-auto
+                mt-5
+                max-w-[720px]
+                text-center
+                text-white/45
+              "
+            >
+              <div
+                className="
+                  mx-auto
+                  grid
+                  h-[52px]
+                  w-[52px]
+                  place-items-center
+                  overflow-hidden
+                  rounded-[17px]
+                  bg-violet-600/20
+                "
+              >
+                <img
+                  src="/appicon.png"
+                  alt="DecidlyAI"
+                  className="h-full w-full object-cover"
+                  draggable={false}
+                />
+              </div>
+
+              <h1
+                className="
+                  mt-4
+                  text-2xl
+                  font-semibold
+                  tracking-tight
+                  text-white
+                  sm:text-[24px]
+                "
+              >
+                Qual decisão você precisa analisar?
+              </h1>
+
+              <p className="mt-2 text-sm">
+                Descreva sua situação e organize suas
+                possibilidades.
+              </p>
+
+              {error && (
+                <div
+                  role="alert"
+                  className="
+                    mx-auto
+                    mt-5
+                    max-w-[720px]
+                    rounded-xl
+                    border
+                    border-red-400/20
+                    bg-red-400/10
+                    px-4
+                    py-3
+                    text-left
+                    text-sm
+                    text-red-200
+                  "
+                >
+                  {error}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Composer */}
+        <div
+          className="
+            fixed
+            inset-x-0
+            bottom-0
+            z-10
+            px-3
+            pt-[9px]
+            sm:px-3.5
+          "
+          style={{
+            paddingBottom:
+              "max(12px, env(safe-area-inset-bottom))",
+            background:
+              "linear-gradient(to top, #0d0a11 72%, transparent)",
+          }}
+        >
+          <div className="mx-auto w-full max-w-[720px]">
+            <div
+              className="
+                rounded-[20px]
+                border
+                border-white/[.14]
+                bg-[#15101d]/95
+                p-[9px]
+                shadow-[0_-8px_32px_rgba(0,0,0,.25)]
+                backdrop-blur-xl
+              "
+            >
+              <textarea
+                id="workspace-input"
+                autoFocus
+                rows={2}
+                value={input}
+                onChange={(event) =>
+                  setInput(event.target.value)
+                }
+                onInput={(event) => {
+                  const element = event.currentTarget;
+
+                  element.style.height = "auto";
+
+                  element.style.height =
+                    `${Math.min(
+                      element.scrollHeight,
+                      150,
+                    )}px`;
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    event.key === "Enter" &&
+                    (event.ctrlKey || event.metaKey)
+                  ) {
+                    event.preventDefault();
+                    void create();
+                  }
+                }}
+                placeholder="Mande o que você quer decidir para a DecidlyAI te ajudar"
+                className="
+                  block
+                  min-h-[61px]
+                  max-h-[150px]
+                  w-full
+                  resize-y
+                  border-0
+                  bg-transparent
+                  px-2
+                  py-1.5
+                  text-[15px]
+                  leading-[1.45]
+                  text-white
+                  outline-none
+                  placeholder:text-white/55
+                "
+              />
+
+              <div
+                className="
+                  flex
+                  items-center
+                  justify-between
+                  px-1
+                  pb-0
+                "
+              >
+                <span className="text-[11px] text-white/30">
+                  Ctrl + Enter para enviar
+                </span>
+
+                <button
+                  type="button"
+                  aria-label="Enviar"
+                  onClick={() => void create()}
+                  disabled={!input.trim() || busy}
+                  className="
+                    grid
+                    h-9
+                    w-9
+                    place-items-center
+                    rounded-xl
+                    bg-[#7651e8]
+                    text-[21px]
+                    leading-none
+                    transition
+                    hover:bg-violet-500
+                    disabled:cursor-default
+                    disabled:opacity-35
+                  "
+                >
+                  {busy ? (
+                    <span
+                      className="
+                        block
+                        h-[18px]
+                        w-[18px]
+                        animate-spin
+                        rounded-full
+                        border-2
+                        border-white/30
+                        border-t-white
+                      "
+                    />
+                  ) : (
+                    "↑"
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <p
+              className="
+                mx-1
+                mt-2
+                text-center
+                text-[11px]
+                leading-[1.4]
+                text-white/[.38]
+              "
+            >
+              DecidlyAI é um agente de AI que pode cometer
+              erros, olhe duas vezes a resposta dela antes
+              de usar.
+            </p>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
