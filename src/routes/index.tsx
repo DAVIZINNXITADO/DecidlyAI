@@ -76,10 +76,6 @@ function Index() {
                 </button>
               </div>
 
-              <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-slate-400">
-                <span className="inline-flex items-center gap-2"><Check className="h-4 w-4 text-violet-300" />5 créditos grátis por dia</span>
-                <span className="inline-flex items-center gap-2"><Check className="h-4 w-4 text-violet-300" />Sem cartão de crédito</span>
-              </div>
             </div>
 
             <DecisionPreview />
@@ -145,13 +141,6 @@ function Index() {
             </div>
           </section>
 
-          <section className="border-y border-white/[0.08] bg-white/[0.025]">
-            <div className="mx-auto grid max-w-7xl gap-12 px-6 py-24 md:grid-cols-[.8fr_1.2fr] md:px-8 md:py-32">
-              <div><p className="text-sm font-semibold uppercase tracking-[0.18em] text-violet-300">INTELIGÊNCIA POR TRÁS</p><h2 className="mt-5 text-4xl font-semibold tracking-tight md:text-5xl">Uma rota inteligente quando você precisa dela.</h2><p className="mt-5 leading-7 text-slate-400">No plano Free, a plataforma começa com o Gemini Flash. Se o limite estiver indisponível, ela tenta o Groq, com uma IA baseada em GPT-4, e, caso necessário, o Claude AI.</p></div>
-              <div className="grid gap-3 sm:grid-cols-3"><ModelCard step="01" name="Gemini Flash" description="Base econômica" /><ModelCard step="02" name="Groq" description="IA baseada em GPT-4" /><ModelCard step="03" name="Claude AI" description="Último fallback" /></div>
-            </div>
-          </section>
-
           <FaqSection />
 
           <section className="mx-auto max-w-7xl px-6 py-24 md:px-8 md:py-32"><div className="relative overflow-hidden rounded-[2rem] border border-violet-300/25 bg-gradient-to-br from-violet-500/20 via-[#17132b] to-[#0e0d1c] px-6 py-16 text-center md:px-12 md:py-20"><div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(196,181,253,.18),transparent_55%)]" /><div className="relative"><p className="text-sm font-semibold uppercase tracking-[0.18em] text-violet-200">A próxima decisão começa aqui</p><h2 className="mx-auto mt-5 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">Você não precisa ter todas as respostas para começar.</h2><p className="mx-auto mt-5 max-w-xl leading-7 text-slate-300">Dê forma à sua dúvida. O DecidlyAI ajuda você a encontrar clareza no caminho.</p><Link to="/login" className="interactive-lift mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-7 py-4 font-semibold text-[#151322] hover:bg-violet-100">Começar gratuitamente <ArrowRight className="h-5 w-5" /></Link></div></div></section>
@@ -170,14 +159,11 @@ function TrustItem({ icon, text }: { icon: React.ReactNode; text: string }) { re
 function Step({ number, icon, title, description }: { number: string; icon: React.ReactNode; title: string; description: string }) { return <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-7 transition duration-200 hover:-translate-y-1 hover:border-violet-300/30"><div className="flex items-center justify-between"><span className="text-sm font-bold tracking-[0.2em] text-violet-300">{number}</span><span className="text-violet-300">{icon}</span></div><h3 className="mt-12 text-xl font-semibold">{title}</h3><p className="mt-3 leading-7 text-slate-400">{description}</p></div>; }
 function Feature({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) { return <div className="rounded-2xl border border-white/10 bg-[#10101d] p-6 transition duration-200 hover:-translate-y-1 hover:border-violet-300/30"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-400/15 text-violet-300">{icon}</div><h3 className="mt-6 font-semibold">{title}</h3><p className="mt-3 text-sm leading-6 text-slate-400">{description}</p></div>; }
 function PlanItem({ children }: { children: React.ReactNode }) { return <li className="flex gap-3"><Check className="mt-0.5 h-4 w-4 shrink-0 text-violet-300" />{children}</li>; }
-function ModelCard({ step, name, description }: { step: string; name: string; description: string }) { return <div className="rounded-2xl border border-white/10 bg-[#10101d] p-5"><span className="text-xs font-bold tracking-[0.2em] text-violet-300">{step}</span><h3 className="mt-8 font-semibold">{name}</h3><p className="mt-2 text-sm text-slate-500">{description}</p></div>; }
-
 function FaqSection() {
   const [open, setOpen] = useState<number | null>(0);
   const items = [
     ["Como os créditos são consumidos?", "O consumo é calculado com base na quantidade de tokens usada pela IA. Por isso, uma análise mais longa ou complexa pode consumir uma quantidade diferente de créditos."],
     ["Os créditos gratuitos acumulam?", "Sim. No plano Free, os créditos gratuitos são renovados diariamente e podem acumular até o limite de 10 créditos. Créditos comprados são separados dessa regra de acúmulo."],
-    ["Quais modelos o plano Free utiliza?", "O fluxo começa com Gemini Flash. Se ele estiver com limite, a plataforma tenta o Groq, com uma IA baseada em GPT-4, e, se necessário, o Claude AI como último fallback."],
     ["Quando o plano VIP estará disponível?", "O plano pago chega em breve. A previsão é oferecer 10 créditos gratuitos diários, acúmulo de até 100 créditos gratuitos e benefícios adicionais que serão anunciados."],
   ];
   return <section className="mx-auto max-w-4xl px-6 py-24 md:px-8 md:py-32"><div className="text-center"><p className="text-sm font-semibold tracking-[0.18em] text-violet-300">DÚVIDAS FREQUENTES</p><h2 className="mt-5 text-4xl font-semibold tracking-tight md:text-5xl">Transparência antes de começar.</h2></div><div className="mt-12 divide-y divide-white/10 rounded-2xl border border-white/10 bg-white/[0.025] px-6">{items.map(([question, answer], index) => <div key={question}><button type="button" aria-expanded={open === index} onClick={() => setOpen(open === index ? null : index)} className="flex w-full items-center justify-between gap-5 py-5 text-left font-medium text-slate-100"><span>{question}</span><ChevronDown className={`h-5 w-5 shrink-0 text-violet-300 transition-transform ${open === index ? "rotate-180" : ""}`} /></button>{open === index && <p className="max-w-3xl pb-5 pr-8 text-sm leading-7 text-slate-400">{answer}</p>}</div>)}</div></section>;

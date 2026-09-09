@@ -51,6 +51,15 @@ export function AppShell({
 
               <span className="text-slate-700">•</span>
 
+              <Link
+                to="/tecnologia"
+                className="transition-colors hover:text-violet-300"
+              >
+                Tecnologia
+              </Link>
+
+              <span className="text-slate-700">•</span>
+
               <a
                 href="#planos"
                 className="transition-colors hover:text-violet-300"
