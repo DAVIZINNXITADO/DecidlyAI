@@ -1,28 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
+  ArrowUp,
+  Check,
+  Copy,
+  Menu,
+  Mic,
+  MicOff,
+  Plus,
+  Search,
+  Settings,
+  Sparkles,
+  ThumbsDown,
+  ThumbsUp,
+  Volume2,
+  VolumeX,
+  X,
+} from "lucide-react";
+import {
   useCallback,
   useEffect,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import {
-  Menu,
-  Plus,
-  Search,
-  Sparkles,
-  X,
-  Mic,
-  MicOff,
-  ArrowUp,
-  ThumbsUp,
-  ThumbsDown,
-  Copy,
-  Check,
-  Volume2,
-  VolumeX,
-  Settings,
-} from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { supabase } from "../lib/supabase";
@@ -31,7 +31,7 @@ export const Route = createFileRoute("/workspace")({
   component: Workspace,
 });
 
-type ChatMessage = {
+type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
@@ -44,17 +44,38 @@ type Conversation = {
   updated_at: string;
 };
 
-type Subscription = {
-  plan?: string | null;
-  status?: string | null;
-  expires_at?: string | null;
-};
-
 type VoiceGender = "male" | "female";
 
-const SIDEBAR_MAX_WIDTH = 320;
+type SpeechRecognitionResultEventLike = Event & {
+  resultIndex: number;
+  results: {
+    [index: number]: {
+      isFinal: boolean;
+      [index: number]: {
+        transcript: string;
+      };
+    };
+    length: number;
+  };
+};
 
-const SPEECH_LANGUAGES = [
+type SpeechRecognitionLike = {
+  continuous: boolean;
+  interimResults: boolean;
+  maxAlternatives: number;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onerror: ((event: Event) => void) | null;
+  onresult:
+    | ((event: SpeechRecognitionResultEventLike) => void)
+    | null;
+};
+
+const LANGUAGES = [
   { value: "pt-BR", label: "Português (Brasil)" },
   { value: "en-US", label: "English (US)" },
   { value: "es-ES", label: "Español" },
@@ -67,22 +88,25 @@ const SPEECH_LANGUAGES = [
   { value: "ru-RU", label: "Русский" },
 ];
 
+const SIDEBAR_WIDTH = 300;
+
 function Workspace() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarProgress, setSidebarProgress] = useState(0);
+  const [userId, setUserId] = useState<string | null>(null);
 
-  const [search, setSearch] = useState("");
-  const [conversations, setConversations] = useState<
-    Conversation[]
-  >([]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const [userId, setUserId] = useState<string | null>(null);
-  const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [conversations, setConversations] = useState<
+    Conversation[]
+  >([]);
+  const [search, setSearch] = useState("");
+
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarProgress, setSidebarProgress] = useState(0);
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const [listening, setListening] = useState(false);
 
@@ -92,124 +116,40 @@ function Workspace() {
   const [dislikes, setDislikes] = useState<
     Record<string, boolean>
   >({});
-  const [copiedMessageId, setCopiedMessageId] =
-    useState<string | null>(null);
-
-  const [readingMessageId, setReadingMessageId] =
-    useState<string | null>(null);
-  const [readingCharIndex, setReadingCharIndex] =
-    useState(-1);
+  const [copiedId, setCopiedId] = useState<string | null>(
+    null,
+  );
 
   const [speechLanguage, setSpeechLanguage] =
     useState("pt-BR");
+
   const [speechGender, setSpeechGender] =
     useState<VoiceGender>("male");
-  const [speechSettingsOpen, setSpeechSettingsOpen] =
-    useState(false);
 
-  const [availableVoices, setAvailableVoices] =
-    useState<SpeechSynthesisVoice[]>([]);
+  const [voices, setVoices] = useState<
+    SpeechSynthesisVoice[]
+  >([]);
 
-  const sidebarRef = useRef<HTMLDivElement | null>(
+  const [readingMessageId, setReadingMessageId] =
+    useState<string | null>(null);
+
+  const [readingCharIndex, setReadingCharIndex] =
+    useState(-1);
+
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
+
+  const textareaRef = useRef<HTMLTextAreaElement | null>(
     null,
   );
-  const chatRef = useRef<HTMLDivElement | null>(
-    null,
-  );
-  const textareaRef =
-    useRef<HTMLTextAreaElement | null>(null);
+
+  const chatRef = useRef<HTMLDivElement | null>(null);
 
   const recognitionRef =
-    useRef<SpeechRecognition | null>(null);
+    useRef<SpeechRecognitionLike | null>(null);
 
   const lastTranscriptRef = useRef("");
 
-  const speechRef =
-    useRef<SpeechSynthesisUtterance | null>(null);
-
   const speechSessionRef = useRef(0);
-
-  const sidebarDragRef = useRef<{
-    active: boolean;
-    startX: number;
-    startProgress: number;
-  }>({
-    active: false,
-    startX: 0,
-    startProgress: 0,
-  });
-
-  const edgeDragRef = useRef<{
-    active: boolean;
-    startX: number;
-  }>({
-    active: false,
-    startX: 0,
-  });
-
-  /*
-   * ============================================================
-   * KEYBOARD MOBILE
-   * ============================================================
-   */
-
-  useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      !window.visualViewport
-    ) {
-      return;
-    }
-
-    const viewport = window.visualViewport;
-
-    const updateKeyboard = () => {
-      const keyboardHeight = Math.max(
-        0,
-        Math.round(
-          window.innerHeight -
-            viewport.height -
-            viewport.offsetTop,
-        ),
-      );
-
-      setKeyboardOffset(keyboardHeight);
-
-      requestAnimationFrame(() => {
-        if (
-          chatRef.current &&
-          keyboardHeight > 0
-        ) {
-          chatRef.current.scrollTop =
-            chatRef.current.scrollHeight;
-        }
-      });
-    };
-
-    updateKeyboard();
-
-    viewport.addEventListener(
-      "resize",
-      updateKeyboard,
-    );
-
-    viewport.addEventListener(
-      "scroll",
-      updateKeyboard,
-    );
-
-    return () => {
-      viewport.removeEventListener(
-        "resize",
-        updateKeyboard,
-      );
-
-      viewport.removeEventListener(
-        "scroll",
-        updateKeyboard,
-      );
-    };
-  }, []);
 
   /*
    * ============================================================
@@ -250,35 +190,83 @@ function Workspace() {
 
   /*
    * ============================================================
-   * CONVERSATIONS
+   * TECLADO MOBILE
    * ============================================================
    */
 
-  const loadConversations =
-    useCallback(async () => {
-      if (!userId) {
-        setConversations([]);
-        return;
-      }
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      !window.visualViewport
+    ) {
+      return;
+    }
 
-      const { data, error: conversationsError } =
-        await supabase
-          .from("conversations")
-          .select(
-            "id,title,created_at,updated_at",
-          )
-          .eq("user_id", userId)
-          .order("updated_at", {
-            ascending: false,
-          })
-          .limit(30);
+    const viewport = window.visualViewport;
 
-      if (conversationsError) {
-        return;
-      }
+    const updateKeyboard = () => {
+      const offset = Math.max(
+        0,
+        Math.round(
+          window.innerHeight -
+            viewport.height -
+            viewport.offsetTop,
+        ),
+      );
 
-      setConversations(data ?? []);
-    }, [userId]);
+      setKeyboardOffset(offset);
+    };
+
+    updateKeyboard();
+
+    viewport.addEventListener(
+      "resize",
+      updateKeyboard,
+    );
+
+    viewport.addEventListener(
+      "scroll",
+      updateKeyboard,
+    );
+
+    return () => {
+      viewport.removeEventListener(
+        "resize",
+        updateKeyboard,
+      );
+
+      viewport.removeEventListener(
+        "scroll",
+        updateKeyboard,
+      );
+    };
+  }, []);
+
+  /*
+   * ============================================================
+   * CONVERSAS
+   * ============================================================
+   */
+
+  const loadConversations = useCallback(async () => {
+    if (!userId) {
+      setConversations([]);
+      return;
+    }
+
+    const { data } = await supabase
+      .from("conversations")
+      .select(
+        "id,title,created_at,updated_at",
+      )
+      .eq("user_id", userId)
+      .order("updated_at", {
+        ascending: false,
+      })
+      .limit(50);
+
+    setConversations(data ?? []);
+  }, [userId]);
 
   useEffect(() => {
     void loadConversations();
@@ -290,183 +278,102 @@ function Workspace() {
    * ============================================================
    */
 
-  const closeSidebar = useCallback(() => {
-    setSidebarOpen(false);
-    setSidebarProgress(0);
-  }, []);
-
-  const openSidebar = useCallback(() => {
+  const openSidebar = () => {
     setSidebarOpen(true);
     setSidebarProgress(1);
-  }, []);
+  };
 
-  const beginSidebarDrag = useCallback(
+  const closeSidebar = () => {
+    setSidebarOpen(false);
+    setSidebarProgress(0);
+  };
+
+  const handleSidebarPointerDown = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    if (
+      event.pointerType === "mouse" &&
+      event.button !== 0
+    ) {
+      return;
+    }
+
+    const element = event.currentTarget;
+
+    element.setPointerCapture(event.pointerId);
+
     (
-      event: ReactPointerEvent<HTMLDivElement>,
-    ) => {
-      if (
-        event.pointerType === "mouse" &&
-        event.button !== 0
-      ) {
-        return;
+      element as HTMLDivElement & {
+        dataset: {
+          startX?: string;
+        };
       }
+    ).dataset.startX = String(event.clientX);
+  };
 
-      sidebarDragRef.current = {
-        active: true,
-        startX: event.clientX,
-        startProgress: 1,
-      };
+  const handleSidebarPointerMove = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    const element = event.currentTarget;
 
-      event.currentTarget.setPointerCapture(
-        event.pointerId,
-      );
-    },
-    [],
-  );
+    const startX = Number(
+      (
+        element as HTMLDivElement & {
+          dataset: {
+            startX?: string;
+          };
+        }
+      ).dataset.startX,
+    );
 
-  const moveSidebarDrag = useCallback(
-    (
-      event: ReactPointerEvent<HTMLDivElement>,
-    ) => {
-      if (
-        !sidebarDragRef.current.active
-      ) {
-        return;
-      }
+    if (!Number.isFinite(startX)) {
+      return;
+    }
 
-      const delta =
-        event.clientX -
-        sidebarDragRef.current.startX;
+    const delta = event.clientX - startX;
 
-      const nextProgress = Math.min(
+    const progress = Math.max(
+      0,
+      Math.min(
         1,
-        Math.max(
-          0,
-          1 + delta / SIDEBAR_MAX_WIDTH,
-        ),
-      );
+        1 + delta / SIDEBAR_WIDTH,
+      ),
+    );
 
-      setSidebarProgress(nextProgress);
-    },
-    [],
-  );
+    setSidebarProgress(progress);
+  };
 
-  const endSidebarDrag = useCallback(
-    (
-      event: ReactPointerEvent<HTMLDivElement>,
-    ) => {
-      if (
-        !sidebarDragRef.current.active
-      ) {
-        return;
-      }
+  const handleSidebarPointerUp = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    const element = event.currentTarget;
 
-      sidebarDragRef.current.active = false;
-
-      try {
-        event.currentTarget.releasePointerCapture(
-          event.pointerId,
-        );
-      } catch {
-        // ignore
-      }
-
-      setSidebarProgress((current) => {
-        if (current > 0.55) {
-          setSidebarOpen(true);
-          return 1;
-        }
-
-        setSidebarOpen(false);
-        return 0;
-      });
-    },
-    [],
-  );
-
-  /*
-   * Swipe pela borda esquerda para abrir.
-   */
-
-  const startEdgeDrag = useCallback(
-    (
-      event: ReactPointerEvent<HTMLDivElement>,
-    ) => {
-      if (
-        event.pointerType === "mouse" &&
-        event.button !== 0
-      ) {
-        return;
-      }
-
-      edgeDragRef.current = {
-        active: true,
-        startX: event.clientX,
-      };
-
-      event.currentTarget.setPointerCapture(
+    try {
+      element.releasePointerCapture(
         event.pointerId,
       );
-    },
-    [],
-  );
+    } catch {
+      // ignore
+    }
 
-  const moveEdgeDrag = useCallback(
-    (
-      event: ReactPointerEvent<HTMLDivElement>,
-    ) => {
-      if (!edgeDragRef.current.active) {
-        return;
+    const shouldStayOpen =
+      sidebarProgress >= 0.5;
+
+    if (shouldStayOpen) {
+      setSidebarOpen(true);
+      setSidebarProgress(1);
+    } else {
+      closeSidebar();
+    }
+
+    delete (
+      element as HTMLDivElement & {
+        dataset: {
+          startX?: string;
+        };
       }
-
-      const delta =
-        event.clientX -
-        edgeDragRef.current.startX;
-
-      if (delta <= 0) {
-        setSidebarProgress(0);
-        return;
-      }
-
-      setSidebarProgress(
-        Math.min(
-          1,
-          delta / SIDEBAR_MAX_WIDTH,
-        ),
-      );
-    },
-    [],
-  );
-
-  const endEdgeDrag = useCallback(
-    (
-      event: ReactPointerEvent<HTMLDivElement>,
-    ) => {
-      if (!edgeDragRef.current.active) {
-        return;
-      }
-
-      edgeDragRef.current.active = false;
-
-      try {
-        event.currentTarget.releasePointerCapture(
-          event.pointerId,
-        );
-      } catch {
-        // ignore
-      }
-
-      setSidebarProgress((current) => {
-        if (current > 0.25) {
-          setSidebarOpen(true);
-          return 1;
-        }
-
-        return 0;
-      });
-    },
-    [],
-  );
+    ).dataset.startX;
+  };
 
   /*
    * ============================================================
@@ -474,567 +381,21 @@ function Workspace() {
    * ============================================================
    */
 
-  const startNewConversation =
-    useCallback(() => {
-      setMessages([]);
-      setInput("");
-      setError("");
-      setLikes({});
-      setDislikes({});
-      setCopiedMessageId(null);
-      setReadingMessageId(null);
-      setReadingCharIndex(-1);
-
-      closeSidebar();
-
-      requestAnimationFrame(() => {
-        textareaRef.current?.focus();
-      });
-    }, [closeSidebar]);
-
-  /*
-   * ============================================================
-   * SAVE TITLE
-   * ============================================================
-   */
-
-  const saveConversationTitle =
-    useCallback(
-      async (title: string) => {
-        if (
-          !userId ||
-          !title.trim()
-        ) {
-          return;
-        }
-
-        const safeTitle = title
-          .trim()
-          .slice(0, 80);
-
-        const { error: insertError } =
-          await supabase
-            .from("conversations")
-            .insert({
-              user_id: userId,
-              title: safeTitle,
-            });
-
-        if (!insertError) {
-          await loadConversations();
-        }
-      },
-      [userId, loadConversations],
-    );
-
-  /*
-   * ============================================================
-   * AI
-   * ============================================================
-   */
-
-  const getAIName = useCallback(
-    async () => {
-      if (!userId) {
-        return "decidly-ai-free";
-      }
-
-      const { data } = await supabase
-        .from("subscription")
-        .select(
-          "plan,status,expires_at",
-        )
-        .eq("user_id", userId)
-        .order("created_at", {
-          ascending: false,
-        })
-        .limit(1)
-        .maybeSingle();
-
-      const subscription =
-        data as Subscription | null;
-
-      if (!subscription) {
-        return "decidly-ai-free";
-      }
-
-      const active =
-        subscription.status === "active" ||
-        subscription.status === "trialing";
-
-      const isVIP =
-        subscription.plan === "vip" ||
-        subscription.plan === "VIP";
-
-      const notExpired =
-        !subscription.expires_at ||
-        new Date(
-          subscription.expires_at,
-        ).getTime() > Date.now();
-
-      if (
-        active &&
-        isVIP &&
-        notExpired
-      ) {
-        return "decidly-ai";
-      }
-
-      return "decidly-ai-free";
-    },
-    [userId],
-  );
-
-  /*
-   * ============================================================
-   * SEND
-   * ============================================================
-   */
-
-  const sendMessage = useCallback(
-    async () => {
-      const text = input.trim();
-
-      if (!text || isLoading) {
-        return;
-      }
-
-      if (!userId) {
-        setError(
-          "Você precisa estar conectado para continuar.",
-        );
-        return;
-      }
-
-      setError("");
-      setInput("");
-
-      const userMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "user",
-        content: text,
-      };
-
-      setMessages((current) => [
-        ...current,
-        userMessage,
-      ]);
-
-      setIsLoading(true);
-
-      try {
-        const functionName =
-          await getAIName();
-
-        const history = [
-          ...messages,
-          userMessage,
-        ].map((message) => ({
-          role: message.role,
-          content: message.content,
-        }));
-
-        const { data, error: functionError } =
-          await supabase.functions.invoke(
-            functionName,
-            {
-              body: {
-                message: text,
-                history,
-              },
-            },
-          );
-
-        if (functionError) {
-          const status =
-            (
-              functionError as {
-                context?: Response;
-              }
-            )?.context?.status;
-
-          if (status === 402) {
-            throw new Error("402");
-          }
-
-          if (status === 429) {
-            throw new Error("429");
-          }
-
-          if (
-            status === 401 ||
-            status === 403
-          ) {
-            throw new Error("AUTH");
-          }
-
-          if (
-            status &&
-            status >= 500
-          ) {
-            throw new Error("SERVER");
-          }
-
-          throw new Error("AI_ERROR");
-        }
-
-        const answer =
-          typeof data?.answer ===
-          "string"
-            ? data.answer
-            : typeof data?.response ===
-                "string"
-              ? data.response
-              : typeof data?.message ===
-                  "string"
-                ? data.message
-                : "";
-
-        if (!answer) {
-          throw new Error("AI_ERROR");
-        }
-
-        const assistantMessage: ChatMessage =
-          {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            content: answer,
-          };
-
-        setMessages((current) => [
-          ...current,
-          assistantMessage,
-        ]);
-
-        if (messages.length === 0) {
-          await saveConversationTitle(
-            text,
-          );
-        }
-      } catch (caughtError) {
-        const message =
-          caughtError instanceof Error
-            ? caughtError.message
-            : "AI_ERROR";
-
-        if (message === "402") {
-          setError(
-            "Seu plano atual não permite usar este recurso.",
-          );
-        } else if (
-          message === "429"
-        ) {
-          setError(
-            "Muitas solicitações no momento. Tente novamente em instantes.",
-          );
-        } else if (
-          message === "AUTH"
-        ) {
-          setError(
-            "Sua sessão não pôde ser validada. Entre novamente.",
-          );
-        } else if (
-          message === "SERVER"
-        ) {
-          setError(
-            "O serviço está temporariamente indisponível.",
-          );
-        } else {
-          setError(
-            "Não foi possível obter uma resposta agora. Tente novamente.",
-          );
-        }
-      } finally {
-        /*
-         * Não focar novamente aqui.
-         * Assim o teclado não reabre sozinho.
-         */
-        setIsLoading(false);
-      }
-    },
-    [
-      input,
-      isLoading,
-      userId,
-      getAIName,
-      messages,
-      saveConversationTitle,
-    ],
-  );
-
-  /*
-   * ============================================================
-   * TEXTAREA
-   * ============================================================
-   */
-
-  const resizeTextarea =
-    useCallback(() => {
-      const textarea =
-        textareaRef.current;
-
-      if (!textarea) {
-        return;
-      }
-
-      textarea.style.height = "auto";
-
-      const nextHeight = Math.min(
-        Math.max(
-          textarea.scrollHeight,
-          58,
-        ),
-        140,
-      );
-
-      textarea.style.height = `${nextHeight}px`;
-    }, []);
-
-  useEffect(() => {
-    resizeTextarea();
-  }, [input, resizeTextarea]);
-
-  const handleTextareaKeyDown = (
-    event: React.KeyboardEvent<HTMLTextAreaElement>,
-  ) => {
-    if (
-      event.key === "Enter" &&
-      (event.ctrlKey ||
-        event.metaKey)
-    ) {
-      event.preventDefault();
-      void sendMessage();
-    }
-  };
-
-  const handleTextareaFocus = () => {
-    requestAnimationFrame(() => {
-      if (chatRef.current) {
-        chatRef.current.scrollTop =
-          chatRef.current.scrollHeight;
-      }
-    });
+  const newConversation = () => {
+    setMessages([]);
+    setInput("");
+    setError("");
+    setLikes({});
+    setDislikes({});
+    setCopiedId(null);
+    setReadingMessageId(null);
+    setReadingCharIndex(-1);
+    closeSidebar();
   };
 
   /*
    * ============================================================
-   * MICROFONE
-   * ============================================================
-   */
-
-  const toggleListening =
-    useCallback(() => {
-      if (
-        typeof window === "undefined" ||
-        (!(
-          "webkitSpeechRecognition" in
-          window
-        ) &&
-          !(
-            "SpeechRecognition" in
-            window
-          ))
-      ) {
-        setError(
-          "O reconhecimento de voz não é compatível com este navegador.",
-        );
-        return;
-      }
-
-      if (listening) {
-        recognitionRef.current?.stop();
-        recognitionRef.current =
-          null;
-        setListening(false);
-        return;
-      }
-
-      const SpeechRecognitionConstructor =
-        window.SpeechRecognition ??
-        window.webkitSpeechRecognition;
-
-      if (!SpeechRecognitionConstructor) {
-        setError(
-          "O reconhecimento de voz não é compatível com este navegador.",
-        );
-        return;
-      }
-
-      const recognition =
-        new SpeechRecognitionConstructor();
-
-      recognition.lang =
-        speechLanguage;
-
-      recognition.continuous = false;
-      recognition.interimResults =
-        false;
-      recognition.maxAlternatives = 1;
-
-      lastTranscriptRef.current = "";
-
-      recognition.onstart = () => {
-        setListening(true);
-        setError("");
-      };
-
-      recognition.onresult = (
-        event,
-      ) => {
-        /*
-         * Só pega o resultado atual.
-         * Isso impede duplicação.
-         */
-        const index =
-          event.resultIndex;
-
-        const result =
-          event.results[index];
-
-        if (
-          !result ||
-          !result.isFinal
-        ) {
-          return;
-        }
-
-        const transcript =
-          result[0]?.transcript?.trim() ??
-          "";
-
-        if (!transcript) {
-          return;
-        }
-
-        const normalized =
-          transcript
-            .toLowerCase()
-            .replace(/\s+/g, " ")
-            .trim();
-
-        if (
-          normalized ===
-          lastTranscriptRef.current
-        ) {
-          return;
-        }
-
-        lastTranscriptRef.current =
-          normalized;
-
-        setInput((current) => {
-          const currentText =
-            current.trim();
-
-          if (!currentText) {
-            return transcript;
-          }
-
-          const currentWords =
-            currentText
-              .split(/\s+/)
-              .filter(Boolean);
-
-          const transcriptWords =
-            transcript
-              .split(/\s+/)
-              .filter(Boolean);
-
-          const maxOverlap =
-            Math.min(
-              currentWords.length,
-              transcriptWords.length,
-            );
-
-          let overlap = 0;
-
-          for (
-            let size = maxOverlap;
-            size > 0;
-            size--
-          ) {
-            const a =
-              currentWords
-                .slice(-size)
-                .join(" ")
-                .toLowerCase();
-
-            const b =
-              transcriptWords
-                .slice(0, size)
-                .join(" ")
-                .toLowerCase();
-
-            if (a === b) {
-              overlap = size;
-              break;
-            }
-          }
-
-          const remaining =
-            transcriptWords.slice(
-              overlap,
-            );
-
-          if (
-            remaining.length === 0
-          ) {
-            return currentText;
-          }
-
-          return `${currentText} ${remaining.join(
-            " ",
-          )}`;
-        });
-      };
-
-      recognition.onerror = (
-        event,
-      ) => {
-        if (
-          event.error ===
-          "not-allowed"
-        ) {
-          setError(
-            "Permita o acesso ao microfone para usar a voz.",
-          );
-        } else if (
-          event.error !== "aborted"
-        ) {
-          setError(
-            "Não foi possível reconhecer sua voz. Tente novamente.",
-          );
-        }
-
-        setListening(false);
-        recognitionRef.current =
-          null;
-      };
-
-      recognition.onend = () => {
-        setListening(false);
-        recognitionRef.current =
-          null;
-      };
-
-      recognitionRef.current =
-        recognition;
-
-      recognition.start();
-    }, [
-      listening,
-      speechLanguage,
-    ]);
-
-  useEffect(() => {
-    return () => {
-      recognitionRef.current?.stop();
-    };
-  }, []);
-
-  /*
-   * ============================================================
-   * TEXT TO SPEECH
+   * SPEECH SYNTHESIS
    * ============================================================
    */
 
@@ -1047,8 +408,10 @@ function Workspace() {
     }
 
     const loadVoices = () => {
-      setAvailableVoices(
-        window.speechSynthesis.getVoices(),
+      setVoices(
+        window.speechSynthesis
+          .getVoices()
+          .filter(Boolean),
       );
     };
 
@@ -1069,221 +432,147 @@ function Workspace() {
     };
   }, []);
 
-  const findBestVoice =
-    useCallback(
-      (
-        language: string,
-        gender: VoiceGender,
-      ) => {
-        if (
-          availableVoices.length === 0
-        ) {
-          return null;
-        }
+  const findBestVoice = useCallback(
+    (
+      language: string,
+      gender: VoiceGender,
+    ) => {
+      const sameLanguage = voices.filter(
+        (voice) =>
+          voice.lang
+            .toLowerCase()
+            .startsWith(
+              language
+                .toLowerCase()
+                .split("-")[0],
+            ),
+      );
 
-        const normalizedLanguage =
-          language.toLowerCase();
-
-        const languageCode =
-          normalizedLanguage.split(
-            "-",
-          )[0];
-
-        const languageVoices =
-          availableVoices.filter(
-            (voice) => {
-              const voiceLanguage =
-                voice.lang.toLowerCase();
-
-              return (
-                voiceLanguage ===
-                  normalizedLanguage ||
-                voiceLanguage.startsWith(
-                  `${languageCode}-`,
-                )
-              );
-            },
-          );
-
-        const candidates =
-          languageVoices.length > 0
-            ? languageVoices
-            : availableVoices;
-
-        const maleKeywords = [
-          "male",
-          "man",
-          "mascul",
-          "homem",
-          "maschio",
-          "hombre",
-          "männ",
-          "男",
-          "masculino",
-        ];
-
-        const femaleKeywords = [
-          "female",
-          "woman",
-          "fem",
-          "mulher",
-          "femin",
-          "donna",
-          "mujer",
-          "weib",
-          "女",
-          "feminino",
-        ];
-
-        const keywords =
-          gender === "male"
-            ? maleKeywords
-            : femaleKeywords;
-
-        const genderVoice =
-          candidates.find(
-            (voice) => {
-              const name =
-                voice.name.toLowerCase();
-
-              return keywords.some(
-                (keyword) =>
-                  name.includes(
-                    keyword,
-                  ),
-              );
-            },
-          );
-
-        return (
-          genderVoice ??
-          candidates[0] ??
-          null
-        );
-      },
-      [availableVoices],
-    );
-
-  const stopReading =
-    useCallback(() => {
-      speechSessionRef.current += 1;
-
-      if (
-        typeof window !== "undefined" &&
-        "speechSynthesis" in window
-      ) {
-        window.speechSynthesis.cancel();
+      if (!sameLanguage.length) {
+        return null;
       }
 
-      speechRef.current = null;
+      const maleWords = [
+        "male",
+        "man",
+        "homem",
+        "mascul",
+        "male voice",
+        "google português brasil",
+      ];
 
-      setReadingMessageId(null);
-      setReadingCharIndex(-1);
-    }, []);
+      const femaleWords = [
+        "female",
+        "woman",
+        "mulher",
+        "fem",
+        "female voice",
+      ];
+
+      const keywords =
+        gender === "male"
+          ? maleWords
+          : femaleWords;
+
+      const genderVoice =
+        sameLanguage.find((voice) => {
+          const name =
+            voice.name.toLowerCase();
+
+          return keywords.some((word) =>
+            name.includes(word),
+          );
+        });
+
+      return (
+        genderVoice ??
+        sameLanguage.find(
+          (voice) => voice.default,
+        ) ??
+        sameLanguage[0]
+      );
+    },
+    [voices],
+  );
+
+  const stopReading = useCallback(() => {
+    speechSessionRef.current += 1;
+
+    if (
+      typeof window !== "undefined" &&
+      "speechSynthesis" in window
+    ) {
+      window.speechSynthesis.cancel();
+    }
+
+    setReadingMessageId(null);
+    setReadingCharIndex(-1);
+  }, []);
 
   const readMessage = useCallback(
-    (message: ChatMessage) => {
+    (message: Message) => {
       if (
-        typeof window ===
-          "undefined" ||
-        !(
-          "speechSynthesis" in
-          window
-        )
+        typeof window === "undefined" ||
+        !("speechSynthesis" in window)
       ) {
         setError(
-          "A leitura em voz alta não é compatível com este navegador.",
+          "A leitura de voz não está disponível neste navegador.",
         );
         return;
       }
 
-      if (
-        readingMessageId ===
-        message.id
-      ) {
+      if (readingMessageId === message.id) {
         stopReading();
         return;
       }
 
       window.speechSynthesis.cancel();
 
-      speechSessionRef.current += 1;
-
       const session =
-        speechSessionRef.current;
+        speechSessionRef.current + 1;
 
-      setReadingMessageId(
-        message.id,
-      );
-      setReadingCharIndex(0);
+      speechSessionRef.current = session;
+
+      setReadingMessageId(message.id);
+      setReadingCharIndex(-1);
 
       const utterance =
         new SpeechSynthesisUtterance(
           message.content,
         );
 
-      /*
-       * Velocidade confortável.
-       */
+      utterance.lang = speechLanguage;
       utterance.rate = 1.15;
       utterance.pitch = 1;
       utterance.volume = 1;
-      utterance.lang =
-        speechLanguage;
 
-      const voice =
-        findBestVoice(
-          speechLanguage,
-          speechGender,
-        );
+      const voice = findBestVoice(
+        speechLanguage,
+        speechGender,
+      );
 
       if (voice) {
         utterance.voice = voice;
-        utterance.lang = voice.lang;
       }
 
-      utterance.onstart = () => {
+      utterance.onboundary = (event) => {
         if (
-          speechSessionRef.current !==
-          session
+          speechSessionRef.current !== session
         ) {
           return;
         }
 
-        setReadingMessageId(
-          message.id,
+        setReadingCharIndex(
+          event.charIndex,
         );
-        setReadingCharIndex(0);
-      };
-
-      utterance.onboundary = (
-        event,
-      ) => {
-        if (
-          speechSessionRef.current !==
-          session
-        ) {
-          return;
-        }
-
-        if (
-          event.name === "word"
-        ) {
-          setReadingCharIndex(
-            event.charIndex,
-          );
-        }
       };
 
       utterance.onend = () => {
         if (
-          speechSessionRef.current !==
-          session
+          speechSessionRef.current !== session
         ) {
           return;
         }
-
-        speechRef.current = null;
 
         setReadingMessageId(null);
         setReadingCharIndex(-1);
@@ -1291,30 +580,25 @@ function Workspace() {
 
       utterance.onerror = () => {
         if (
-          speechSessionRef.current !==
-          session
+          speechSessionRef.current !== session
         ) {
           return;
         }
-
-        speechRef.current = null;
 
         setReadingMessageId(null);
         setReadingCharIndex(-1);
       };
 
-      speechRef.current =
-        utterance;
+      speechRef.current = utterance;
 
       /*
-       * Pequeno atraso para evitar
-       * falha do primeiro toque em
-       * alguns navegadores mobile.
+       * Pequeno atraso para navegadores mobile
+       * que precisam que o speechSynthesis seja
+       * chamado depois do cancel().
        */
       window.setTimeout(() => {
         if (
-          speechSessionRef.current !==
-          session
+          speechSessionRef.current !== session
         ) {
           return;
         }
@@ -1326,181 +610,433 @@ function Workspace() {
     },
     [
       readingMessageId,
+      stopReading,
       speechLanguage,
       speechGender,
       findBestVoice,
-      stopReading,
     ],
   );
 
-  useEffect(() => {
-    return () => {
-      speechSessionRef.current += 1;
-
-      if (
-        typeof window !== "undefined" &&
-        "speechSynthesis" in window
-      ) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, []);
-
   /*
    * ============================================================
-   * HIGHLIGHT
+   * MICROFONE
    * ============================================================
    */
 
-  const renderReadingText = (
-    text: string,
-    charIndex: number,
-  ) => {
+  const toggleMicrophone = () => {
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
     if (
-      charIndex < 0 ||
-      charIndex >= text.length
+      typeof window === "undefined"
     ) {
-      return text;
+      return;
     }
 
-    const before = text.slice(
-      0,
-      charIndex,
-    );
+    const speechWindow =
+      window as typeof window & {
+        SpeechRecognition?: new () => SpeechRecognitionLike;
+        webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+      };
 
-    const remaining = text.slice(
-      charIndex,
-    );
+    const Recognition =
+      speechWindow.SpeechRecognition ??
+      speechWindow.webkitSpeechRecognition;
 
-    const match =
-      remaining.match(/^\S+/);
-
-    if (!match) {
-      return text;
+    if (!Recognition) {
+      setError(
+        "O reconhecimento de voz não está disponível neste navegador.",
+      );
+      return;
     }
 
-    const word = match[0];
+    const recognition = new Recognition();
 
-    const wordStart = charIndex;
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.lang = speechLanguage;
 
-    const wordEnd =
-      wordStart + word.length;
+    recognition.onstart = () => {
+      setListening(true);
+      setError("");
+      lastTranscriptRef.current = "";
+    };
 
-    return (
-      <>
-        {before}
+    recognition.onresult = (
+      event,
+    ) => {
+      /*
+       * Usa somente resultIndex.
+       * Isso evita o problema de o navegador
+       * repetir "hi hi hi hi".
+       */
+      const result =
+        event.results[event.resultIndex];
 
-        <mark className="rounded-md bg-[#A78BFA]/35 px-1 text-white">
-          {text.slice(
-            wordStart,
-            wordEnd,
-          )}
-        </mark>
+      if (!result?.isFinal) {
+        return;
+      }
 
-        {text.slice(wordEnd)}
-      </>
-    );
+      const transcript =
+        result[0]?.transcript
+          ?.trim() ?? "";
+
+      if (!transcript) {
+        return;
+      }
+
+      const normalized =
+        transcript
+          .toLowerCase()
+          .replace(/\s+/g, " ")
+          .trim();
+
+      if (
+        normalized ===
+        lastTranscriptRef.current
+      ) {
+        return;
+      }
+
+      lastTranscriptRef.current =
+        normalized;
+
+      setInput((current) => {
+        const existing =
+          current.trim();
+
+        if (!existing) {
+          return transcript;
+        }
+
+        const existingWords =
+          existing.split(/\s+/);
+
+        const newWords =
+          transcript.split(/\s+/);
+
+        let overlap = 0;
+
+        const maxOverlap = Math.min(
+          existingWords.length,
+          newWords.length,
+          8,
+        );
+
+        for (
+          let size = maxOverlap;
+          size >= 1;
+          size--
+        ) {
+          const end = existingWords
+            .slice(-size)
+            .join(" ")
+            .toLowerCase();
+
+          const start = newWords
+            .slice(0, size)
+            .join(" ")
+            .toLowerCase();
+
+          if (end === start) {
+            overlap = size;
+            break;
+          }
+        }
+
+        const addition =
+          newWords
+            .slice(overlap)
+            .join(" ");
+
+        if (!addition) {
+          return existing;
+        }
+
+        return `${existing} ${addition}`;
+      });
+    };
+
+    recognition.onerror = () => {
+      setListening(false);
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+      recognitionRef.current = null;
+    };
+
+    recognitionRef.current =
+      recognition;
+
+    try {
+      recognition.start();
+    } catch {
+      setListening(false);
+      recognitionRef.current = null;
+    }
   };
 
   /*
    * ============================================================
-   * COPY
+   * ENVIAR PARA IA
    * ============================================================
    */
 
-  const copyMessage =
-    useCallback(
-      async (message: ChatMessage) => {
-        try {
-          await navigator.clipboard.writeText(
-            message.content,
-          );
+  const sendMessage = async () => {
+    const text = input.trim();
 
-          setCopiedMessageId(
-            message.id,
-          );
+    if (!text || isLoading) {
+      return;
+    }
 
-          window.setTimeout(() => {
-            setCopiedMessageId(
-              (current) =>
-                current ===
-                message.id
-                  ? null
-                  : current,
-            );
-          }, 1500);
-        } catch {
-          setError(
-            "Não foi possível copiar a mensagem.",
-          );
+    if (!userId) {
+      setError(
+        "Você precisa estar conectado para continuar.",
+      );
+      return;
+    }
+
+    setInput("");
+    setError("");
+    setIsLoading(true);
+
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: text,
+    };
+
+    const nextMessages = [
+      ...messages,
+      userMessage,
+    ];
+
+    setMessages(nextMessages);
+
+    try {
+      /*
+       * O cliente não é uma barreira de segurança.
+       * A Edge Function deve validar o JWT,
+       * plano e créditos no servidor.
+       */
+      const { data, error: invokeError } =
+        await supabase.functions.invoke(
+          "decidly-ai",
+          {
+            body: {
+              message: text,
+              history: nextMessages.map(
+                (message) => ({
+                  role: message.role,
+                  content:
+                    message.content,
+                }),
+              ),
+            },
+          },
+        );
+
+      if (invokeError) {
+        const status =
+          (
+            invokeError as {
+              context?: Response;
+            }
+          ).context?.status;
+
+        if (status === 401 || status === 403) {
+          throw new Error("AUTH");
         }
-      },
-      [],
-    );
+
+        if (status === 402) {
+          throw new Error("CREDITS");
+        }
+
+        if (status === 429) {
+          throw new Error("RATE");
+        }
+
+        throw new Error("AI");
+      }
+
+      const answer =
+        typeof data?.answer === "string"
+          ? data.answer
+          : typeof data?.response ===
+              "string"
+            ? data.response
+            : typeof data?.message ===
+                "string"
+              ? data.message
+              : "";
+
+      if (!answer) {
+        throw new Error("AI");
+      }
+
+      const assistantMessage: Message = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: answer,
+      };
+
+      setMessages((current) => [
+        ...current,
+        assistantMessage,
+      ]);
+    } catch (caughtError) {
+      const code =
+        caughtError instanceof Error
+          ? caughtError.message
+          : "AI";
+
+      if (code === "AUTH") {
+        setError(
+          "Sua sessão não pôde ser validada.",
+        );
+      } else if (code === "CREDITS") {
+        setError(
+          "Você não possui créditos disponíveis para continuar.",
+        );
+      } else if (code === "RATE") {
+        setError(
+          "Muitas solicitações no momento. Tente novamente em instantes.",
+        );
+      } else {
+        setError(
+          "Não foi possível obter uma resposta agora. Tente novamente.",
+        );
+      }
+
+      /*
+       * Remove a mensagem do usuário se a chamada falhou,
+       * para não deixar uma mensagem sem resposta.
+       */
+      setMessages((current) =>
+        current.filter(
+          (message) =>
+            message.id !== userMessage.id,
+        ),
+      );
+    } finally {
+      /*
+       * IMPORTANTE:
+       * não chamar textarea.focus() aqui.
+       *
+       * Assim o teclado mobile não abre sozinho
+       * depois da resposta da IA.
+       */
+      setIsLoading(false);
+    }
+  };
 
   /*
    * ============================================================
-   * LIKE / DISLIKE
+   * TEXTAREA
    * ============================================================
    */
 
+  useEffect(() => {
+    const textarea =
+      textareaRef.current;
+
+    if (!textarea) {
+      return;
+    }
+
+    textarea.style.height = "auto";
+
+    textarea.style.height = `${Math.min(
+      textarea.scrollHeight,
+      140,
+    )}px`;
+  }, [input]);
+
+  const handleKeyDown = (
+    event: React.KeyboardEvent<HTMLTextAreaElement>,
+  ) => {
+    if (
+      event.key === "Enter" &&
+      (event.ctrlKey || event.metaKey)
+    ) {
+      event.preventDefault();
+      void sendMessage();
+    }
+  };
+
+  /*
+   * ============================================================
+   * AÇÕES DAS MENSAGENS
+   * ============================================================
+   */
+
+  const copyMessage = async (
+    message: Message,
+  ) => {
+    try {
+      await navigator.clipboard.writeText(
+        message.content,
+      );
+
+      setCopiedId(message.id);
+
+      window.setTimeout(() => {
+        setCopiedId((current) =>
+          current === message.id
+            ? null
+            : current,
+        );
+      }, 1500);
+    } catch {
+      // ignore
+    }
+  };
+
   const toggleLike = (
-    id: string,
+    messageId: string,
   ) => {
     setLikes((current) => ({
       ...current,
-      [id]: !current[id],
+      [messageId]: !current[messageId],
     }));
 
     setDislikes((current) => ({
       ...current,
-      [id]: false,
+      [messageId]: false,
     }));
   };
 
   const toggleDislike = (
-    id: string,
+    messageId: string,
   ) => {
     setDislikes((current) => ({
       ...current,
-      [id]: !current[id],
+      [messageId]: !current[messageId],
     }));
 
     setLikes((current) => ({
       ...current,
-      [id]: false,
+      [messageId]: false,
     }));
   };
 
   /*
    * ============================================================
-   * SCROLL
-   * ============================================================
-   */
-
-  useEffect(() => {
-    requestAnimationFrame(() => {
-      if (chatRef.current) {
-        chatRef.current.scrollTop =
-          chatRef.current.scrollHeight;
-      }
-    });
-  }, [messages, isLoading]);
-
-  /*
-   * ============================================================
-   * FILTER
+   * FILTRO SIDEBAR
    * ============================================================
    */
 
   const filteredConversations =
-    conversations.filter(
-      (conversation) =>
-        conversation.title
-          .toLowerCase()
-          .includes(
-            search.toLowerCase(),
-          ),
+    conversations.filter((conversation) =>
+      conversation.title
+        .toLowerCase()
+        .includes(
+          search.toLowerCase(),
+        ),
     );
 
   /*
@@ -1510,41 +1046,194 @@ function Workspace() {
    */
 
   return (
-    <div className="relative min-h-[100dvh] overflow-hidden bg-[#0d0912] text-white">
+    <div
+      className="fixed inset-0 overflow-hidden text-white"
+      style={{
+        background: "#0d0912",
+      }}
+    >
       {/* ======================================================
-          MENU FIXO
+          BOTÃO MENU FIXO
           ====================================================== */}
 
-      {!sidebarOpen && (
-        <button
-          type="button"
-          onClick={openSidebar}
-          className="fixed left-4 top-4 z-[110] flex h-11 w-11 items-center justify-center rounded-full bg-[#17101f]/95 text-white shadow-lg backdrop-blur-xl transition hover:bg-[#21152d]"
-          aria-label="Abrir menu"
-        >
+      <button
+        type="button"
+        onClick={() => {
+          if (sidebarOpen) {
+            closeSidebar();
+          } else {
+            openSidebar();
+          }
+        }}
+        aria-label="Abrir menu"
+        className="fixed left-4 top-4 z-[80] flex h-10 w-10 items-center justify-center rounded-xl text-white/80 transition hover:bg-white/10 hover:text-white"
+      >
+        {sidebarOpen ? (
+          <X size={21} />
+        ) : (
           <Menu size={21} />
-        </button>
+        )}
+      </button>
+
+      {/* ======================================================
+          CONFIGURAÇÕES FIXAS
+          ====================================================== */}
+
+      <button
+        type="button"
+        onClick={() =>
+          setSettingsOpen(
+            (current) => !current,
+          )
+        }
+        aria-label="Configurações de voz"
+        className="fixed right-4 top-4 z-[80] flex h-10 w-10 items-center justify-center rounded-xl text-white/80 transition hover:bg-white/10 hover:text-white"
+      >
+        <Settings size={20} />
+      </button>
+
+      {/* ======================================================
+          PAINEL DE CONFIGURAÇÕES
+          ====================================================== */}
+
+      {settingsOpen && (
+        <div
+          className="fixed right-4 top-[60px] z-[75] w-[260px] rounded-2xl p-4 shadow-2xl"
+          style={{
+            background: "#18101f",
+          }}
+        >
+          <div className="mb-4">
+            <div className="mb-1 text-sm font-semibold">
+              Configurações de voz
+            </div>
+
+            <div className="text-xs text-white/45">
+              Escolha o idioma e a voz da leitura.
+            </div>
+          </div>
+
+          <label className="mb-2 block text-xs text-white/60">
+            Idioma
+          </label>
+
+          <select
+            value={speechLanguage}
+            onChange={(event) =>
+              setSpeechLanguage(
+                event.target.value,
+              )
+            }
+            className="mb-4 w-full rounded-xl bg-white/[0.06] px-3 py-2.5 text-sm text-white outline-none focus:outline-none"
+          >
+            {LANGUAGES.map(
+              (language) => (
+                <option
+                  key={language.value}
+                  value={language.value}
+                  className="bg-[#18101f]"
+                >
+                  {language.label}
+                </option>
+              ),
+            )}
+          </select>
+
+          <label className="mb-2 block text-xs text-white/60">
+            Voz
+          </label>
+
+          <select
+            value={speechGender}
+            onChange={(event) =>
+              setSpeechGender(
+                event.target
+                  .value as VoiceGender,
+              )
+            }
+            className="w-full rounded-xl bg-white/[0.06] px-3 py-2.5 text-sm text-white outline-none focus:outline-none"
+          >
+            <option
+              value="male"
+              className="bg-[#18101f]"
+            >
+              Masculina
+            </option>
+
+            <option
+              value="female"
+              className="bg-[#18101f]"
+            >
+              Feminina
+            </option>
+          </select>
+        </div>
       )}
 
       {/* ======================================================
-          EDGE SWIPE
+          ÁREA INVISÍVEL PARA ABRIR SIDEBAR POR SWIPE
           ====================================================== */}
 
       {!sidebarOpen && (
         <div
-          className="fixed left-0 top-0 z-[105] h-full w-5 touch-none"
-          onPointerDown={
-            startEdgeDrag
-          }
-          onPointerMove={
-            moveEdgeDrag
-          }
-          onPointerUp={
-            endEdgeDrag
-          }
-          onPointerCancel={
-            endEdgeDrag
-          }
+          className="fixed left-0 top-0 z-[70] h-full w-5 touch-pan-y"
+          onPointerDown={(
+            event,
+          ) => {
+            edgeDragRef.current = {
+              active: true,
+              startX: event.clientX,
+            };
+
+            event.currentTarget.setPointerCapture(
+              event.pointerId,
+            );
+          }}
+          onPointerMove={(
+            event,
+          ) => {
+            if (
+              !edgeDragRef.current.active
+            ) {
+              return;
+            }
+
+            const delta =
+              event.clientX -
+              edgeDragRef.current.startX;
+
+            if (delta > 0) {
+              setSidebarProgress(
+                Math.min(
+                  1,
+                  delta /
+                    SIDEBAR_WIDTH,
+                ),
+              );
+            }
+          }}
+          onPointerUp={(
+            event,
+          ) => {
+            edgeDragRef.current.active =
+              false;
+
+            try {
+              event.currentTarget.releasePointerCapture(
+                event.pointerId,
+              );
+            } catch {
+              // ignore
+            }
+
+            if (
+              sidebarProgress > 0.2
+            ) {
+              openSidebar();
+            } else {
+              setSidebarProgress(0);
+            }
+          }}
         />
       )}
 
@@ -1552,90 +1241,104 @@ function Workspace() {
           SIDEBAR
           ====================================================== */}
 
-      <div
-        ref={sidebarRef}
-        className="fixed left-0 top-0 z-[100] h-[100dvh] w-[min(320px,88vw)] bg-[#120c18]/98 shadow-2xl backdrop-blur-2xl"
+      <aside
+        className="fixed bottom-0 left-0 top-0 z-[60] w-[300px] touch-pan-y border-r border-white/[0.06]"
         style={{
-          transform: `translateX(calc(-100% + ${
-            sidebarProgress * 100
-          }%))`,
+          background: "#120c18",
+          transform: `translateX(${
+            -SIDEBAR_WIDTH *
+            (1 - sidebarProgress)
+          }px)`,
           transition:
-            sidebarDragRef.current
-              .active
+            sidebarDragRef.current.active ||
+            edgeDragRef.current.active
               ? "none"
-              : "transform 180ms ease-out",
+              : "transform 220ms ease",
         }}
       >
-        <div className="flex h-full flex-col">
-          <div className="flex items-center justify-between px-4 py-4">
-            <div className="flex items-center gap-3">
-              <img
-                src="/appicon.png"
-                alt="DecidlyAI"
-                className="h-9 w-9 rounded-xl"
-              />
+        {/* HANDLE DE ARRASTAR */}
+        <div
+          className="absolute right-0 top-0 h-full w-6 touch-none"
+          onPointerDown={
+            handleSidebarPointerDown
+          }
+          onPointerMove={
+            handleSidebarPointerMove
+          }
+          onPointerUp={
+            handleSidebarPointerUp
+          }
+          onPointerCancel={
+            handleSidebarPointerUp
+          }
+        />
 
-              <div>
-                <div className="text-sm font-semibold">
-                  DecidlyAI
-                </div>
-
-                <div className="text-xs text-white/45">
-                  Suas conversas
-                </div>
+        <div className="flex h-full flex-col p-4">
+          <div className="mb-5 flex items-center justify-between pl-1">
+            <div className="flex items-center gap-2">
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-lg"
+                style={{
+                  background:
+                    "rgba(139,92,246,.16)",
+                }}
+              >
+                <Sparkles
+                  size={17}
+                  className="text-violet-400"
+                />
               </div>
+
+              <span className="text-sm font-semibold">
+                DecidlyAI
+              </span>
             </div>
 
             <button
               type="button"
-              onClick={
-                closeSidebar
-              }
-              className="flex h-9 w-9 items-center justify-center rounded-full text-white/60 transition hover:bg-white/5 hover:text-white"
-              aria-label="Fechar menu"
+              onClick={closeSidebar}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-white/50 hover:bg-white/5 hover:text-white"
             >
-              <X size={19} />
+              <X size={17} />
             </button>
           </div>
 
-          <div className="px-3">
-            <button
-              type="button"
-              onClick={
-                startNewConversation
+          <button
+            type="button"
+            onClick={newConversation}
+            className="mb-4 flex w-full items-center gap-2 rounded-xl px-3 py-3 text-sm font-medium transition hover:bg-white/[0.06]"
+          >
+            <Plus size={17} />
+            Nova decisão
+          </button>
+
+          <div className="relative mb-4">
+            <Search
+              size={15}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-white/35"
+            />
+
+            <input
+              value={search}
+              onChange={(event) =>
+                setSearch(
+                  event.target.value,
+                )
               }
-              className="flex w-full items-center gap-3 rounded-xl bg-white/[0.06] px-4 py-3 text-sm font-medium transition hover:bg-white/[0.09]"
-            >
-              <Plus size={18} />
-              Nova conversa
-            </button>
+              placeholder="Pesquisar"
+              className="h-10 w-full rounded-xl bg-white/[0.045] pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/30 focus:outline-none focus:ring-0"
+            />
           </div>
 
-          <div className="px-3 pt-3">
-            <div className="flex items-center gap-2 rounded-xl bg-white/[0.045] px-3 py-2.5">
-              <Search
-                size={17}
-                className="shrink-0 text-white/35"
-              />
-
-              <input
-                value={search}
-                onChange={(event) =>
-                  setSearch(
-                    event.target.value,
-                  )
-                }
-                placeholder="Pesquisar"
-                className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/35"
-              />
-            </div>
+          <div className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wider text-white/30">
+            Conversas
           </div>
 
-          <div className="mt-3 flex-1 overflow-y-auto px-3 pb-4">
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
             {filteredConversations.length ===
             0 ? (
-              <div className="px-3 py-8 text-center text-sm text-white/35">
-                Nenhuma conversa encontrada.
+              <div className="px-1 py-5 text-sm text-white/35">
+                Nenhuma conversa ainda.
               </div>
             ) : (
               <div className="space-y-1">
@@ -1646,7 +1349,10 @@ function Workspace() {
                         conversation.id
                       }
                       type="button"
-                      className="w-full rounded-xl px-3 py-3 text-left text-sm text-white/70 transition hover:bg-white/[0.05] hover:text-white"
+                      className="w-full rounded-xl px-3 py-2.5 text-left text-sm text-white/65 transition hover:bg-white/[0.05] hover:text-white"
+                      onClick={() => {
+                        closeSidebar();
+                      }}
                     >
                       <div className="truncate">
                         {
@@ -1659,91 +1365,66 @@ function Workspace() {
               </div>
             )}
           </div>
-
-          {/* Handle de arrastar */}
-          <div
-            className="absolute right-0 top-0 h-full w-5 touch-none"
-            onPointerDown={
-              beginSidebarDrag
-            }
-            onPointerMove={
-              moveSidebarDrag
-            }
-            onPointerUp={
-              endSidebarDrag
-            }
-            onPointerCancel={
-              endSidebarDrag
-            }
-          />
         </div>
-      </div>
-
-      {/* ======================================================
-          BACKDROP
-          ====================================================== */}
-
-      {sidebarOpen && (
-        <button
-          type="button"
-          aria-label="Fechar menu"
-          className="fixed inset-0 z-[90] bg-black/45"
-          onClick={
-            closeSidebar
-          }
-        />
-      )}
+      </aside>
 
       {/* ======================================================
           CHAT
           ====================================================== */}
 
-      <main className="relative z-10 h-[100dvh] min-h-0 overflow-hidden">
+      <main
+        className="absolute inset-0"
+        style={{
+          paddingBottom:
+            keyboardOffset > 0
+              ? keyboardOffset
+              : 0,
+        }}
+      >
         <div
           ref={chatRef}
-          className="h-full overflow-y-auto px-4 pb-40 pt-4 sm:px-6"
+          className="h-full overflow-y-auto"
         >
-          <div className="mx-auto w-full max-w-3xl">
+          <div
+            className={`mx-auto w-full max-w-3xl px-4 pb-40 pt-20 ${
+              messages.length === 0
+                ? "min-h-full"
+                : ""
+            }`}
+          >
             {/* ==================================================
                 WELCOME
                 ================================================== */}
 
-            {messages.length ===
-              0 && (
-              <div className="flex min-h-[calc(100dvh-180px)] flex-col items-center justify-center px-4">
-                <img
-                  src="/appicon.png"
-                  alt="DecidlyAI"
-                  className="mb-5 h-16 w-16 rounded-2xl shadow-xl"
-                />
-
-                <div className="mb-2 flex items-center gap-2">
+            {messages.length === 0 && (
+              <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+                <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-500/10">
                   <Sparkles
-                    size={18}
-                    className="text-[#A78BFA]"
+                    size={24}
+                    className="text-violet-400"
                   />
-
-                  <h1 className="text-xl font-semibold">
-                    O que você está decidindo?
-                  </h1>
                 </div>
 
-                <p className="max-w-md text-center text-sm leading-6 text-white/45">
-                  Explique a situação,
-                  as opções que você
-                  tem e o que está te
-                  deixando em dúvida.
+                <h1 className="text-2xl font-semibold tracking-tight">
+                  O que você está decidindo?
+                </h1>
+
+                <p className="mt-3 max-w-md text-sm leading-6 text-white/45">
+                  Explique a situação, as opções que você tem e o que está te deixando em dúvida.
+                </p>
+
+                <p className="mt-5 text-xs text-white/30">
+                  A DecidlyAI pode cometer erros. Verifique informações importantes.
                 </p>
               </div>
             )}
 
             {/* ==================================================
-                MESSAGES
+                MENSAGENS
                 ================================================== */}
 
-            {messages.length >
-              0 && (
-              <div className="space-y-7 pt-16">
+            {messages.length > 0 && (
+              <div className="space-y-7">
                 {messages.map(
                   (message) => {
                     const isReading =
@@ -1764,21 +1445,29 @@ function Workspace() {
                           className={
                             message.role ===
                             "user"
-                              ? "max-w-[88%] rounded-2xl bg-[#251432] px-4 py-3 text-[15px] leading-6 text-white"
-                              : "w-full max-w-[88%]"
+                              ? "max-w-[85%] rounded-2xl bg-violet-500/15 px-4 py-3 text-[15px] leading-6 text-white"
+                              : "w-full max-w-[90%]"
                           }
                         >
                           {message.role ===
                           "assistant" ? (
                             <>
-                              <div className="text-[15px] leading-7 text-white/90">
+                              <div
+                                className="text-[15px] leading-7 text-white/90"
+                                style={{
+                                  wordBreak:
+                                    "break-word",
+                                }}
+                              >
                                 {isReading ? (
-                                  <div className="whitespace-pre-wrap">
-                                    {renderReadingText(
-                                      message.content,
-                                      readingCharIndex,
-                                    )}
-                                  </div>
+                                  <HighlightedText
+                                    text={
+                                      message.content
+                                    }
+                                    charIndex={
+                                      readingCharIndex
+                                    }
+                                  />
                                 ) : (
                                   <ReactMarkdown
                                     remarkPlugins={[
@@ -1794,17 +1483,6 @@ function Workspace() {
                                           }
                                         </p>
                                       ),
-
-                                      strong: ({
-                                        children,
-                                      }) => (
-                                        <strong className="font-semibold text-white">
-                                          {
-                                            children
-                                          }
-                                        </strong>
-                                      ),
-
                                       ul: ({
                                         children,
                                       }) => (
@@ -1814,7 +1492,6 @@ function Workspace() {
                                           }
                                         </ul>
                                       ),
-
                                       ol: ({
                                         children,
                                       }) => (
@@ -1824,25 +1501,14 @@ function Workspace() {
                                           }
                                         </ol>
                                       ),
-
-                                      li: ({
+                                      strong: ({
                                         children,
                                       }) => (
-                                        <li>
+                                        <strong className="font-semibold text-white">
                                           {
                                             children
                                           }
-                                        </li>
-                                      ),
-
-                                      code: ({
-                                        children,
-                                      }) => (
-                                        <code className="rounded-md bg-white/10 px-1.5 py-0.5 text-sm">
-                                          {
-                                            children
-                                          }
-                                        </code>
+                                        </strong>
                                       ),
                                     }}
                                   >
@@ -1853,8 +1519,7 @@ function Workspace() {
                                 )}
                               </div>
 
-                              {/* Ações da mensagem */}
-                              <div className="mt-3 flex items-center gap-1 text-white/35">
+                              <div className="mt-3 flex items-center gap-1">
                                 <button
                                   type="button"
                                   onClick={() =>
@@ -1862,17 +1527,17 @@ function Workspace() {
                                       message.id,
                                     )
                                   }
-                                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-white/5 hover:text-white ${
+                                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
                                     likes[
                                       message.id
                                     ]
-                                      ? "text-[#A78BFA]"
-                                      : ""
+                                      ? "bg-white/10 text-violet-300"
+                                      : "text-white/30 hover:bg-white/5 hover:text-white/70"
                                   }`}
-                                  aria-label="Curtir"
+                                  aria-label="Gostei"
                                 >
                                   <ThumbsUp
-                                    size={16}
+                                    size={15}
                                   />
                                 </button>
 
@@ -1883,17 +1548,17 @@ function Workspace() {
                                       message.id,
                                     )
                                   }
-                                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-white/5 hover:text-white ${
+                                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
                                     dislikes[
                                       message.id
                                     ]
-                                      ? "text-[#A78BFA]"
-                                      : ""
+                                      ? "bg-white/10 text-violet-300"
+                                      : "text-white/30 hover:bg-white/5 hover:text-white/70"
                                   }`}
                                   aria-label="Não gostei"
                                 >
                                   <ThumbsDown
-                                    size={16}
+                                    size={15}
                                   />
                                 </button>
 
@@ -1904,21 +1569,17 @@ function Workspace() {
                                       message,
                                     )
                                   }
-                                  className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-white/5 hover:text-white"
+                                  className="flex h-8 w-8 items-center justify-center rounded-lg text-white/30 transition hover:bg-white/5 hover:text-white/70"
                                   aria-label="Copiar"
                                 >
-                                  {copiedMessageId ===
+                                  {copiedId ===
                                   message.id ? (
                                     <Check
-                                      size={
-                                        16
-                                      }
+                                      size={15}
                                     />
                                   ) : (
                                     <Copy
-                                      size={
-                                        16
-                                      }
+                                      size={15}
                                     />
                                   )}
                                 </button>
@@ -1930,10 +1591,10 @@ function Workspace() {
                                       message,
                                     )
                                   }
-                                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-white/5 hover:text-white ${
+                                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
                                     isReading
-                                      ? "text-[#A78BFA]"
-                                      : ""
+                                      ? "bg-violet-500/15 text-violet-300"
+                                      : "text-white/30 hover:bg-white/5 hover:text-white/70"
                                   }`}
                                   aria-label={
                                     isReading
@@ -1943,26 +1604,18 @@ function Workspace() {
                                 >
                                   {isReading ? (
                                     <VolumeX
-                                      size={
-                                        16
-                                      }
+                                      size={15}
                                     />
                                   ) : (
                                     <Volume2
-                                      size={
-                                        16
-                                      }
+                                      size={15}
                                     />
                                   )}
                                 </button>
                               </div>
                             </>
                           ) : (
-                            <div className="whitespace-pre-wrap">
-                              {
-                                message.content
-                              }
-                            </div>
+                            message.content
                           )}
                         </div>
                       </div>
@@ -1977,291 +1630,203 @@ function Workspace() {
                     </div>
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* Erro */}
-            {error && (
-              <div className="mt-5 rounded-xl bg-red-500/[0.06] px-4 py-3 text-sm text-red-200/80">
-                {error}
-              </div>
-            )}
+                {error && (
+                  <div className="text-center text-sm text-red-300/80">
+                    {error}
+                  </div>
+                )}
 
-            {/* Aviso original */}
-            {messages.length >
-              0 && (
-              <div className="mt-8 pb-6 text-center text-xs text-white/30">
-                A DecidlyAI pode cometer erros. Verifique informações importantes.
+                <div className="pt-2 text-center text-xs text-white/25">
+                  A DecidlyAI pode cometer erros. Verifique informações importantes.
+                </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* ======================================================
+        {/* ====================================================
             COMPOSER
-            ====================================================== */}
+            ==================================================== */}
 
         <div
-          className="fixed left-0 right-0 z-[50] px-3 pb-3 sm:px-6 sm:pb-5"
+          className="pointer-events-none fixed left-0 right-0 z-40 px-4"
           style={{
             bottom:
               keyboardOffset > 0
-                ? `${keyboardOffset}px`
-                : "0px",
+                ? keyboardOffset + 12
+                : 18,
             transition:
               "bottom 100ms ease-out",
           }}
         >
-          <div className="relative mx-auto max-w-3xl">
+          <div className="pointer-events-auto mx-auto w-full max-w-3xl">
+            {/*
+             * =================================================
+             * IMPORTANTE:
+             * NÃO existe border
+             * NÃO existe outline
+             * NÃO existe ring
+             * NÃO existe shadow
+             *
+             * Visual:
+             *
+             * | Escreva sua decisão... | 🎙 ↑
+             * =================================================
+             */}
 
-            {/* ==================================================
-                PAINEL DE CONFIGURAÇÃO
-                ================================================== */}
-
-            {speechSettingsOpen && (
-              <>
-                {/* Clique fora para fechar */}
-                <button
-                  type="button"
-                  aria-label="Fechar configurações"
-                  className="fixed inset-0 z-[-1] cursor-default"
-                  onClick={() =>
-                    setSpeechSettingsOpen(
-                      false,
-                    )
-                  }
-                />
-
-                <div className="absolute bottom-full right-0 z-[70] mb-3 w-[260px] rounded-2xl bg-[#18101f] p-4 shadow-2xl ring-1 ring-white/10">
-                  <div className="mb-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Settings
-                        size={16}
-                        className="text-[#A78BFA]"
-                      />
-
-                      <span className="text-sm font-medium">
-                        Configurações
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSpeechSettingsOpen(
-                          false,
-                        )
+            <div
+              className="flex min-h-[58px] items-end gap-2 rounded-2xl px-4 py-2"
+              style={{
+                background: "#17101f",
+                border: "none",
+                outline: "none",
+                boxShadow: "none",
+              }}
+            >
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(event) =>
+                  setInput(
+                    event.target.value,
+                  )
+                }
+                onKeyDown={
+                  handleKeyDown
+                }
+                onFocus={() => {
+                  requestAnimationFrame(
+                    () => {
+                      if (
+                        chatRef.current
+                      ) {
+                        chatRef.current.scrollTop =
+                          chatRef.current.scrollHeight;
                       }
-                      className="flex h-7 w-7 items-center justify-center rounded-lg text-white/40 transition hover:bg-white/5 hover:text-white"
-                      aria-label="Fechar configurações"
-                    >
-                      <X
-                        size={15}
-                      />
-                    </button>
-                  </div>
+                    },
+                  );
+                }}
+                rows={1}
+                placeholder="Escreva sua decisão..."
+                disabled={isLoading}
+                className="min-h-[42px] max-h-[140px] min-w-0 flex-1 resize-none bg-transparent px-0 py-2.5 text-[15px] leading-6 text-white placeholder:text-white/35"
+                style={{
+                  border: "none",
+                  outline: "none",
+                  boxShadow: "none",
+                  WebkitAppearance:
+                    "none",
+                }}
+              />
 
-                  {/* Idioma */}
-                  <label className="mb-1.5 block text-xs text-white/45">
-                    Idioma da leitura
-                  </label>
+              {/* 🎙 MICROFONE À DIREITA */}
+              <button
+                type="button"
+                onClick={
+                  toggleMicrophone
+                }
+                disabled={isLoading}
+                aria-label={
+                  listening
+                    ? "Parar microfone"
+                    : "Usar microfone"
+                }
+                className={`mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${
+                  listening
+                    ? "bg-violet-500/15 text-violet-300"
+                    : "text-white/45 hover:bg-white/5 hover:text-white"
+                }`}
+                style={{
+                  border: "none",
+                  outline: "none",
+                  boxShadow: "none",
+                }}
+              >
+                {listening ? (
+                  <MicOff size={19} />
+                ) : (
+                  <Mic size={19} />
+                )}
+              </button>
 
-                  <select
-                    value={
-                      speechLanguage
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      setSpeechLanguage(
-                        event.target
-                          .value,
-                      )
-                    }
-                    className="mb-4 w-full rounded-xl bg-white/[0.06] px-3 py-2.5 text-sm text-white outline-none"
-                  >
-                    {SPEECH_LANGUAGES.map(
-                      (language) => (
-                        <option
-                          key={
-                            language.value
-                          }
-                          value={
-                            language.value
-                          }
-                          className="bg-[#18101f]"
-                        >
-                          {
-                            language.label
-                          }
-                        </option>
-                      ),
-                    )}
-                  </select>
-
-                  {/* Voz */}
-                  <label className="mb-1.5 block text-xs text-white/45">
-                    Voz
-                  </label>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSpeechGender(
-                          "male",
-                        )
-                      }
-                      className={`rounded-xl px-3 py-2.5 text-sm transition ${
-                        speechGender ===
-                        "male"
-                          ? "bg-[#8B5CF6] text-white"
-                          : "bg-white/[0.06] text-white/55 hover:bg-white/[0.09] hover:text-white"
-                      }`}
-                    >
-                      Masculina
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSpeechGender(
-                          "female",
-                        )
-                      }
-                      className={`rounded-xl px-3 py-2.5 text-sm transition ${
-                        speechGender ===
-                        "female"
-                          ? "bg-[#8B5CF6] text-white"
-                          : "bg-white/[0.06] text-white/55 hover:bg-white/[0.09] hover:text-white"
-                      }`}
-                    >
-                      Feminina
-                    </button>
-                  </div>
-
-                  <div className="mt-3 text-[10px] leading-4 text-white/25">
-                    A disponibilidade de
-                    vozes depende do navegador
-                    e do dispositivo.
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* ==================================================
-                CAIXA DE DIGITAÇÃO
-                ================================================== */}
-
-            <div className="bg-[#17101f] px-3 py-2 shadow-2xl">
-              <div className="flex items-end gap-2">
-
-                {/* Microfone */}
-                <button
-                  type="button"
-                  onClick={
-                    toggleListening
-                  }
-                  className={`mb-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${
-                    listening
-                      ? "bg-[#8B5CF6]/20 text-[#A78BFA]"
-                      : "text-white/45 hover:bg-white/5 hover:text-white"
-                  }`}
-                  aria-label={
-                    listening
-                      ? "Parar microfone"
-                      : "Usar microfone"
-                  }
-                >
-                  {listening ? (
-                    <MicOff
-                      size={19}
-                    />
-                  ) : (
-                    <Mic
-                      size={19}
-                    />
-                  )}
-                </button>
-
-                {/* ==================================================
-                    TEXTAREA — SEM BORDA
-                    ================================================== */}
-
-                <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(event) =>
-                    setInput(
-                      event.target.value,
-                    )
-                  }
-                  onKeyDown={
-                    handleTextareaKeyDown
-                  }
-                  onFocus={
-                    handleTextareaFocus
-                  }
-                  placeholder="Escreva sua decisão..."
-                  rows={1}
-                  className="min-h-[58px] max-h-[140px] flex-1 resize-none overflow-y-auto bg-transparent px-1 py-3 text-[15px] leading-6 text-white placeholder:text-white/35 focus:outline-none focus:ring-0"
-                  style={{
-                    border: "none",
-                    outline: "none",
-                    boxShadow: "none",
-                  }}
-                />
-
-                {/* Configurações */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSpeechSettingsOpen(
-                      (current) =>
-                        !current,
-                    )
-                  }
-                  className={`mb-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${
-                    speechSettingsOpen
-                      ? "bg-white/[0.08] text-white"
-                      : "text-white/40 hover:bg-white/5 hover:text-white"
-                  }`}
-                  aria-label="Configurações de voz"
-                  aria-expanded={
-                    speechSettingsOpen
-                  }
-                >
-                  <Settings
-                    size={18}
-                  />
-                </button>
-
-                {/* Enviar */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    void sendMessage()
-                  }
-                  disabled={
-                    !input.trim() ||
-                    isLoading
-                  }
-                  className="mb-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#8B5CF6] text-white transition hover:bg-[#9B6AF7] disabled:cursor-not-allowed disabled:opacity-30"
-                  aria-label="Enviar"
-                >
-                  <ArrowUp
-                    size={20}
-                  />
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-2 text-center text-[10px] text-white/20">
-              Ctrl + Enter para enviar
+              {/* ↑ BOTÃO ROXO */}
+              <button
+                type="button"
+                onClick={() =>
+                  void sendMessage()
+                }
+                disabled={
+                  !input.trim() ||
+                  isLoading
+                }
+                aria-label="Enviar"
+                className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white transition disabled:cursor-not-allowed disabled:opacity-25"
+                style={{
+                  background: "#8B5CF6",
+                  border: "none",
+                  outline: "none",
+                  boxShadow: "none",
+                }}
+              >
+                <ArrowUp size={19} />
+              </button>
             </div>
           </div>
         </div>
       </main>
     </div>
+  );
+}
+
+/*
+ * ==============================================================
+ * TEXTO COM PALAVRA DESTACADA DURANTE A LEITURA
+ * ==============================================================
+ */
+
+function HighlightedText({
+  text,
+  charIndex,
+}: {
+  text: string;
+  charIndex: number;
+}) {
+  if (charIndex < 0) {
+    return <>{text}</>;
+  }
+
+  const before = text.slice(
+    0,
+    charIndex,
+  );
+
+  const remaining = text.slice(
+    charIndex,
+  );
+
+  const match =
+    remaining.match(/^\S+/);
+
+  if (!match) {
+    return <>{text}</>;
+  }
+
+  const word = match[0];
+
+  const after = remaining.slice(
+    word.length,
+  );
+
+  return (
+    <>
+      {before}
+
+      <span className="rounded bg-violet-500/25 text-violet-200">
+        {word}
+      </span>
+
+      {after}
+    </>
   );
 }
