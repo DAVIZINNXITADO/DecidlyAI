@@ -2164,4 +2164,740 @@ function Workspace() {
                 className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/35"
               />
             </div>
-          </
+          </div>
+
+          {/* ==================================================
+              LISTA DE CHATS
+              ================================================== */}
+
+          <div className="mt-3 flex-1 overflow-y-auto px-3 pb-4">
+            {visibleConversations.length ===
+            0 ? (
+              <div className="px-3 py-8 text-center text-sm text-white/35">
+                Nenhuma conversa encontrada.
+              </div>
+            ) : (
+              <>
+                <div className="space-y-1">
+                  {visibleConversations.map(
+                    (conversation) => {
+                      const isActive =
+                        activeConversationId ===
+                        conversation.id;
+
+                      const isMenuOpen =
+                        chatMenuId ===
+                        conversation.id;
+
+                      return (
+                        <div
+                          key={
+                            conversation.id
+                          }
+                          className="relative"
+                          onPointerDown={(
+                            event,
+                          ) => {
+                            event.stopPropagation();
+
+                            startChatLongPress(
+                              event,
+                              conversation,
+                            );
+                          }}
+                          onPointerUp={
+                            cancelChatLongPress
+                          }
+                          onPointerCancel={
+                            cancelChatLongPress
+                          }
+                          onPointerLeave={
+                            cancelChatLongPress
+                          }
+                        >
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+
+                              void selectConversation(
+                                conversation,
+                              );
+                            }}
+                            className={`w-full rounded-xl px-3 py-3 pr-10 text-left text-sm transition ${
+                              isActive
+                                ? "bg-white/[0.13] text-white"
+                                : "text-white/70 hover:bg-white/[0.05] hover:text-white"
+                            }`}
+                          >
+                            <div className="truncate font-medium">
+                              {
+                                conversation.title
+                              }
+                            </div>
+                          </button>
+
+                          {/* Menu aparece somente após segurar */}
+                          {isMenuOpen && (
+                            <div
+                              onPointerDown={(
+                                event,
+                              ) =>
+                                event.stopPropagation()
+                              }
+                              className="absolute right-2 top-[calc(100%-4px)] z-[140] w-[180px] overflow-hidden rounded-xl bg-[#21152d] p-1 shadow-2xl ring-1 ring-white/10"
+                            >
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openRenameChat(
+                                    conversation,
+                                  )
+                                }
+                                className="w-full rounded-lg px-3 py-2.5 text-left text-sm text-white/85 transition hover:bg-white/[0.08] hover:text-white"
+                              >
+                                Renomear chat
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openDeleteChat(
+                                    conversation,
+                                  )
+                                }
+                                className="w-full rounded-lg px-3 py-2.5 text-left text-sm text-red-300 transition hover:bg-red-500/[0.08]"
+                              >
+                                Deletar chat
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    },
+                  )}
+                </div>
+
+                {/* PRIMEIRO BOTÃO:
+                    mostra 25 chats adicionais */}
+                {hasMoreChats && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVisibleChatCount(
+                        (current) =>
+                          current +
+                          LOAD_MORE_CHAT_LIMIT,
+                      );
+                    }}
+                    className="mt-3 w-full rounded-xl px-3 py-2.5 text-sm text-white/50 transition hover:bg-white/[0.05] hover:text-white"
+                  >
+                    Ver mais
+                  </button>
+                )}
+
+                {/* Quando já foram carregados mais de 15
+                    e ainda existem chats, oferece Ver tudo */}
+                {showViewAll && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setVisibleChatCount(
+                        filteredConversations.length,
+                      )
+                    }
+                    className="mt-1 w-full rounded-xl px-3 py-2.5 text-sm text-white/35 transition hover:bg-white/[0.05] hover:text-white/70"
+                  >
+                    Ver tudo
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* ==================================================
+              CONTA + CONFIGURAÇÕES
+              ================================================== */}
+
+          <div className="border-t border-white/[0.06] px-3 py-3">
+            <button
+              type="button"
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-white/60 transition hover:bg-white/[0.05] hover:text-white"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06]">
+                <span className="text-xs">
+                  C
+                </span>
+              </div>
+
+              <span>Conta</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                setSpeechSettingsOpen(
+                  true,
+                )
+              }
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-white/60 transition hover:bg-white/[0.05] hover:text-white"
+            >
+              <Settings size={18} />
+              <span>Configurações</span>
+            </button>
+          </div>
+
+          {/* Handle independente */}
+          <div
+            className="absolute right-0 top-0 h-full w-5 touch-none"
+            onPointerDown={
+              beginSidebarDrag
+            }
+            onPointerMove={
+              moveSidebarDrag
+            }
+            onPointerUp={
+              endSidebarDrag
+            }
+            onPointerCancel={
+              endSidebarDrag
+            }
+          />
+        </div>
+      </aside>
+
+      {/* ======================================================
+          BACKDROP
+          ====================================================== */}
+
+      {sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Fechar menu"
+          className="fixed inset-0 z-[90] bg-black/45"
+          onClick={
+            closeSidebar
+          }
+        />
+      )}
+
+      {/* ======================================================
+          MODAL RENOMEAR
+          ====================================================== */}
+
+      {renameChatId && (
+        <div
+          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 px-4"
+          onPointerDown={
+            cancelRenameChat
+          }
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-[#18101f] p-5 shadow-2xl ring-1 ring-white/10"
+            onPointerDown={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <h2 className="text-base font-semibold">
+              Renomear chat
+            </h2>
+
+            <input
+              autoFocus
+              value={renameValue}
+              onChange={(event) =>
+                setRenameValue(
+                  event.target.value,
+                )
+              }
+              onKeyDown={(event) => {
+                if (
+                  event.key ===
+                  "Enter"
+                ) {
+                  void saveRenamedChat();
+                }
+
+                if (
+                  event.key ===
+                  "Escape"
+                ) {
+                  cancelRenameChat();
+                }
+              }}
+              className="mt-4 w-full rounded-xl bg-white/[0.06] px-3 py-3 text-sm text-white outline-none ring-1 ring-white/10 focus:ring-[#8B5CF6]/50"
+            />
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={
+                  cancelRenameChat
+                }
+                className="rounded-xl px-4 py-2.5 text-sm text-white/55 hover:bg-white/[0.06] hover:text-white"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  void saveRenamedChat()
+                }
+                className="rounded-xl bg-[#8B5CF6] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#9B6AF7]"
+              >
+                Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================
+          CONFIRMAÇÃO DELETAR
+          ====================================================== */}
+
+      {deleteChatId && (
+        <div
+          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 px-4"
+          onPointerDown={
+            cancelDeleteChat
+          }
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-[#18101f] p-5 shadow-2xl ring-1 ring-white/10"
+            onPointerDown={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <h2 className="text-base font-semibold">
+              Deletar chat?
+            </h2>
+
+            <p className="mt-2 text-sm leading-6 text-white/45">
+              Essa ação não poderá ser
+              desfeita.
+            </p>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={
+                  cancelDeleteChat
+                }
+                className="rounded-xl px-4 py-2.5 text-sm text-white/55 hover:bg-white/[0.06] hover:text-white"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  void confirmDeleteChat()
+                }
+                className="rounded-xl bg-red-500/15 px-4 py-2.5 text-sm font-medium text-red-300 hover:bg-red-500/25"
+              >
+                Deletar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================
+          CHAT
+          ====================================================== */}
+
+      <main className="relative z-10 h-[100dvh] min-h-0 overflow-hidden">
+        <div
+          ref={chatRef}
+          className="h-full overflow-y-auto px-4 pb-40 pt-4 sm:px-6"
+        >
+          <div className="mx-auto w-full max-w-3xl">
+            {messages.length ===
+              0 && (
+              <div className="flex min-h-[calc(100dvh-180px)] flex-col items-center justify-center px-4">
+                <img
+                  src="/appicon.png"
+                  alt="DecidlyAI"
+                  className="mb-5 h-16 w-16 rounded-2xl shadow-xl"
+                />
+
+                <div className="mb-2 flex items-center gap-2">
+                  <Sparkles
+                    size={18}
+                    className="text-[#A78BFA]"
+                  />
+
+                  <h1 className="text-xl font-semibold">
+                    O que você está decidindo?
+                  </h1>
+                </div>
+
+                <p className="max-w-md text-center text-sm leading-6 text-white/45">
+                  Explique a situação, as opções que você tem e o que está te deixando em dúvida.
+                </p>
+              </div>
+            )}
+
+            {messages.length >
+              0 && (
+              <div className="space-y-7 pt-16">
+                {messages.map(
+                  (message) => {
+                    const isReading =
+                      readingMessageId ===
+                      message.id;
+
+                    return (
+                      <div
+                        key={message.id}
+                        className={
+                          message.role ===
+                          "user"
+                            ? "flex justify-end"
+                            : "flex justify-start"
+                        }
+                      >
+                        <div
+                          className={
+                            message.role ===
+                            "user"
+                              ? "max-w-[88%] rounded-2xl bg-[#8B5CF6] px-4 py-3 text-[15px] leading-6 text-white"
+                              : "w-full max-w-[88%]"
+                          }
+                        >
+                          {message.role ===
+                          "assistant" ? (
+                            <>
+                              <div className="text-[15px] leading-7 text-white/90">
+                                {isReading ? (
+                                  <div className="whitespace-pre-wrap">
+                                    {renderReadingText(
+                                      message.content,
+                                      readingCharIndex,
+                                    )}
+                                  </div>
+                                ) : (
+                                  <ReactMarkdown
+                                    remarkPlugins={[
+                                      remarkGfm,
+                                    ]}
+                                    components={{
+                                      p: ({
+                                        children,
+                                      }) => (
+                                        <p className="mb-3 last:mb-0">
+                                          {
+                                            children
+                                          }
+                                        </p>
+                                      ),
+
+                                      strong: ({
+                                        children,
+                                      }) => (
+                                        <strong className="font-semibold text-white">
+                                          {
+                                            children
+                                          }
+                                        </strong>
+                                      ),
+
+                                      ul: ({
+                                        children,
+                                      }) => (
+                                        <ul className="mb-3 list-disc space-y-1 pl-5">
+                                          {
+                                            children
+                                          }
+                                        </ul>
+                                      ),
+
+                                      ol: ({
+                                        children,
+                                      }) => (
+                                        <ol className="mb-3 list-decimal space-y-1 pl-5">
+                                          {
+                                            children
+                                          }
+                                        </ol>
+                                      ),
+
+                                      li: ({
+                                        children,
+                                      }) => (
+                                        <li>
+                                          {
+                                            children
+                                          }
+                                        </li>
+                                      ),
+
+                                      code: ({
+                                        children,
+                                      }) => (
+                                        <code className="rounded-md bg-white/10 px-1.5 py-0.5 text-sm">
+                                          {
+                                            children
+                                          }
+                                        </code>
+                                      ),
+                                    }}
+                                  >
+                                    {
+                                      message.content
+                                    }
+                                  </ReactMarkdown>
+                                )}
+                              </div>
+
+                              <div className="mt-3 flex items-center gap-1 text-white/35">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    toggleLike(
+                                      message.id,
+                                    )
+                                  }
+                                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-white/5 hover:text-white ${
+                                    likes[
+                                      message.id
+                                    ]
+                                      ? "text-[#A78BFA]"
+                                      : ""
+                                  }`}
+                                  aria-label="Curtir"
+                                >
+                                  <ThumbsUp
+                                    size={16}
+                                  />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    toggleDislike(
+                                      message.id,
+                                    )
+                                  }
+                                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-white/5 hover:text-white ${
+                                    dislikes[
+                                      message.id
+                                    ]
+                                      ? "text-[#A78BFA]"
+                                      : ""
+                                  }`}
+                                  aria-label="Não gostei"
+                                >
+                                  <ThumbsDown
+                                    size={16}
+                                  />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void copyMessage(
+                                      message,
+                                    )
+                                  }
+                                  className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-white/5 hover:text-white"
+                                  aria-label="Copiar"
+                                >
+                                  {copiedMessageId ===
+                                  message.id ? (
+                                    <Check
+                                      size={
+                                        16
+                                      }
+                                    />
+                                  ) : (
+                                    <Copy
+                                      size={
+                                        16
+                                      }
+                                    />
+                                  )}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    readMessage(
+                                      message,
+                                    )
+                                  }
+                                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-white/5 hover:text-white ${
+                                    isReading
+                                      ? "text-[#A78BFA]"
+                                      : ""
+                                  }`}
+                                  aria-label={
+                                    isReading
+                                      ? "Parar leitura"
+                                      : "Ouvir mensagem"
+                                  }
+                                >
+                                  {isReading ? (
+                                    <VolumeX
+                                      size={
+                                        16
+                                      }
+                                    />
+                                  ) : (
+                                    <Volume2
+                                      size={
+                                        16
+                                      }
+                                    />
+                                  )}
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="whitespace-pre-wrap">
+                              {
+                                message.content
+                              }
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  },
+                )}
+
+                {isLoading && (
+                  <div className="flex justify-start">
+                    <div className="text-sm text-white/45">
+                      DecidlyAI está pensando...
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {error && (
+              <div className="mt-5 rounded-xl bg-red-500/[0.06] px-4 py-3 text-sm text-red-200/80">
+                {error}
+              </div>
+            )}
+
+            {messages.length >
+              0 && (
+              <div className="mt-8 pb-6 text-center text-xs text-white/30">
+                A DecidlyAI pode cometer erros. Verifique informações importantes.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ======================================================
+            COMPOSER
+            ====================================================== */}
+
+        <div
+          className="fixed left-0 right-0 z-[50] px-3 pb-3 sm:px-6 sm:pb-5"
+          style={{
+            bottom:
+              keyboardOffset > 0
+                ? `${keyboardOffset}px`
+                : "0px",
+            transition:
+              "bottom 100ms ease-out",
+          }}
+        >
+          <div className="relative mx-auto max-w-3xl">
+            <div
+              className="rounded-[30px] bg-[#17101f] px-3 py-2 shadow-2xl"
+              style={{
+                border: "none",
+                outline: "none",
+                boxShadow:
+                  "0 20px 45px rgba(0,0,0,.25)",
+              }}
+            >
+              <div className="flex items-end gap-2">
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(event) =>
+                    setInput(
+                      event.target.value,
+                    )
+                  }
+                  onKeyDown={
+                    handleTextareaKeyDown
+                  }
+                  onFocus={
+                    handleTextareaFocus
+                  }
+                  placeholder="Escreva sua decisão..."
+                  rows={1}
+                  className="min-h-[58px] max-h-[140px] flex-1 resize-none overflow-y-auto bg-transparent px-2 py-3 text-[15px] leading-6 text-white placeholder:text-white/35 focus:outline-none focus:ring-0"
+                  style={{
+                    border: "none",
+                    outline: "none",
+                    boxShadow: "none",
+                    appearance: "none",
+                    WebkitAppearance:
+                      "none",
+                  }}
+                />
+
+                <button
+                  type="button"
+                  onClick={
+                    toggleListening
+                  }
+                  className={`mb-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${
+                    listening
+                      ? "bg-[#8B5CF6]/20 text-[#A78BFA]"
+                      : "text-white/45 hover:bg-white/5 hover:text-white"
+                  }`}
+                  aria-label={
+                    listening
+                      ? "Parar microfone"
+                      : "Usar microfone"
+                  }
+                >
+                  {listening ? (
+                    <MicOff
+                      size={19}
+                    />
+                  ) : (
+                    <Mic
+                      size={19}
+                    />
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    void sendMessage()
+                  }
+                  disabled={
+                    !input.trim() ||
+                    isLoading
+                  }
+                  className="mb-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#8B5CF6] text-white transition hover:bg-[#9B6AF7] disabled:cursor-not-allowed disabled:opacity-30"
+                  aria-label="Enviar"
+                >
+                  <ArrowUp
+                    size={20}
+                  />
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-2 text-center text-[10px] text-white/20">
+              Ctrl + Enter para enviar
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
