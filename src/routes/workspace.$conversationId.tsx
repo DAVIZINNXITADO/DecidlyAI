@@ -1,434 +1,1045 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Menu, Plus, Search, Sparkles, X } from "lucide-react";
+import { createFileRoute } from "@tanstack/react-router";
+import {
+  ArrowUp,
+  ChevronLeft,
+  Menu,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+
 import { supabase } from "@/lib/supabase";
 
-export const Route = createFileRoute("/workspace/$conversationId")({ component: Conversation });
-type ConversationRow = {
-  id: string;
-  user_id: string;
-  title: string;
-  created_at: string;
-  updated_at: string;
-};
 type Message = {
-  id: string;
-  conversation_id: string;
-  user_id: string;
+  id?: string;
   role: "user" | "assistant";
   content: string;
-  created_at: string;
+  created_at?: string;
 };
-type Subscription = { plan: string | null; status: string | null; expires_at: string | null };
-const WIDTH = 320;
-const errorText = (status?: number, detail?: string) => {
-  const m = String(detail ?? "").toLowerCase();
-  if (status === 402 || m.includes("credit") || m.includes("crédito"))
-    return "Sua conta não possui créditos disponíveis para realizar essa análise.";
+
+type Conversation = {
+  id: string;
+  title: string;
+};
+
+type Subscription = {
+  plan: string | null;
+  status: string | null;
+  expires_at: string | null;
+};
+
+export const Route = createFileRoute("/workspace/$conversationId")({
+  component: ConversationPage,
+});
+
+function getFriendlyAiError(
+  status?: number,
+  backendMessage?: string,
+) {
+  const message = String(backendMessage || "").toLowerCase();
+
+  if (
+    status === 402 ||
+    message.includes("crédito") ||
+    message.includes("credit")
+  ) {
+    return "Desculpe pelo inconveniente, mas no momento você não possui créditos disponíveis para continuar usando a DecidlyAI. Pedimos desculpas pelo transtorno. Quando houver créditos disponíveis novamente, tente enviar sua mensagem outra vez.";
+  }
+
   if (
     status === 429 ||
-    m.includes("quota") ||
-    m.includes("rate limit") ||
-    m.includes("resource_exhausted")
-  )
-    return "O limite de uso da IA foi atingido. Aguarde um pouco e tente novamente.";
-  if (status === 401 || status === 403)
-    return "Sua sessão não está autorizada. Faça login novamente.";
-  if ([500, 502, 503, 504].includes(status ?? 0))
-    return "O serviço de IA está temporariamente indisponível. Tente novamente em alguns instantes.";
-  if (m.includes("timeout")) return "A análise demorou mais que o esperado. Tente novamente.";
-  if (m.includes("network") || m.includes("fetch") || m.includes("connection"))
-    return "Não foi possível conectar ao serviço de IA. Verifique sua conexão e tente novamente.";
-  return "Não foi possível concluir a análise agora. Tente novamente.";
-};
-async function getAiFunction(setLabel: (label: string) => void) {
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) throw { status: 401, message: "Usuário não autenticado" };
-  const { data: sub } = await supabase
+    message.includes("quota") ||
+    message.includes("rate limit") ||
+    message.includes("resource_exhausted") ||
+    message.includes("limite de requisições")
+  ) {
+    return "Opa, nosso serviço atingiu temporariamente o limite de requisições para esta IA. Pedimos desculpas pelo inconveniente e agradecemos pela sua paciência. Por favor, tente novamente mais tarde.";
+  }
+
+  if (
+    status === 401 ||
+    status === 403 ||
+    message.includes("authentication") ||
+    message.includes("unauthorized")
+  ) {
+    return "Desculpe pelo inconveniente. No momento não consegui confirmar sua sessão corretamente. Por favor, tente entrar novamente e depois envie sua mensagem mais uma vez.";
+  }
+
+  if ([500, 502, 503, 504].includes(status || 0)) {
+    return "Desculpe pelo inconveniente. Estou enfrentando uma dificuldade temporária no nosso serviço e não consegui processar sua mensagem agora. Por favor, tente novamente mais tarde.";
+  }
+
+  if (
+    message.includes("timeout") ||
+    message.includes("timed out") ||
+    message.includes("tempo limite")
+  ) {
+    return "Desculpe pelo inconveniente. Demorei mais do que o esperado para processar sua mensagem e não consegui concluir a resposta desta vez. Por favor, tente novamente mais tarde.";
+  }
+
+  if (
+    message.includes("network") ||
+    message.includes("fetch") ||
+    message.includes("connection") ||
+    message.includes("conectar")
+  ) {
+    return "Desculpe pelo inconveniente. No momento estou com uma dificuldade temporária para me conectar ao nosso serviço. Por favor, tente novamente mais tarde.";
+  }
+
+  return "Desculpe pelo inconveniente. Ocorreu uma dificuldade temporária enquanto eu processava sua mensagem. Nossa equipe ou sistemas podem estar passando por uma instabilidade momentânea. Por favor, tente novamente mais tarde.";
+}
+
+async function getAiFunction() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw {
+      status: 401,
+      message: "Usuário não autenticado",
+    };
+  }
+
+  const { data: subscription, error } = await supabase
     .from("subscription")
     .select("plan,status,expires_at")
-    .eq("user_id", data.user.id)
+    .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle<Subscription>();
-  const plan = String(sub?.plan ?? "").toLowerCase();
-  const status = String(sub?.status ?? "").toLowerCase();
-  const active = status === "active" || status === "ativo";
-  const valid = !sub?.expires_at || new Date(sub.expires_at).getTime() > Date.now();
-  if (plan === "vip" && active && valid) {
-    setLabel("VIP");
-    return "decidly-ai";
+
+  if (error) {
+    console.error("Erro ao buscar assinatura:", error);
+    return "decidly-ai-free";
   }
-  setLabel("Free");
-  return "decidly-ai-free";
-}
-async function readFunctionError(functionError: unknown) {
-  const failure = functionError as { context?: Response; message?: string };
-  let status: number | undefined;
-  let backendMessage = "";
-  try {
-    status = failure.context?.status;
-    const body = await failure.context
-      ?.clone()
-      .json()
-      .catch(() => null);
-    if (typeof body?.error === "string") backendMessage = body.error;
-  } catch {
-    // Mantém uma mensagem amigável mesmo quando o backend não retorna JSON.
-  }
-  return { status, message: backendMessage || failure.message || "" };
+
+  const plan = String(subscription?.plan || "").toLowerCase();
+  const status = String(subscription?.status || "").toLowerCase();
+
+  const expired =
+    subscription?.expires_at &&
+    new Date(subscription.expires_at).getTime() <= Date.now();
+
+  const vip =
+    plan === "vip" &&
+    (status === "active" || status === "ativo") &&
+    !expired;
+
+  return vip ? "decidly-ai" : "decidly-ai-free";
 }
 
-function Conversation() {
-  const { conversationId } = Route.useParams();
-  const navigate = useNavigate();
-  const [user, setUser] = useState<string | null>(null);
-  const [conversation, setConversation] = useState<ConversationRow | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [items, setItems] = useState<ConversationRow[]>([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [label, setLabel] = useState("Free");
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const endRef = useRef<HTMLDivElement>(null);
-  const initial = useRef(false);
-  const sidebar = useRef<HTMLElement>(null);
-  const backdrop = useRef<HTMLDivElement>(null);
-  const p = useRef(0);
-  const sx = useRef(0);
-  const sp = useRef(0);
-  const drag = useRef(false);
-  const raf = useRef<number | null>(null);
-  const paint = (value: number) => {
-    p.current = Math.max(0, Math.min(1, value));
-    if (raf.current !== null) cancelAnimationFrame(raf.current);
-    raf.current = requestAnimationFrame(() => {
-      if (sidebar.current)
-        sidebar.current.style.transform = `translate3d(${-WIDTH + WIDTH * p.current}px,0,0)`;
-      if (backdrop.current) {
-        backdrop.current.style.opacity = String(p.current * 0.72);
-        backdrop.current.style.pointerEvents = p.current > 0.01 ? "auto" : "none";
+async function invokeAi(
+  functionName: string,
+  message: string,
+  history: Message[],
+): Promise<string> {
+  const { data, error } = await supabase.functions.invoke(
+    functionName,
+    {
+      body: {
+        message,
+        history: history.slice(-12),
+      },
+    },
+  );
+
+  if (error) {
+    const context = (error as any)?.context;
+
+    let backendMessage = error.message;
+    let status: number | undefined = context?.status;
+
+    try {
+      if (context instanceof Response) {
+        status = context.status;
+
+        const clone = context.clone();
+        const json = await clone.json();
+
+        if (json?.error) {
+          backendMessage = json.error;
+        }
       }
-    });
-  };
-  const settle = (value: boolean) => {
-    setOpen(value);
-    if (sidebar.current)
-      sidebar.current.style.transition = "transform 260ms cubic-bezier(.22,1,.36,1)";
-    if (backdrop.current) backdrop.current.style.transition = "opacity 260ms ease";
-    paint(value ? 1 : 0);
-    window.setTimeout(() => {
-      if (sidebar.current) sidebar.current.style.transition = "none";
-      if (backdrop.current) backdrop.current.style.transition = "none";
-    }, 280);
-  };
-  const begin = (e: React.PointerEvent<HTMLElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    drag.current = true;
-    sx.current = e.clientX;
-    sp.current = p.current;
-    if (sidebar.current) sidebar.current.style.transition = "none";
-  };
-  const move = (e: React.PointerEvent<HTMLElement>) => {
-    if (drag.current) paint(sp.current + (e.clientX - sx.current) / WIDTH);
-  };
-  const end = () => {
-    if (drag.current) {
-      drag.current = false;
-      settle(p.current > 0.5);
+    } catch {
+      // mantém mensagem original
     }
-  };
+
+    throw {
+      status,
+      message: backendMessage,
+    };
+  }
+
+  if (data?.error) {
+    throw {
+      status: data.status,
+      message: data.error,
+    };
+  }
+
+  if (!data?.response) {
+    throw {
+      status: 500,
+      message: "A IA não retornou uma resposta.",
+    };
+  }
+
+  return String(data.response);
+}
+
+function ConversationPage() {
+  const { conversationId } = Route.useParams();
+  const navigate = Route.useNavigate();
+
+  const [conversation, setConversation] =
+    useState<Conversation | null>(null);
+
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+
+  const [pageLoading, setPageLoading] = useState(true);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarProgress, setSidebarProgress] = useState(0);
+
+  const [history, setHistory] = useState<Conversation[]>([]);
+  const [search, setSearch] = useState("");
+
+  const contentRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const sidebarRef = useRef<HTMLAsideElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+
+  const progressRef = useRef(0);
+  const draggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const startProgressRef = useRef(0);
+  const animationFrameRef = useRef<number | null>(null);
+
+  const autoResponseRef = useRef(false);
+
+  const paintSidebar = useCallback((value: number) => {
+    const sidebar = sidebarRef.current;
+    const backdrop = backdropRef.current;
+
+    if (!sidebar || !backdrop) return;
+
+    const progress = Math.max(0, Math.min(1, value));
+
+    progressRef.current = progress;
+
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+
+    animationFrameRef.current = requestAnimationFrame(() => {
+      const width = sidebar.offsetWidth;
+
+      sidebar.style.transform = `translate3d(${
+        -width + width * progress
+      }px,0,0)`;
+
+      backdrop.style.opacity = String(progress * 0.72);
+      backdrop.style.pointerEvents =
+        progress > 0.01 ? "auto" : "none";
+
+      setSidebarProgress(progress);
+    });
+  }, []);
+
+  const settleSidebar = useCallback(
+    (open: boolean) => {
+      const sidebar = sidebarRef.current;
+      const backdrop = backdropRef.current;
+
+      if (!sidebar || !backdrop) return;
+
+      sidebar.style.transition =
+        "transform .26s cubic-bezier(.22,1,.36,1)";
+
+      backdrop.style.transition = "opacity .26s ease";
+
+      paintSidebar(open ? 1 : 0);
+
+      window.setTimeout(() => {
+        if (!sidebarRef.current || !backdropRef.current) return;
+
+        sidebarRef.current.style.transition = "none";
+        backdropRef.current.style.transition = "none";
+      }, 280);
+    },
+    [paintSidebar],
+  );
+
   useEffect(() => {
-    let alive = true;
-    void (async () => {
-      const { data } = await supabase.auth.getUser();
-      if (!data.user) {
+    const sidebar = sidebarRef.current;
+
+    if (!sidebar) return;
+
+    sidebar.style.transform = `translate3d(-${sidebar.offsetWidth}px,0,0)`;
+    sidebar.style.transition = "none";
+  }, []);
+
+  useEffect(() => {
+    const onResize = () => {
+      const sidebar = sidebarRef.current;
+
+      if (!sidebar || draggingRef.current) return;
+
+      const progress = progressRef.current;
+
+      sidebar.style.transform = `translate3d(${
+        -sidebar.offsetWidth +
+        sidebar.offsetWidth * progress
+      }px,0,0)`;
+    };
+
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      window.removeEventListener("resize", onResize);
+    };
+  }, []);
+
+  const handlePointerDown = useCallback(
+    (event: PointerEvent) => {
+      if (event.pointerType === "mouse" && event.button !== 0) {
+        return;
+      }
+
+      draggingRef.current = true;
+      startXRef.current = event.clientX;
+      startProgressRef.current = progressRef.current;
+
+      const sidebar = sidebarRef.current;
+
+      if (sidebar) {
+        sidebar.style.transition = "none";
+      }
+    },
+    [],
+  );
+
+  const handlePointerMove = useCallback(
+    (event: PointerEvent) => {
+      if (!draggingRef.current) return;
+
+      const sidebar = sidebarRef.current;
+
+      if (!sidebar) return;
+
+      const delta = event.clientX - startXRef.current;
+      const width = sidebar.offsetWidth;
+
+      paintSidebar(
+        startProgressRef.current + delta / width,
+      );
+    },
+    [paintSidebar],
+  );
+
+  const handlePointerUp = useCallback(() => {
+    if (!draggingRef.current) return;
+
+    draggingRef.current = false;
+
+    const delta =
+      window.event instanceof PointerEvent
+        ? window.event.clientX - startXRef.current
+        : 0;
+
+    if (Math.abs(delta) > 40) {
+      settleSidebar(delta > 0);
+      return;
+    }
+
+    settleSidebar(progressRef.current > 0.5);
+  }, [settleSidebar]);
+
+  useEffect(() => {
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+  }, [
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerUp,
+  ]);
+
+  async function loadHistory(userId: string) {
+    const { data } = await supabase
+      .from("conversations")
+      .select("id,title")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false })
+      .limit(30);
+
+    setHistory((data || []) as Conversation[]);
+  }
+
+  async function loadConversation() {
+    setPageLoading(true);
+
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
         await navigate({ to: "/login" });
         return;
       }
-      const [{ data: conv }, { data: msgs }, { data: list }] = await Promise.all([
-        supabase
+
+      await loadHistory(user.id);
+
+      const { data: conversation, error: conversationError } =
+        await supabase
           .from("conversations")
-          .select("*")
+          .select("id,title")
           .eq("id", conversationId)
-          .eq("user_id", data.user.id)
-          .maybeSingle(),
-        supabase
-          .from("messages")
-          .select("*")
-          .eq("conversation_id", conversationId)
-          .eq("user_id", data.user.id)
-          .order("created_at", { ascending: true }),
-        supabase
-          .from("conversations")
-          .select("*")
-          .eq("user_id", data.user.id)
-          .order("updated_at", { ascending: false }),
-      ]);
-      if (!alive) return;
-      if (!conv) {
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+      if (conversationError || !conversation) {
         await navigate({ to: "/workspace" });
         return;
       }
-      setUser(data.user.id);
-      setConversation(conv as ConversationRow);
-      setMessages((msgs ?? []) as Message[]);
-      setItems((list ?? []) as ConversationRow[]);
-      setLoading(false);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [conversationId, navigate]);
-  const send = async (value?: string) => {
-    const text = (value ?? input).trim();
-    if (!text || !user || sending) return;
-    setInput("");
-    setError(null);
-    const instant: Message = {
-      id: `instant-${Date.now()}`,
-      conversation_id: conversationId,
-      user_id: user,
-      role: "user",
-      content: text,
-      created_at: new Date().toISOString(),
-    };
-    const history = messages.slice(-12).map((m) => ({ role: m.role, content: m.content }));
-    setMessages((current) => [...current, instant]);
-    setSending(true);
-    try {
-      const functionName = await getAiFunction(setLabel);
-      const { data, error: invokeError } = await supabase.functions.invoke(functionName, {
-        body: { message: text, history },
+
+      setConversation(conversation as Conversation);
+
+      const { data: rows, error: messagesError } =
+        await supabase
+          .from("messages")
+          .select("id,role,content,created_at")
+          .eq("conversation_id", conversationId)
+          .order("created_at", { ascending: true });
+
+      if (messagesError) {
+        throw messagesError;
+      }
+
+      const loadedMessages = (rows || []) as Message[];
+
+      setMessages(loadedMessages);
+
+      /*
+       * Se a conversa acabou de ser criada pelo workspace,
+       * a última mensagem é do usuário.
+       *
+       * A resposta da IA começa automaticamente.
+       */
+      const last = loadedMessages.at(-1);
+
+      if (
+        last?.role === "user" &&
+        !autoResponseRef.current
+      ) {
+        autoResponseRef.current = true;
+
+        void respondToMessage(
+          last.content,
+          loadedMessages,
+        );
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setPageLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    autoResponseRef.current = false;
+    void loadConversation();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
+
+  useEffect(() => {
+    const element = contentRef.current;
+
+    if (!element) return;
+
+    requestAnimationFrame(() => {
+      element.scrollTo({
+        top: element.scrollHeight,
+        behavior: "smooth",
       });
-      if (invokeError) throw await readFunctionError(invokeError);
-      if (data?.error) {
-        throw {
-          status: typeof data.status === "number" ? data.status : undefined,
-          message: typeof data.error === "string" ? data.error : "",
-        };
-      }
-      if (typeof data?.response !== "string" || data.response.trim().length === 0) {
-        throw { message: "Resposta inválida" };
-      }
-      const answer: Message = {
-        id: `instant-ai-${Date.now()}`,
-        conversation_id: conversationId,
-        user_id: user,
+    });
+  }, [messages, aiLoading]);
+
+  function resizeTextarea() {
+    const textarea = textareaRef.current;
+
+    if (!textarea) return;
+
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(
+      textarea.scrollHeight,
+      180,
+    )}px`;
+  }
+
+  async function respondToMessage(
+    text: string,
+    currentMessages: Message[],
+  ) {
+    if (aiLoading) return;
+
+    setAiLoading(true);
+
+    const temporaryId = `ai-${Date.now()}`;
+
+    setMessages((current) => [
+      ...current,
+      {
+        id: temporaryId,
         role: "assistant",
-        content: String(data.response),
-        created_at: new Date().toISOString(),
-      };
-      setMessages((current) => [...current, answer]);
-      await supabase.from("messages").insert([
-        { conversation_id: conversationId, user_id: user, role: "user", content: text },
-        {
+        content: "",
+      },
+    ]);
+
+    try {
+      const functionName = await getAiFunction();
+
+      const response = await invokeAi(
+        functionName,
+        text,
+        currentMessages,
+      );
+
+      /*
+       * Se a Edge Function ainda retorna a resposta inteira,
+       * fazemos uma exibição progressiva no frontend.
+       *
+       * Quando a Edge Function tiver streaming real,
+       * essa parte poderá consumir os chunks diretamente.
+       */
+      let visible = "";
+
+      const words = response.split(/(\s+)/);
+
+      for (const word of words) {
+        visible += word;
+
+        setMessages((current) =>
+          current.map((item) =>
+            item.id === temporaryId
+              ? {
+                  ...item,
+                  content: visible,
+                }
+              : item,
+          ),
+        );
+
+        await new Promise((resolve) =>
+          requestAnimationFrame(resolve),
+        );
+      }
+
+      const { data: savedMessage, error } = await supabase
+        .from("messages")
+        .insert({
           conversation_id: conversationId,
-          user_id: user,
           role: "assistant",
-          content: answer.content,
-        },
-      ]);
+          content: response,
+        })
+        .select("id,role,content,created_at")
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      setMessages((current) =>
+        current.map((item) =>
+          item.id === temporaryId
+            ? (savedMessage as Message)
+            : item,
+        ),
+      );
+
       await supabase
         .from("conversations")
-        .update({ updated_at: new Date().toISOString() })
-        .eq("id", conversationId)
-        .eq("user_id", user);
-    } catch (cause) {
-      const e = cause as { status?: number; message?: string };
-      setError(errorText(e.status, e.message));
+        .update({
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", conversationId);
+    } catch (error: any) {
+      console.error(error);
+
+      const friendly = getFriendlyAiError(
+        error?.status,
+        error?.message,
+      );
+
+      setMessages((current) =>
+        current.map((item) =>
+          item.id === temporaryId
+            ? {
+                ...item,
+                content: friendly,
+              }
+            : item,
+        ),
+      );
+
+      await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        role: "assistant",
+        content: friendly,
+      });
     } finally {
-      setSending(false);
+      setAiLoading(false);
     }
-  };
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, sending]);
-  useEffect(() => {
-    const pending = sessionStorage.getItem(`decidly-pending-${conversationId}`);
-    if (!loading && user && pending && messages.length === 0 && !initial.current) {
-      initial.current = true;
-      sessionStorage.removeItem(`decidly-pending-${conversationId}`);
-      void send(pending);
+  }
+
+  async function sendMessage() {
+    const trimmed = input.trim();
+
+    if (!trimmed || aiLoading) return;
+
+    setInput("");
+
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
     }
-    // O ref garante que a mensagem inicial só seja enviada uma vez.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, user, conversationId, messages.length]);
-  const filtered = useMemo(
-    () => items.filter((i) => i.title.toLowerCase().includes(query.toLowerCase())),
-    [items, query],
+
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: trimmed,
+    };
+
+    const nextMessages = [...messages, userMessage];
+
+    setMessages(nextMessages);
+
+    const { error } = await supabase
+      .from("messages")
+      .insert({
+        conversation_id: conversationId,
+        role: "user",
+        content: trimmed,
+      });
+
+    if (error) {
+      console.error(error);
+
+      setMessages(messages);
+      setInput(trimmed);
+
+      return;
+    }
+
+    await supabase
+      .from("conversations")
+      .update({
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", conversationId);
+
+    void respondToMessage(trimmed, nextMessages);
+  }
+
+  async function deleteConversation(id: string) {
+    const confirmed = window.confirm(
+      "Excluir esta conversa?",
+    );
+
+    if (!confirmed) return;
+
+    await supabase
+      .from("messages")
+      .delete()
+      .eq("conversation_id", id);
+
+    await supabase
+      .from("conversations")
+      .delete()
+      .eq("id", id);
+
+    if (id === conversationId) {
+      await navigate({ to: "/workspace" });
+      return;
+    }
+
+    setHistory((current) =>
+      current.filter((item) => item.id !== id),
+    );
+  }
+
+  const filteredHistory = history.filter((item) =>
+    item.title
+      .toLowerCase()
+      .includes(search.toLowerCase()),
   );
-  if (loading)
+
+  if (pageLoading && !conversation) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0c0912] text-white/50">
-        <Sparkles className="mr-2 animate-pulse" size={18} /> Carregando conversa…
+      <div className="flex min-h-screen items-center justify-center bg-[#0d0a11] text-white/40">
+        <div className="flex items-center gap-2 text-sm">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-[#7651e8]" />
+          Carregando...
+        </div>
       </div>
     );
+  }
+
   return (
-    <div className="min-h-screen bg-[#0c0912] text-white">
+    <div className="relative h-[100dvh] overflow-hidden bg-[#0d0a11] text-white">
       <div
-        ref={backdrop}
-        onClick={() => settle(false)}
-        className="pointer-events-none fixed inset-0 z-30 bg-black opacity-0"
+        ref={backdropRef}
+        className="fixed inset-0 z-40 bg-black"
+        style={{
+          opacity: 0,
+          pointerEvents: "none",
+        }}
+        onClick={() => settleSidebar(false)}
       />
+
+      {/* SIDEBAR */}
       <aside
-        ref={sidebar}
-        onPointerDown={begin}
-        onPointerMove={move}
-        onPointerUp={end}
-        onPointerCancel={end}
-        className="fixed inset-y-0 left-0 z-40 flex w-[min(90vw,320px)] touch-pan-y flex-col border-r border-white/10 bg-[#120d1b] p-4 shadow-2xl will-change-transform"
-        style={{ transform: `translate3d(-${WIDTH}px,0,0)` }}
+        ref={sidebarRef}
+        className="fixed left-0 top-0 z-50 flex h-[100dvh] w-[min(86vw,320px)] flex-col border-r border-white/[0.08] bg-[#141019] shadow-2xl shadow-black/50"
+        style={{
+          transform: "translate3d(-100%,0,0)",
+          willChange: "transform",
+        }}
+        onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <img src="/appicon.png" alt="DecidlyAI" className="h-7 w-7 rounded-lg object-cover" />
-            <strong>DecidlyAI</strong>
-          </div>
-          <button
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={() => settle(false)}
-            className="rounded-lg p-2 text-white/60 hover:bg-white/10"
-          >
-            <X size={18} />
-          </button>
-        </div>
-        <button
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={() => navigate({ to: "/workspace" })}
-          className="mt-7 flex items-center gap-2 rounded-xl bg-violet-600 px-3 py-2.5 text-sm"
-        >
-          <Plus size={17} /> Nova decisão
-        </button>
-        <label
-          onPointerDown={(e) => e.stopPropagation()}
-          className="mt-5 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[.04] px-3 text-white/50"
-        >
-          <Search size={16} />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Pesquisar"
-            className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-white outline-none"
-          />
-        </label>
-        <div
-          onPointerDown={(e) => e.stopPropagation()}
-          className="mt-6 flex-1 space-y-1 overflow-y-auto"
-        >
-          {filtered.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                void navigate({
-                  to: "/workspace/$conversationId",
-                  params: { conversationId: item.id },
-                });
-                settle(false);
+        <div className="flex h-[68px] shrink-0 items-center justify-between border-b border-white/[0.06] px-4">
+          <div className="flex items-center gap-2.5">
+            <img
+              src="/appicon.png"
+              alt="DecidlyAI"
+              className="h-8 w-8 rounded-lg object-cover"
+              onError={(event) => {
+                event.currentTarget.src = "/favicon.ico";
               }}
-              className="block w-full truncate rounded-xl px-3 py-2.5 text-left text-sm text-white/70 hover:bg-white/[.06]"
-            >
-              {item.title}
-            </button>
-          ))}
-        </div>
-        <div className="border-t border-white/10 pt-4 text-xs text-white/45">Sua conta</div>
-      </aside>
-      <div
-        className="fixed left-0 top-0 z-20 h-full w-5 touch-none"
-        onPointerDown={begin}
-        onPointerMove={move}
-        onPointerUp={end}
-        onPointerCancel={end}
-      />
-      <main className="flex min-h-screen flex-col">
-        <header className="flex items-center justify-between border-b border-white/[.07] px-5 py-4">
+            />
+
+            <span className="font-semibold">
+              DecidlyAI
+            </span>
+          </div>
+
           <button
-            onClick={() => settle(!open)}
-            className="rounded-lg p-2 text-white/65 hover:bg-white/10"
+            type="button"
+            onClick={() => settleSidebar(false)}
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-white/45 hover:bg-white/[0.06] hover:text-white"
           >
-            <Menu size={20} />
+            <X size={19} />
           </button>
-          <span className="max-w-[60%] truncate text-sm text-white/60">{conversation?.title}</span>
-          <span className="text-[10px] uppercase tracking-wider text-violet-300/60">{label}</span>
-        </header>
-        <div className="flex-1 overflow-y-auto px-4 pb-56 pt-8 sm:px-8">
-          <div className="mx-auto max-w-3xl space-y-6">
-            {messages.map((m) => (
+        </div>
+
+        <div className="p-3">
+          <button
+            type="button"
+            onClick={() => {
+              void navigate({ to: "/workspace" });
+            }}
+            className="flex w-full items-center gap-2.5 rounded-xl bg-[#7651e8] px-3.5 py-3 text-sm font-medium transition hover:bg-[#8564ed]"
+          >
+            <Plus size={18} />
+            Nova decisão
+          </button>
+        </div>
+
+        <div className="px-3 pb-3">
+          <div className="flex items-center gap-2 rounded-xl bg-white/[0.04] px-3 py-2.5">
+            <Search size={16} className="text-white/30" />
+
+            <input
+              value={search}
+              onChange={(event) =>
+                setSearch(event.target.value)
+              }
+              placeholder="Pesquisar conversas"
+              className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/25"
+            />
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-2">
+          <p className="px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-white/25">
+            Histórico
+          </p>
+
+          <div className="space-y-1">
+            {filteredHistory.map((item) => (
               <div
-                key={m.id}
-                className={m.role === "user" ? "flex justify-end" : "flex justify-start"}
+                key={item.id}
+                className={`group flex items-center rounded-xl transition ${
+                  item.id === conversationId
+                    ? "bg-white/[0.07]"
+                    : "hover:bg-white/[0.04]"
+                }`}
               >
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigate({
+                      to: "/workspace/$conversationId",
+                      params: {
+                        conversationId: item.id,
+                      },
+                    });
+
+                    settleSidebar(false);
+                  }}
+                  className="min-w-0 flex-1 px-3 py-3 text-left text-sm text-white/65"
+                >
+                  <span className="block truncate">
+                    {item.title || "Nova decisão"}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    void deleteConversation(item.id)
+                  }
+                  className="mr-1 hidden h-8 w-8 items-center justify-center rounded-lg text-white/25 transition hover:bg-red-500/10 hover:text-red-300 group-hover:flex"
+                  aria-label="Excluir conversa"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            ))}
+
+            {filteredHistory.length === 0 && (
+              <p className="px-3 py-8 text-center text-xs text-white/25">
+                Nenhuma conversa encontrada.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="border-t border-white/[0.06] p-4">
+          <div className="text-xs text-white/30">
+            DecidlyAI
+          </div>
+
+          <div className="mt-1 text-xs text-white/20">
+            Seu espaço para decisões.
+          </div>
+        </div>
+      </aside>
+
+      {/* APP */}
+      <div className="relative flex h-full min-w-0 flex-col">
+        <header className="z-30 flex h-[68px] shrink-0 items-center px-4">
+          <button
+            type="button"
+            onClick={() => settleSidebar(true)}
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-white/60 transition hover:bg-white/[0.06] hover:text-white"
+            aria-label="Abrir sidebar"
+          >
+            <Menu size={21} />
+          </button>
+
+          <div className="ml-2 min-w-0">
+            <div className="truncate text-sm font-medium">
+              {conversation?.title || "Nova decisão"}
+            </div>
+
+            <div className="text-[10px] text-white/25">
+              DecidlyAI
+            </div>
+          </div>
+        </header>
+
+        {/* MENSAGENS */}
+        <div
+          ref={contentRef}
+          className="min-h-0 flex-1 overflow-y-auto px-4"
+        >
+          <div className="mx-auto w-full max-w-[720px] pb-[210px] pt-4">
+            {messages.map((message) => (
+              <div
+                key={message.id || `${message.role}-${message.content}`}
+                className={`mb-6 flex ${
+                  message.role === "user"
+                    ? "justify-end"
+                    : "justify-start"
+                }`}
+              >
+                {message.role === "assistant" && (
+                  <img
+                    src="/appicon.png"
+                    alt="DecidlyAI"
+                    className="mr-3 mt-1 h-7 w-7 shrink-0 rounded-lg object-cover"
+                    onError={(event) => {
+                      event.currentTarget.src =
+                        "/favicon.ico";
+                    }}
+                  />
+                )}
+
                 <div
                   className={
-                    m.role === "user"
-                      ? "max-w-[85%] rounded-2xl rounded-br-md bg-violet-600 px-4 py-3 text-sm leading-6"
-                      : "max-w-[85%] rounded-2xl rounded-bl-md border border-white/10 bg-white/[.04] px-4 py-3 text-sm leading-6 text-white/80"
+                    message.role === "user"
+                      ? "max-w-[85%] rounded-2xl rounded-br-md bg-[#7651e8] px-4 py-3 text-[15px] leading-6"
+                      : "max-w-[88%] text-[15px] leading-7 text-white/80"
                   }
                 >
-                  {m.role === "assistant" ? (
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+                  {message.role === "assistant" ? (
+                    message.content ? (
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          p: ({ children }) => (
+                            <p className="mb-3 last:mb-0">
+                              {children}
+                            </p>
+                          ),
+                          ul: ({ children }) => (
+                            <ul className="mb-3 list-disc space-y-1 pl-5">
+                              {children}
+                            </ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="mb-3 list-decimal space-y-1 pl-5">
+                              {children}
+                            </ol>
+                          ),
+                          code: ({
+                            children,
+                            className,
+                          }) => (
+                            <code
+                              className={`${className || ""} rounded bg-white/[0.07] px-1.5 py-0.5`}
+                            >
+                              {children}
+                            </code>
+                          ),
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
+                    ) : (
+                      <span className="inline-flex gap-1 py-2">
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/40 [animation-delay:-.2s]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/40 [animation-delay:-.1s]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/40" />
+                      </span>
+                    )
                   ) : (
-                    m.content
+                    message.content
                   )}
                 </div>
               </div>
             ))}
-            {sending && (
-              <div className="flex items-center gap-2 text-xs text-white/40">
-                <Sparkles size={14} className="animate-pulse text-violet-300" /> Analisando…
+
+            {aiLoading && messages.at(-1)?.role === "user" && (
+              <div className="mb-6 flex justify-start">
+                <img
+                  src="/appicon.png"
+                  alt="DecidlyAI"
+                  className="mr-3 mt-1 h-7 w-7 rounded-lg object-cover"
+                  onError={(event) => {
+                    event.currentTarget.src =
+                      "/favicon.ico";
+                  }}
+                />
+
+                <div className="flex items-center gap-1 py-2">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/40 [animation-delay:-.2s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/40 [animation-delay:-.1s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/40" />
+                </div>
               </div>
             )}
-            {error && (
-              <div className="rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">
-                {error}
-              </div>
-            )}
-            <div ref={endRef} />
           </div>
         </div>
+
+        {/* COMPOSER */}
         <div
-          className="fixed inset-x-0 bottom-0 z-20 px-3 pt-2 sm:px-8"
-          style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+          className="fixed inset-x-0 bottom-0 z-30 px-3 pb-[max(14px,env(safe-area-inset-bottom))] pt-3"
+          style={{
+            bottom:
+              "max(0px, env(keyboard-inset-height, 0px))",
+          }}
         >
-          <div className="mx-auto max-w-3xl">
-            <div className="rounded-2xl border border-white/10 bg-[#100b1b]/95 p-2 shadow-2xl backdrop-blur-xl">
+          <div className="mx-auto max-w-[720px]">
+            <div className="flex items-end gap-2 rounded-2xl bg-[#141019] px-2 py-2 shadow-[0_10px_40px_rgba(0,0,0,.4)]">
               <textarea
+                ref={textareaRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                    e.preventDefault();
-                    void send();
+                onChange={(event) => {
+                  setInput(event.target.value);
+                  resizeTextarea();
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    event.key === "Enter" &&
+                    !event.shiftKey
+                  ) {
+                    event.preventDefault();
+                    void sendMessage();
                   }
                 }}
-                rows={2}
-                placeholder="Mande o que você quer decidir para a DecidlyAI te ajudar"
-                className="max-h-40 min-h-14 w-full resize-none overflow-y-auto bg-transparent px-3 py-2 text-sm leading-6 text-white outline-none placeholder:text-white/35"
+                rows={1}
+                placeholder="Continue a decisão..."
+                className="max-h-[180px] min-h-[44px] flex-1 resize-none overflow-y-auto bg-transparent px-3 py-2.5 text-[15px] leading-6 text-white outline-none placeholder:text-white/25"
               />
-              <div className="flex items-center justify-between px-2 pb-1">
-                <span className="text-[11px] text-white/30">Ctrl + Enter para enviar</span>
-                <button
-                  onClick={() => void send()}
-                  disabled={!input.trim() || sending}
-                  className="rounded-xl bg-violet-600 p-2.5 disabled:opacity-30"
-                >
-                  ↑
-                </button>
-              </div>
+
+              <button
+                type="button"
+                onClick={() => void sendMessage()}
+                disabled={!input.trim() || aiLoading}
+                className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#7651e8] text-white transition hover:bg-[#8564ed] disabled:cursor-not-allowed disabled:opacity-25"
+                aria-label="Enviar"
+              >
+                <ArrowUp size={19} strokeWidth={2.2} />
+              </button>
             </div>
-            <p className="px-2 pt-2 text-center text-[11px] leading-4 text-white/35">
-              DecidlyAI é um agente de AI que pode cometer erros, olhe duas vezes a resposta dela
-              antes de usar.
+
+            <p className="mt-2 text-center text-[10px] leading-4 text-white/20">
+              A DecidlyAI pode cometer erros. Analise a resposta antes
+              de tomar uma decisão importante.
             </p>
           </div>
         </div>
-      </main>
+      </div>
+
+      {/* Pequena área lateral para iniciar o gesto */}
+      <div
+        className="pointer-events-none fixed left-0 top-[68px] z-20 h-[calc(100dvh-68px)] w-5"
+        aria-hidden="true"
+      />
+
+      {sidebarProgress > 0 && (
+        <button
+          type="button"
+          className="sr-only"
+          onClick={() => settleSidebar(false)}
+        >
+          Fechar menu
+        </button>
+      )}
     </div>
   );
 }
