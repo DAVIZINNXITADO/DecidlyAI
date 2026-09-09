@@ -146,9 +146,6 @@ function LoginPage() {
   const [name, setName] =
     useState("");
 
-  const [username, setUsername] =
-    useState("");
-
   const [email, setEmail] =
     useState("");
 
@@ -254,18 +251,6 @@ function LoginPage() {
 
     setCaptchaToken("");
     setCaptchaError(false);
-  }
-
-  function updateUsername(
-    value: string,
-  ) {
-    const sanitized =
-      value.replace(
-        /[^a-zA-Z0-9._-]/g,
-        "",
-      );
-
-    setUsername(sanitized);
   }
 
   function showError(
@@ -845,11 +830,6 @@ function LoginPage() {
     const cleanName =
       name.trim();
 
-    const cleanUsername =
-      username
-        .trim()
-        .toLowerCase();
-
     const cleanEmail =
       email
         .trim()
@@ -870,38 +850,6 @@ function LoginPage() {
     ) {
       showError(
         "O nome pode ter no máximo 24 caracteres.",
-      );
-
-      return;
-    }
-
-    if (
-      cleanUsername.length < 3
-    ) {
-      showError(
-        "O nome de usuário precisa ter pelo menos 3 caracteres.",
-      );
-
-      return;
-    }
-
-    if (
-      cleanUsername.length > 24
-    ) {
-      showError(
-        "O nome de usuário pode ter no máximo 24 caracteres.",
-      );
-
-      return;
-    }
-
-    if (
-      !/^[a-zA-Z0-9._-]+$/.test(
-        cleanUsername,
-      )
-    ) {
-      showError(
-        "O nome de usuário pode usar apenas letras, números, ponto, hífen ou underline.",
       );
 
       return;
@@ -969,8 +917,6 @@ function LoginPage() {
               name:
                 cleanName,
 
-              username:
-                cleanUsername,
             },
           },
         });
@@ -1214,6 +1160,15 @@ function LoginPage() {
         </Link>
 
         <section className="w-full rounded-[2rem] border border-slate-800 bg-slate-900/70 p-7 shadow-2xl backdrop-blur-xl sm:p-10">
+          <div className="mb-8 hidden rounded-2xl border border-violet-300/15 bg-violet-400/[0.06] p-5 md:block">
+            <p className="text-sm font-semibold text-violet-200">Seu espaço para decidir melhor</p>
+            <div className="mt-4 grid grid-cols-3 gap-3 text-xs text-slate-400">
+              <span>Organize o contexto</span>
+              <span>Compare caminhos</span>
+              <span>Encontre clareza</span>
+            </div>
+          </div>
+
           {isRecover ? (
             <div>
               <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
@@ -1385,21 +1340,6 @@ function LoginPage() {
                   />
                 ) : null}
 
-                {isSignUp ? (
-                  <InputField
-                    id="username"
-                    label="Nome de usuário"
-                    value={username}
-                    onChange={
-                      updateUsername
-                    }
-                    placeholder="Escolha seu nome de usuário"
-                    icon={
-                      <User className="h-5 w-5" />
-                    }
-                  />
-                ) : null}
-
                 <InputField
                   id="email"
                   label="E-mail"
@@ -1419,12 +1359,16 @@ function LoginPage() {
                   onChange={setPassword}
                   show={showPassword}
                   setShow={setShowPassword}
-                  autoComplete={
-                    isSignUp
-                      ? "new-password"
-                      : "current-password"
-                  }
-                />
+                    autoComplete={
+                      isSignUp
+                        ? "new-password"
+                        : "current-password"
+                    }
+                  />
+
+                  {isSignUp ? (
+                    <PasswordStrength password={password} />
+                  ) : null}
 
                 {!isSignUp ? (
                   <button
@@ -1807,6 +1751,29 @@ function PasswordField({
           )}
         </button>
       </div>
+    </div>
+  );
+}
+
+function PasswordStrength({ password }: { password: string }) {
+  const score = [
+    password.length >= 6,
+    /[A-Z]/.test(password),
+    /[0-9]/.test(password),
+    /[^A-Za-z0-9]/.test(password),
+  ].filter(Boolean).length;
+
+  const label = score <= 1 ? "Senha fraca" : score <= 2 ? "Senha média" : "Senha forte";
+  const color = score <= 1 ? "bg-red-400" : score <= 2 ? "bg-amber-400" : "bg-emerald-400";
+
+  return (
+    <div className="-mt-3 space-y-2" aria-live="polite">
+      <div className="flex gap-1.5" aria-hidden="true">
+        {[0, 1, 2, 3].map((item) => (
+          <span key={item} className={`h-1.5 flex-1 rounded-full ${item < score ? color : "bg-slate-800"}`} />
+        ))}
+      </div>
+      <p className="text-xs text-slate-500">{password ? label : "Use pelo menos 6 caracteres, com letras e números."}</p>
     </div>
   );
 }
