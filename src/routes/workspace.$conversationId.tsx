@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
   ArrowUp,
-  ChevronLeft,
   Menu,
   Plus,
   Search,
@@ -20,7 +19,9 @@ import remarkGfm from "remark-gfm";
 import { supabase } from "@/lib/supabase";
 
 type Message = {
-  id?: string;
+  id: string;
+  conversation_id?: string;
+  user_id?: string;
   role: "user" | "assistant";
   content: string;
   created_at?: string;
@@ -37,40 +38,33 @@ type Subscription = {
   expires_at: string | null;
 };
 
-export const Route = createFileRoute("/workspace/$conversationId")({
+export const Route = createFileRoute(
+  "/workspace/$conversationId",
+)({
   component: ConversationPage,
 });
 
-function getFriendlyAiError(
-  status?: number,
-  backendMessage?: string,
-) {
-  const message = String(backendMessage || "").toLowerCase();
+function friendlyError(status?: number, message?: string) {
+  const text = String(message || "").toLowerCase();
 
   if (
     status === 402 ||
-    message.includes("crédito") ||
-    message.includes("credit")
+    text.includes("crédito") ||
+    text.includes("credit")
   ) {
     return "Desculpe pelo inconveniente, mas no momento você não possui créditos disponíveis para continuar usando a DecidlyAI. Pedimos desculpas pelo transtorno. Quando houver créditos disponíveis novamente, tente enviar sua mensagem outra vez.";
   }
 
   if (
     status === 429 ||
-    message.includes("quota") ||
-    message.includes("rate limit") ||
-    message.includes("resource_exhausted") ||
-    message.includes("limite de requisições")
+    text.includes("quota") ||
+    text.includes("rate limit") ||
+    text.includes("resource_exhausted")
   ) {
     return "Opa, nosso serviço atingiu temporariamente o limite de requisições para esta IA. Pedimos desculpas pelo inconveniente e agradecemos pela sua paciência. Por favor, tente novamente mais tarde.";
   }
 
-  if (
-    status === 401 ||
-    status === 403 ||
-    message.includes("authentication") ||
-    message.includes("unauthorized")
-  ) {
+  if (status === 401 || status === 403) {
     return "Desculpe pelo inconveniente. No momento não consegui confirmar sua sessão corretamente. Por favor, tente entrar novamente e depois envie sua mensagem mais uma vez.";
   }
 
@@ -78,24 +72,7 @@ function getFriendlyAiError(
     return "Desculpe pelo inconveniente. Estou enfrentando uma dificuldade temporária no nosso serviço e não consegui processar sua mensagem agora. Por favor, tente novamente mais tarde.";
   }
 
-  if (
-    message.includes("timeout") ||
-    message.includes("timed out") ||
-    message.includes("tempo limite")
-  ) {
-    return "Desculpe pelo inconveniente. Demorei mais do que o esperado para processar sua mensagem e não consegui concluir a resposta desta vez. Por favor, tente novamente mais tarde.";
-  }
-
-  if (
-    message.includes("network") ||
-    message.includes("fetch") ||
-    message.includes("connection") ||
-    message.includes("conectar")
-  ) {
-    return "Desculpe pelo inconveniente. No momento estou com uma dificuldade temporária para me conectar ao nosso serviço. Por favor, tente novamente mais tarde.";
-  }
-
-  return "Desculpe pelo inconveniente. Ocorreu uma dificuldade temporária enquanto eu processava sua mensagem. Nossa equipe ou sistemas podem estar passando por uma instabilidade momentânea. Por favor, tente novamente mais tarde.";
+  return "Desculpe pelo inconveniente. Ocorreu uma dificuldade temporária enquanto eu processava sua mensagem. Por favor, tente novamente mais tarde.";
 }
 
 async function getAiFunction() {
@@ -110,8 +87,8 @@ async function getAiFunction() {
     };
   }
 
-  const { data: subscription, error } = await supabase
-    .from("subscription")
+  const { data, error } = await supabase
+    .from("subscriptions")
     .select("plan,status,expires_at")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
@@ -119,16 +96,16 @@ async function getAiFunction() {
     .maybeSingle<Subscription>();
 
   if (error) {
-    console.error("Erro ao buscar assinatura:", error);
+    console.error(error);
     return "decidly-ai-free";
   }
 
-  const plan = String(subscription?.plan || "").toLowerCase();
-  const status = String(subscription?.status || "").toLowerCase();
+  const plan = String(data?.plan || "").toLowerCase();
+  const status = String(data?.status || "").toLowerCase();
 
   const expired =
-    subscription?.expires_at &&
-    new Date(subscription.expires_at).getTime() <= Date.now();
+    data?.expires_at &&
+    new Date(data.expires_at).getTime() <= Date.now();
 
   const vip =
     plan === "vip" &&
@@ -138,45 +115,30 @@ async function getAiFunction() {
   return vip ? "decidly-ai" : "decidly-ai-free";
 }
 
-async function invokeAi(
+async function askAi(
   functionName: string,
   message: string,
   history: Message[],
-): Promise<string> {
+) {
   const { data, error } = await supabase.functions.invoke(
     functionName,
     {
       body: {
         message,
-        history: history.slice(-12),
+        history: history.slice(-12).map((item) => ({
+          role: item.role,
+          content: item.content,
+        })),
       },
     },
   );
 
   if (error) {
-    const context = (error as any)?.context;
-
-    let backendMessage = error.message;
-    let status: number | undefined = context?.status;
-
-    try {
-      if (context instanceof Response) {
-        status = context.status;
-
-        const clone = context.clone();
-        const json = await clone.json();
-
-        if (json?.error) {
-          backendMessage = json.error;
-        }
-      }
-    } catch {
-      // mantém mensagem original
-    }
+    const status = (error as any)?.context?.status;
 
     throw {
       status,
-      message: backendMessage,
+      message: error.message,
     };
   }
 
@@ -205,32 +167,30 @@ function ConversationPage() {
     useState<Conversation | null>(null);
 
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-
-  const [pageLoading, setPageLoading] = useState(true);
-  const [aiLoading, setAiLoading] = useState(false);
-
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarProgress, setSidebarProgress] = useState(0);
-
   const [history, setHistory] = useState<Conversation[]>([]);
+  const [input, setInput] = useState("");
   const [search, setSearch] = useState("");
+
+  const [loading, setLoading] = useState(true);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const contentRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const sidebarRef = useRef<HTMLAsideElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
 
   const progressRef = useRef(0);
   const draggingRef = useRef(false);
   const startXRef = useRef(0);
   const startProgressRef = useRef(0);
-  const animationFrameRef = useRef<number | null>(null);
+  const lastXRef = useRef(0);
+  const frameRef = useRef<number | null>(null);
 
-  const autoResponseRef = useRef(false);
+  const autoReplyRef = useRef(false);
 
-  const paintSidebar = useCallback((value: number) => {
+  const paint = useCallback((value: number) => {
     const sidebar = sidebarRef.current;
     const backdrop = backdropRef.current;
 
@@ -240,26 +200,23 @@ function ConversationPage() {
 
     progressRef.current = progress;
 
-    if (animationFrameRef.current !== null) {
-      cancelAnimationFrame(animationFrameRef.current);
+    if (frameRef.current !== null) {
+      cancelAnimationFrame(frameRef.current);
     }
 
-    animationFrameRef.current = requestAnimationFrame(() => {
+    frameRef.current = requestAnimationFrame(() => {
       const width = sidebar.offsetWidth;
 
-      sidebar.style.transform = `translate3d(${
-        -width + width * progress
-      }px,0,0)`;
+      sidebar.style.transform =
+        `translate3d(${-width + width * progress}px,0,0)`;
 
       backdrop.style.opacity = String(progress * 0.72);
       backdrop.style.pointerEvents =
         progress > 0.01 ? "auto" : "none";
-
-      setSidebarProgress(progress);
     });
   }, []);
 
-  const settleSidebar = useCallback(
+  const settle = useCallback(
     (open: boolean) => {
       const sidebar = sidebarRef.current;
       const backdrop = backdropRef.current;
@@ -271,70 +228,48 @@ function ConversationPage() {
 
       backdrop.style.transition = "opacity .26s ease";
 
-      paintSidebar(open ? 1 : 0);
+      paint(open ? 1 : 0);
+
+      setSidebarOpen(open);
 
       window.setTimeout(() => {
-        if (!sidebarRef.current || !backdropRef.current) return;
+        if (sidebarRef.current) {
+          sidebarRef.current.style.transition = "none";
+        }
 
-        sidebarRef.current.style.transition = "none";
-        backdropRef.current.style.transition = "none";
+        if (backdropRef.current) {
+          backdropRef.current.style.transition = "none";
+        }
       }, 280);
     },
-    [paintSidebar],
+    [paint],
   );
 
+  /*
+   * GESTO GLOBAL:
+   * direita = abre
+   * esquerda = fecha
+   */
   useEffect(() => {
-    const sidebar = sidebarRef.current;
-
-    if (!sidebar) return;
-
-    sidebar.style.transform = `translate3d(-${sidebar.offsetWidth}px,0,0)`;
-    sidebar.style.transition = "none";
-  }, []);
-
-  useEffect(() => {
-    const onResize = () => {
-      const sidebar = sidebarRef.current;
-
-      if (!sidebar || draggingRef.current) return;
-
-      const progress = progressRef.current;
-
-      sidebar.style.transform = `translate3d(${
-        -sidebar.offsetWidth +
-        sidebar.offsetWidth * progress
-      }px,0,0)`;
-    };
-
-    window.addEventListener("resize", onResize);
-
-    return () => {
-      window.removeEventListener("resize", onResize);
-    };
-  }, []);
-
-  const handlePointerDown = useCallback(
-    (event: PointerEvent) => {
+    function down(event: PointerEvent) {
       if (event.pointerType === "mouse" && event.button !== 0) {
         return;
       }
 
       draggingRef.current = true;
       startXRef.current = event.clientX;
+      lastXRef.current = event.clientX;
       startProgressRef.current = progressRef.current;
 
-      const sidebar = sidebarRef.current;
-
-      if (sidebar) {
-        sidebar.style.transition = "none";
+      if (sidebarRef.current) {
+        sidebarRef.current.style.transition = "none";
       }
-    },
-    [],
-  );
+    }
 
-  const handlePointerMove = useCallback(
-    (event: PointerEvent) => {
+    function move(event: PointerEvent) {
       if (!draggingRef.current) return;
+
+      lastXRef.current = event.clientX;
 
       const sidebar = sidebarRef.current;
 
@@ -343,62 +278,51 @@ function ConversationPage() {
       const delta = event.clientX - startXRef.current;
       const width = sidebar.offsetWidth;
 
-      paintSidebar(
-        startProgressRef.current + delta / width,
+      paint(
+        startProgressRef.current +
+          delta / width,
       );
-    },
-    [paintSidebar],
-  );
-
-  const handlePointerUp = useCallback(() => {
-    if (!draggingRef.current) return;
-
-    draggingRef.current = false;
-
-    const delta =
-      window.event instanceof PointerEvent
-        ? window.event.clientX - startXRef.current
-        : 0;
-
-    if (Math.abs(delta) > 40) {
-      settleSidebar(delta > 0);
-      return;
     }
 
-    settleSidebar(progressRef.current > 0.5);
-  }, [settleSidebar]);
+    function up() {
+      if (!draggingRef.current) return;
 
-  useEffect(() => {
-    window.addEventListener("pointerdown", handlePointerDown);
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
-    window.addEventListener("pointercancel", handlePointerUp);
+      draggingRef.current = false;
+
+      const delta =
+        lastXRef.current - startXRef.current;
+
+      if (Math.abs(delta) > 35) {
+        settle(delta > 0);
+      } else {
+        settle(progressRef.current > 0.5);
+      }
+    }
+
+    window.addEventListener("pointerdown", down);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
 
     return () => {
-      window.removeEventListener("pointerdown", handlePointerDown);
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-      window.removeEventListener("pointercancel", handlePointerUp);
+      window.removeEventListener("pointerdown", down);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
     };
-  }, [
-    handlePointerDown,
-    handlePointerMove,
-    handlePointerUp,
-  ]);
+  }, [paint, settle]);
 
-  async function loadHistory(userId: string) {
-    const { data } = await supabase
-      .from("conversations")
-      .select("id,title")
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: false })
-      .limit(30);
+  useEffect(() => {
+    const sidebar = sidebarRef.current;
 
-    setHistory((data || []) as Conversation[]);
-  }
+    if (!sidebar) return;
+
+    sidebar.style.transform =
+      `translate3d(-${sidebar.offsetWidth}px,0,0)`;
+  }, []);
 
   async function loadConversation() {
-    setPageLoading(true);
+    setLoading(true);
 
     try {
       const {
@@ -410,66 +334,67 @@ function ConversationPage() {
         return;
       }
 
-      await loadHistory(user.id);
+      const { data: conversations } = await supabase
+        .from("conversations")
+        .select("id,title")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false })
+        .limit(50);
 
-      const { data: conversation, error: conversationError } =
-        await supabase
-          .from("conversations")
-          .select("id,title")
-          .eq("id", conversationId)
-          .eq("user_id", user.id)
-          .maybeSingle();
+      setHistory(
+        (conversations || []) as Conversation[],
+      );
 
-      if (conversationError || !conversation) {
+      const { data: current, error } = await supabase
+        .from("conversations")
+        .select("id,title")
+        .eq("id", conversationId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error || !current) {
         await navigate({ to: "/workspace" });
         return;
       }
 
-      setConversation(conversation as Conversation);
+      setConversation(current as Conversation);
 
-      const { data: rows, error: messagesError } =
+      const { data: rows, error: messageError } =
         await supabase
           .from("messages")
-          .select("id,role,content,created_at")
+          .select(
+            "id,conversation_id,user_id,role,content,created_at",
+          )
           .eq("conversation_id", conversationId)
+          .eq("user_id", user.id)
           .order("created_at", { ascending: true });
 
-      if (messagesError) {
-        throw messagesError;
+      if (messageError) {
+        throw messageError;
       }
 
-      const loadedMessages = (rows || []) as Message[];
+      const loaded = (rows || []) as Message[];
 
-      setMessages(loadedMessages);
+      setMessages(loaded);
 
-      /*
-       * Se a conversa acabou de ser criada pelo workspace,
-       * a última mensagem é do usuário.
-       *
-       * A resposta da IA começa automaticamente.
-       */
-      const last = loadedMessages.at(-1);
+      const last = loaded.at(-1);
 
       if (
         last?.role === "user" &&
-        !autoResponseRef.current
+        !autoReplyRef.current
       ) {
-        autoResponseRef.current = true;
-
-        void respondToMessage(
-          last.content,
-          loadedMessages,
-        );
+        autoReplyRef.current = true;
+        void respond(last.content, loaded);
       }
     } catch (error) {
       console.error(error);
     } finally {
-      setPageLoading(false);
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    autoResponseRef.current = false;
+    autoReplyRef.current = false;
     void loadConversation();
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -481,26 +406,11 @@ function ConversationPage() {
     if (!element) return;
 
     requestAnimationFrame(() => {
-      element.scrollTo({
-        top: element.scrollHeight,
-        behavior: "smooth",
-      });
+      element.scrollTop = element.scrollHeight;
     });
   }, [messages, aiLoading]);
 
-  function resizeTextarea() {
-    const textarea = textareaRef.current;
-
-    if (!textarea) return;
-
-    textarea.style.height = "auto";
-    textarea.style.height = `${Math.min(
-      textarea.scrollHeight,
-      180,
-    )}px`;
-  }
-
-  async function respondToMessage(
+  async function respond(
     text: string,
     currentMessages: Message[],
   ) {
@@ -508,7 +418,7 @@ function ConversationPage() {
 
     setAiLoading(true);
 
-    const temporaryId = `ai-${Date.now()}`;
+    const temporaryId = `temporary-${Date.now()}`;
 
     setMessages((current) => [
       ...current,
@@ -522,61 +432,69 @@ function ConversationPage() {
     try {
       const functionName = await getAiFunction();
 
-      const response = await invokeAi(
+      const response = await askAi(
         functionName,
         text,
         currentMessages,
       );
 
       /*
-       * Se a Edge Function ainda retorna a resposta inteira,
-       * fazemos uma exibição progressiva no frontend.
+       * Exibição progressiva.
        *
-       * Quando a Edge Function tiver streaming real,
-       * essa parte poderá consumir os chunks diretamente.
+       * Quando a Edge Function passar a enviar
+       * streaming real, essa parte pode consumir
+       * os chunks diretamente.
        */
       let visible = "";
 
-      const words = response.split(/(\s+)/);
+      const pieces = response.split(/(\s+)/);
 
-      for (const word of words) {
-        visible += word;
+      for (const piece of pieces) {
+        visible += piece;
 
         setMessages((current) =>
-          current.map((item) =>
-            item.id === temporaryId
+          current.map((message) =>
+            message.id === temporaryId
               ? {
-                  ...item,
+                  ...message,
                   content: visible,
                 }
-              : item,
+              : message,
           ),
         );
 
-        await new Promise((resolve) =>
-          requestAnimationFrame(resolve),
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => resolve()),
         );
       }
 
-      const { data: savedMessage, error } = await supabase
+      const {
+        data: saved,
+        error: saveError,
+      } = await supabase
         .from("messages")
         .insert({
           conversation_id: conversationId,
+          user_id: (
+            await supabase.auth.getUser()
+          ).data.user?.id,
           role: "assistant",
           content: response,
         })
-        .select("id,role,content,created_at")
+        .select(
+          "id,conversation_id,user_id,role,content,created_at",
+        )
         .single();
 
-      if (error) {
-        throw error;
+      if (saveError || !saved) {
+        throw saveError || new Error("Falha salvando resposta.");
       }
 
       setMessages((current) =>
-        current.map((item) =>
-          item.id === temporaryId
-            ? (savedMessage as Message)
-            : item,
+        current.map((message) =>
+          message.id === temporaryId
+            ? (saved as Message)
+            : message,
         ),
       );
 
@@ -589,27 +507,34 @@ function ConversationPage() {
     } catch (error: any) {
       console.error(error);
 
-      const friendly = getFriendlyAiError(
+      const friendly = friendlyError(
         error?.status,
         error?.message,
       );
 
       setMessages((current) =>
-        current.map((item) =>
-          item.id === temporaryId
+        current.map((message) =>
+          message.id === temporaryId
             ? {
-                ...item,
+                ...message,
                 content: friendly,
               }
-            : item,
+            : message,
         ),
       );
 
-      await supabase.from("messages").insert({
-        conversation_id: conversationId,
-        role: "assistant",
-        content: friendly,
-      });
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        await supabase.from("messages").insert({
+          conversation_id: conversationId,
+          user_id: user.id,
+          role: "assistant",
+          content: friendly,
+        });
+      }
     } finally {
       setAiLoading(false);
     }
@@ -620,38 +545,64 @@ function ConversationPage() {
 
     if (!trimmed || aiLoading) return;
 
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      await navigate({ to: "/login" });
+      return;
+    }
+
     setInput("");
 
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
 
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
+    const localMessage: Message = {
+      id: `local-${Date.now()}`,
+      conversation_id: conversationId,
+      user_id: user.id,
       role: "user",
       content: trimmed,
     };
 
-    const nextMessages = [...messages, userMessage];
+    const nextMessages = [
+      ...messages,
+      localMessage,
+    ];
 
     setMessages(nextMessages);
 
-    const { error } = await supabase
+    const { data: saved, error } = await supabase
       .from("messages")
       .insert({
         conversation_id: conversationId,
+        user_id: user.id,
         role: "user",
         content: trimmed,
-      });
+      })
+      .select(
+        "id,conversation_id,user_id,role,content,created_at",
+      )
+      .single();
 
     if (error) {
       console.error(error);
 
       setMessages(messages);
       setInput(trimmed);
-
       return;
     }
+
+    setMessages((current) =>
+      current.map((item) =>
+        item.id === localMessage.id
+          ? (saved as Message)
+          : item,
+      ),
+    );
 
     await supabase
       .from("conversations")
@@ -660,15 +611,14 @@ function ConversationPage() {
       })
       .eq("id", conversationId);
 
-    void respondToMessage(trimmed, nextMessages);
+    void respond(
+      trimmed,
+      nextMessages,
+    );
   }
 
   async function deleteConversation(id: string) {
-    const confirmed = window.confirm(
-      "Excluir esta conversa?",
-    );
-
-    if (!confirmed) return;
+    if (!window.confirm("Excluir esta conversa?")) return;
 
     await supabase
       .from("messages")
@@ -696,19 +646,17 @@ function ConversationPage() {
       .includes(search.toLowerCase()),
   );
 
-  if (pageLoading && !conversation) {
+  if (loading && !conversation) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0d0a11] text-white/40">
-        <div className="flex items-center gap-2 text-sm">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-[#7651e8]" />
-          Carregando...
-        </div>
+      <div className="flex h-[100dvh] items-center justify-center bg-[#0d0a11] text-white/30">
+        Carregando...
       </div>
     );
   }
 
   return (
     <div className="relative h-[100dvh] overflow-hidden bg-[#0d0a11] text-white">
+      {/* BACKDROP */}
       <div
         ref={backdropRef}
         className="fixed inset-0 z-40 bg-black"
@@ -716,20 +664,21 @@ function ConversationPage() {
           opacity: 0,
           pointerEvents: "none",
         }}
-        onClick={() => settleSidebar(false)}
+        onClick={() => settle(false)}
       />
 
       {/* SIDEBAR */}
       <aside
         ref={sidebarRef}
-        className="fixed left-0 top-0 z-50 flex h-[100dvh] w-[min(86vw,320px)] flex-col border-r border-white/[0.08] bg-[#141019] shadow-2xl shadow-black/50"
+        className="fixed left-0 top-0 z-50 flex h-[100dvh] w-[min(86vw,320px)] flex-col border-r border-white/[0.07] bg-[#141019] shadow-2xl shadow-black/50"
         style={{
           transform: "translate3d(-100%,0,0)",
           willChange: "transform",
+          touchAction: "none",
         }}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex h-[68px] shrink-0 items-center justify-between border-b border-white/[0.06] px-4">
+        <div className="flex h-[68px] shrink-0 items-center justify-between px-4">
           <div className="flex items-center gap-2.5">
             <img
               src="/appicon.png"
@@ -747,29 +696,32 @@ function ConversationPage() {
 
           <button
             type="button"
-            onClick={() => settleSidebar(false)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl text-white/45 hover:bg-white/[0.06] hover:text-white"
+            onClick={() => settle(false)}
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-white/40 hover:bg-white/[0.06] hover:text-white"
           >
             <X size={19} />
           </button>
         </div>
 
-        <div className="p-3">
+        <div className="px-3">
           <button
             type="button"
-            onClick={() => {
-              void navigate({ to: "/workspace" });
-            }}
-            className="flex w-full items-center gap-2.5 rounded-xl bg-[#7651e8] px-3.5 py-3 text-sm font-medium transition hover:bg-[#8564ed]"
+            onClick={() =>
+              void navigate({ to: "/workspace" })
+            }
+            className="flex w-full items-center gap-2 rounded-xl bg-[#7651e8] px-3.5 py-3 text-sm font-medium hover:bg-[#8564ed]"
           >
             <Plus size={18} />
             Nova decisão
           </button>
         </div>
 
-        <div className="px-3 pb-3">
+        <div className="p-3">
           <div className="flex items-center gap-2 rounded-xl bg-white/[0.04] px-3 py-2.5">
-            <Search size={16} className="text-white/30" />
+            <Search
+              size={16}
+              className="text-white/25"
+            />
 
             <input
               value={search}
@@ -783,104 +735,85 @@ function ConversationPage() {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-2">
-          <p className="px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-white/25">
+          <p className="px-3 py-2 text-[10px] uppercase tracking-wider text-white/25">
             Histórico
           </p>
 
-          <div className="space-y-1">
-            {filteredHistory.map((item) => (
-              <div
-                key={item.id}
-                className={`group flex items-center rounded-xl transition ${
-                  item.id === conversationId
-                    ? "bg-white/[0.07]"
-                    : "hover:bg-white/[0.04]"
-                }`}
+          {filteredHistory.map((item) => (
+            <div
+              key={item.id}
+              className="group flex rounded-xl hover:bg-white/[0.04]"
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  void navigate({
+                    to: "/workspace/$conversationId",
+                    params: {
+                      conversationId: item.id,
+                    },
+                  });
+
+                  settle(false);
+                }}
+                className="min-w-0 flex-1 truncate px-3 py-3 text-left text-sm text-white/60"
               >
-                <button
-                  type="button"
-                  onClick={() => {
-                    void navigate({
-                      to: "/workspace/$conversationId",
-                      params: {
-                        conversationId: item.id,
-                      },
-                    });
+                {item.title}
+              </button>
 
-                    settleSidebar(false);
-                  }}
-                  className="min-w-0 flex-1 px-3 py-3 text-left text-sm text-white/65"
-                >
-                  <span className="block truncate">
-                    {item.title || "Nova decisão"}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    void deleteConversation(item.id)
-                  }
-                  className="mr-1 hidden h-8 w-8 items-center justify-center rounded-lg text-white/25 transition hover:bg-red-500/10 hover:text-red-300 group-hover:flex"
-                  aria-label="Excluir conversa"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            ))}
-
-            {filteredHistory.length === 0 && (
-              <p className="px-3 py-8 text-center text-xs text-white/25">
-                Nenhuma conversa encontrada.
-              </p>
-            )}
-          </div>
+              <button
+                type="button"
+                onClick={() =>
+                  void deleteConversation(item.id)
+                }
+                className="mr-1 hidden h-8 w-8 self-center items-center justify-center rounded-lg text-white/20 hover:bg-red-500/10 hover:text-red-300 group-hover:flex"
+              >
+                <Trash2 size={15} />
+              </button>
+            </div>
+          ))}
         </div>
 
         <div className="border-t border-white/[0.06] p-4">
           <div className="text-xs text-white/30">
             DecidlyAI
           </div>
-
           <div className="mt-1 text-xs text-white/20">
             Seu espaço para decisões.
           </div>
         </div>
       </aside>
 
-      {/* APP */}
-      <div className="relative flex h-full min-w-0 flex-col">
-        <header className="z-30 flex h-[68px] shrink-0 items-center px-4">
+      {/* CHAT */}
+      <div className="flex h-full min-w-0 flex-col">
+        <header className="flex h-[68px] shrink-0 items-center px-4">
           <button
             type="button"
-            onClick={() => settleSidebar(true)}
-            className="flex h-10 w-10 items-center justify-center rounded-xl text-white/60 transition hover:bg-white/[0.06] hover:text-white"
-            aria-label="Abrir sidebar"
+            onClick={() => settle(true)}
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-white/60 hover:bg-white/[0.06] hover:text-white"
           >
             <Menu size={21} />
           </button>
 
           <div className="ml-2 min-w-0">
             <div className="truncate text-sm font-medium">
-              {conversation?.title || "Nova decisão"}
+              {conversation?.title}
             </div>
-
             <div className="text-[10px] text-white/25">
               DecidlyAI
             </div>
           </div>
         </header>
 
-        {/* MENSAGENS */}
         <div
           ref={contentRef}
           className="min-h-0 flex-1 overflow-y-auto px-4"
         >
-          <div className="mx-auto w-full max-w-[720px] pb-[210px] pt-4">
+          <div className="mx-auto max-w-[720px] pb-[205px] pt-5">
             {messages.map((message) => (
               <div
-                key={message.id || `${message.role}-${message.content}`}
-                className={`mb-6 flex ${
+                key={message.id}
+                className={`mb-7 flex ${
                   message.role === "user"
                     ? "justify-end"
                     : "justify-start"
@@ -909,42 +842,15 @@ function ConversationPage() {
                     message.content ? (
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
-                        components={{
-                          p: ({ children }) => (
-                            <p className="mb-3 last:mb-0">
-                              {children}
-                            </p>
-                          ),
-                          ul: ({ children }) => (
-                            <ul className="mb-3 list-disc space-y-1 pl-5">
-                              {children}
-                            </ul>
-                          ),
-                          ol: ({ children }) => (
-                            <ol className="mb-3 list-decimal space-y-1 pl-5">
-                              {children}
-                            </ol>
-                          ),
-                          code: ({
-                            children,
-                            className,
-                          }) => (
-                            <code
-                              className={`${className || ""} rounded bg-white/[0.07] px-1.5 py-0.5`}
-                            >
-                              {children}
-                            </code>
-                          ),
-                        }}
                       >
                         {message.content}
                       </ReactMarkdown>
                     ) : (
-                      <span className="inline-flex gap-1 py-2">
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/40 [animation-delay:-.2s]" />
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/40 [animation-delay:-.1s]" />
+                      <div className="flex gap-1 py-2">
                         <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/40" />
-                      </span>
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/40 [animation-delay:100ms]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/40 [animation-delay:200ms]" />
+                      </div>
                     )
                   ) : (
                     message.content
@@ -952,45 +858,25 @@ function ConversationPage() {
                 </div>
               </div>
             ))}
-
-            {aiLoading && messages.at(-1)?.role === "user" && (
-              <div className="mb-6 flex justify-start">
-                <img
-                  src="/appicon.png"
-                  alt="DecidlyAI"
-                  className="mr-3 mt-1 h-7 w-7 rounded-lg object-cover"
-                  onError={(event) => {
-                    event.currentTarget.src =
-                      "/favicon.ico";
-                  }}
-                />
-
-                <div className="flex items-center gap-1 py-2">
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/40 [animation-delay:-.2s]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/40 [animation-delay:-.1s]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/40" />
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
         {/* COMPOSER */}
-        <div
-          className="fixed inset-x-0 bottom-0 z-30 px-3 pb-[max(14px,env(safe-area-inset-bottom))] pt-3"
-          style={{
-            bottom:
-              "max(0px, env(keyboard-inset-height, 0px))",
-          }}
-        >
+        <div className="fixed inset-x-0 bottom-0 z-30 px-3 pb-[max(14px,env(safe-area-inset-bottom))] pt-3">
           <div className="mx-auto max-w-[720px]">
             <div className="flex items-end gap-2 rounded-2xl bg-[#141019] px-2 py-2 shadow-[0_10px_40px_rgba(0,0,0,.4)]">
               <textarea
                 ref={textareaRef}
                 value={input}
+                rows={1}
+                placeholder="Continue uma decisão..."
+                className="max-h-[180px] min-h-[44px] flex-1 resize-none overflow-y-auto border-0 bg-transparent px-3 py-2.5 text-[15px] leading-6 text-white outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0 focus-visible:border-0 focus-visible:outline-none focus-visible:ring-0 placeholder:text-white/25"
                 onChange={(event) => {
                   setInput(event.target.value);
-                  resizeTextarea();
+
+                  event.currentTarget.style.height = "auto";
+                  event.currentTarget.style.height =
+                    `${Math.min(event.currentTarget.scrollHeight, 180)}px`;
                 }}
                 onKeyDown={(event) => {
                   if (
@@ -1001,45 +887,25 @@ function ConversationPage() {
                     void sendMessage();
                   }
                 }}
-                rows={1}
-                placeholder="Continue a decisão..."
-                className="max-h-[180px] min-h-[44px] flex-1 resize-none overflow-y-auto bg-transparent px-3 py-2.5 text-[15px] leading-6 text-white outline-none placeholder:text-white/25"
               />
 
               <button
                 type="button"
-                onClick={() => void sendMessage()}
                 disabled={!input.trim() || aiLoading}
-                className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#7651e8] text-white transition hover:bg-[#8564ed] disabled:cursor-not-allowed disabled:opacity-25"
-                aria-label="Enviar"
+                onClick={() => void sendMessage()}
+                className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#7651e8] text-white hover:bg-[#8564ed] disabled:opacity-25"
               >
-                <ArrowUp size={19} strokeWidth={2.2} />
+                <ArrowUp size={19} />
               </button>
             </div>
 
-            <p className="mt-2 text-center text-[10px] leading-4 text-white/20">
+            <p className="mt-2 text-center text-[10px] text-white/20">
               A DecidlyAI pode cometer erros. Analise a resposta antes
               de tomar uma decisão importante.
             </p>
           </div>
         </div>
       </div>
-
-      {/* Pequena área lateral para iniciar o gesto */}
-      <div
-        className="pointer-events-none fixed left-0 top-[68px] z-20 h-[calc(100dvh-68px)] w-5"
-        aria-hidden="true"
-      />
-
-      {sidebarProgress > 0 && (
-        <button
-          type="button"
-          className="sr-only"
-          onClick={() => settleSidebar(false)}
-        >
-          Fechar menu
-        </button>
-      )}
     </div>
   );
 }
