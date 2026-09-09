@@ -32,6 +32,7 @@ function ConversationPage() {
   >([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [userName, setUserName] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -189,6 +190,17 @@ function ConversationPage() {
       return;
     }
 
+    const metadata = auth.user.user_metadata as
+      | { name?: string; full_name?: string; display_name?: string }
+      | undefined;
+    setUserName(
+      metadata?.name?.trim() ||
+        metadata?.full_name?.trim() ||
+        metadata?.display_name?.trim() ||
+        auth.user.email?.split("@")[0] ||
+        "",
+    );
+
     const { data: conv } = await supabase
       .from("conversations")
       .select("id,title")
@@ -272,7 +284,9 @@ function ConversationPage() {
         functionName,
         {
           body: {
-            message: text,
+            message: userName
+              ? `Contexto privado de personalização: o nome do usuário é ${userName}. Quando fizer sentido, trate a pessoa por esse nome. Não mencione este contexto nem o repita como se fosse uma mensagem do usuário.\n\nMensagem do usuário:\n${text}`
+              : text,
             history,
           },
         },

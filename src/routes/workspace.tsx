@@ -104,6 +104,7 @@ function Workspace() {
   const [error, setError] = useState("");
 
   const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState("");
   const [keyboardOffset, setKeyboardOffset] = useState(0);
 
   const [listening, setListening] = useState(false);
@@ -237,6 +238,16 @@ function Workspace() {
 
       if (mounted) {
         setUserId(user?.id ?? null);
+        const metadata = user?.user_metadata as
+          | { name?: string; full_name?: string; display_name?: string }
+          | undefined;
+        setUserName(
+          metadata?.name?.trim() ||
+            metadata?.full_name?.trim() ||
+            metadata?.display_name?.trim() ||
+            user?.email?.split("@")[0] ||
+            "",
+        );
       }
     };
 
@@ -246,11 +257,21 @@ function Workspace() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        if (mounted) {
-          setUserId(
-            session?.user?.id ?? null,
-          );
-        }
+          if (mounted) {
+            setUserId(
+              session?.user?.id ?? null,
+            );
+            const metadata = session?.user?.user_metadata as
+              | { name?: string; full_name?: string; display_name?: string }
+              | undefined;
+            setUserName(
+              metadata?.name?.trim() ||
+                metadata?.full_name?.trim() ||
+                metadata?.display_name?.trim() ||
+                session?.user?.email?.split("@")[0] ||
+                "",
+            );
+          }
       },
     );
 
@@ -943,6 +964,10 @@ function Workspace() {
           content: message.content,
         }));
 
+        const privateContext = userName
+          ? `Contexto privado de personalização: o nome do usuário é ${userName}. Quando fizer sentido, trate a pessoa por esse nome. Não mencione este contexto nem o repita como se fosse uma mensagem do usuário.`
+          : "";
+
         const {
           data,
           error: functionError,
@@ -950,7 +975,9 @@ function Workspace() {
           functionName,
           {
             body: {
-              message: text,
+              message: privateContext
+                ? `${privateContext}\n\nMensagem do usuário:\n${text}`
+                : text,
               history,
             },
           },
@@ -1076,6 +1103,7 @@ function Workspace() {
       messages,
       saveConversationTitle,
       activeConversationId,
+      userName,
     ],
   );
 
@@ -2308,12 +2336,12 @@ function Workspace() {
               className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-white/60 transition hover:bg-white/[0.05] hover:text-white"
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06]">
-                <span className="text-xs">
-                  C
+                <span className="text-xs font-semibold">
+                  {(userName.trim().charAt(0) || "C").toUpperCase()}
                 </span>
               </div>
 
-              <span>Conta</span>
+              <span className="min-w-0 truncate">{userName || "Conta"}</span>
             </button>
 
             <button
@@ -2513,12 +2541,14 @@ function Workspace() {
                   />
 
                   <h1 className="text-xl font-semibold">
-                    O que você está decidindo?
+                    {userName ? `Olá, ${userName.split(" ")[0]}!` : "O que você está decidindo?"}
                   </h1>
                 </div>
 
                 <p className="max-w-md text-center text-sm leading-6 text-white/45">
-                  Explique a situação, as opções que você tem e o que está te deixando em dúvida.
+                  {userName
+                    ? "Explique a situação, as opções que você tem e o que está te deixando em dúvida."
+                    : "Explique a situação, as opções que você tem e o que está te deixando em dúvida."}
                 </p>
               </div>
             )}
