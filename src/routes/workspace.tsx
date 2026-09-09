@@ -21,7 +21,6 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/workspace")({
@@ -1364,6 +1363,5 @@ function Workspace() {
           />
         )}
       </div>
-    </AppShell>
   );
 }
