@@ -4,8 +4,6 @@ import {
   useEffect,
   useRef,
   useState,
-  type FormEvent,
-  type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
@@ -16,17 +14,18 @@ import {
   Sparkles,
   X,
   Mic,
+  MicOff,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-
-import { supabase } from "@/lib/supabase";
+import { supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/workspace")({
   component: Workspace,
 });
 
 type ChatMessage = {
+  id: string;
   role: "user" | "assistant";
   content: string;
 };
@@ -39,29 +38,14 @@ type Conversation = {
 };
 
 type Subscription = {
-  plan?: string | null;
-  status?: string | null;
-  expires_at?: string | null;
+  id: string;
+  user_id: string;
+  plan: string | null;
+  status: string | null;
+  current_period_end: string | null;
 };
 
-/*
- * ============================================================
- * SPEECH RECOGNITION
- * ============================================================
- */
-
-type SpeechRecognitionResultEventLike = {
-  resultIndex: number;
-  results: {
-    [index: number]: {
-      [index: number]: {
-        transcript: string;
-      };
-      isFinal: boolean;
-    };
-    length: number;
-  };
-};
+const SIDEBAR_MAX_WIDTH = 320;
 
 type SpeechRecognitionInstance = {
   lang: string;
@@ -72,1619 +56,1005 @@ type SpeechRecognitionInstance = {
   abort: () => void;
   onstart: (() => void) | null;
   onend: (() => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
   onresult:
-    | ((event: SpeechRecognitionResultEventLike) => void)
+    | ((
+        event: {
+          results: ArrayLike<{
+            isFinal: boolean;
+            0: {
+              transcript: string;
+            };
+          }>;
+        },
+      ) => void)
     | null;
 };
 
 type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
 
-type SpeechRecognitionWindow = Window & {
-  SpeechRecognition?: SpeechRecognitionConstructor;
-  webkitSpeechRecognition?: SpeechRecognitionConstructor;
-};
-
-const SIDEBAR_MAX_WIDTH = 320;
-
-const SPEECH_LANGUAGES = [
-  {
-    code: "pt-BR",
-    name: "Português",
-  },
-  {
-    code: "en-US",
-    name: "English",
-  },
-  {
-    code: "es-ES",
-    name: "Español",
-  },
-  {
-    code: "fr-FR",
-    name: "Français",
-  },
-  {
-    code: "de-DE",
-    name: "Deutsch",
-  },
-  {
-    code: "it-IT",
-    name: "Italiano",
-  },
-  {
-    code: "ja-JP",
-    name: "日本語",
-  },
-  {
-    code: "ko-KR",
-    name: "한국어",
-  },
-  {
-    code: "zh-CN",
-    name: "中文",
-  },
-  {
-    code: "ru-RU",
-    name: "Русский",
-  },
-  {
-    code: "ar-SA",
-    name: "العربية",
-  },
-];
+declare global {
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  }
+}
 
 function Workspace() {
-  const [sidebarOpen, setSidebarOpen] =
-    useState(false);
-
-  const [sidebarProgress, setSidebarProgress] =
-    useState(0);
-
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarProgress, setSidebarProgress] = useState(0);
   const [search, setSearch] = useState("");
-
-  const [conversations, setConversations] =
-    useState<Conversation[]>([]);
-
-  const [messages, setMessages] =
-    useState<ChatMessage[]>([]);
-
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [isListening, setIsListening] = useState(false);
 
-  const [isLoading, setIsLoading] =
-    useState(false);
+  const sidebarRef = useRef<HTMLDivElement | null>(null);
+  const chatRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const [errorMessage, setErrorMessage] =
-    useState("");
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const shouldKeepListeningRef = useRef(false);
 
-  const [userId, setUserId] =
-    useState<string | null>(null);
-
-  /*
-   * Altura real ocupada pelo teclado.
-   */
-  const [keyboardOffset, setKeyboardOffset] =
-    useState(0);
-
-  /*
-   * ============================================================
-   * MICROFONE
-   * ============================================================
-   */
-
-  const [isListening, setIsListening] =
-    useState(false);
-
-  const [speechLanguage, setSpeechLanguage] =
-    useState("pt-BR");
-
-  const recognitionRef =
-    useRef<SpeechRecognitionInstance | null>(
-      null,
-    );
-
-  const sidebarRef =
-    useRef<HTMLElement | null>(null);
-
-  const chatRef =
-    useRef<HTMLElement | null>(null);
-
-  const textareaRef =
-    useRef<HTMLTextAreaElement | null>(null);
-
-  const dragState = useRef({
+  const dragState = useRef<{
+    active: boolean;
+    startX: number;
+    startProgress: number;
+  }>({
     active: false,
     startX: 0,
     startProgress: 0,
   });
 
   /*
-   * ============================================================
-   * MICROFONE - INICIALIZAÇÃO
-   * ============================================================
+   * ---------------------------------------------------------
+   * MOBILE KEYBOARD
+   * ---------------------------------------------------------
    */
 
   useEffect(() => {
-    const speechWindow =
-      window as SpeechRecognitionWindow;
+    const viewport = window.visualViewport;
 
-    const SpeechRecognition =
-      speechWindow.SpeechRecognition ||
-      speechWindow.webkitSpeechRecognition;
+    if (!viewport) return;
 
-    if (!SpeechRecognition) {
-      return;
-    }
+    const updateKeyboard = () => {
+      const keyboardHeight = Math.max(
+        0,
+        Math.round(
+          window.innerHeight -
+            viewport.height -
+            viewport.offsetTop,
+        ),
+      );
 
-    const recognition =
-      new SpeechRecognition();
+      setKeyboardOffset(keyboardHeight);
 
-    recognition.lang =
-      speechLanguage;
+      if (keyboardHeight > 0) {
+        requestAnimationFrame(() => {
+          const chat = chatRef.current;
 
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.onstart = () => {
-      setIsListening(true);
-      setErrorMessage("");
-    };
-
-    recognition.onresult = (
-      event,
-    ) => {
-      let transcript = "";
-
-      for (
-        let i = event.resultIndex;
-        i < event.results.length;
-        i++
-      ) {
-        transcript +=
-          event.results[i][0]
-            .transcript;
+          if (chat) {
+            chat.scrollTop = chat.scrollHeight;
+          }
+        });
       }
-
-      const spokenText =
-        transcript.trim();
-
-      if (!spokenText) {
-        return;
-      }
-
-      setInput((current) => {
-        const cleanCurrent =
-          current.trim();
-
-        if (!cleanCurrent) {
-          return spokenText;
-        }
-
-        return `${cleanCurrent} ${spokenText}`;
-      });
-
-      requestAnimationFrame(() => {
-        const textarea =
-          textareaRef.current;
-
-        if (!textarea) {
-          return;
-        }
-
-        textarea.focus();
-
-        textarea.style.height =
-          "0px";
-
-        textarea.style.height =
-          `${Math.min(
-            Math.max(
-              textarea.scrollHeight,
-              58,
-            ),
-            140,
-          )}px`;
-      });
     };
 
-    recognition.onend = () => {
-      setIsListening(false);
-    };
+    updateKeyboard();
 
-    recognition.onerror = () => {
-      setIsListening(false);
-    };
-
-    recognitionRef.current =
-      recognition;
+    viewport.addEventListener("resize", updateKeyboard);
+    viewport.addEventListener("scroll", updateKeyboard);
 
     return () => {
-      try {
-        recognition.abort();
-      } catch {
-        // Ignorado.
-      }
-
-      recognitionRef.current = null;
-      setIsListening(false);
+      viewport.removeEventListener("resize", updateKeyboard);
+      viewport.removeEventListener("scroll", updateKeyboard);
     };
   }, []);
 
   /*
-   * Atualiza o idioma usado pelo reconhecimento.
+   * ---------------------------------------------------------
+   * AUTO SCROLL
+   * ---------------------------------------------------------
    */
 
   useEffect(() => {
-    if (
-      recognitionRef.current
-    ) {
-      recognitionRef.current.lang =
-        speechLanguage;
-    }
-  }, [speechLanguage]);
+    requestAnimationFrame(() => {
+      const chat = chatRef.current;
+
+      if (chat) {
+        chat.scrollTop = chat.scrollHeight;
+      }
+    });
+  }, [messages, isLoading]);
 
   /*
-   * ============================================================
-   * LIGAR / DESLIGAR MICROFONE
-   * ============================================================
+   * ---------------------------------------------------------
+   * AUTH
+   * ---------------------------------------------------------
    */
 
-  const toggleMicrophone =
-    useCallback(() => {
-      const recognition =
-        recognitionRef.current;
+  useEffect(() => {
+    let mounted = true;
 
-      if (!recognition) {
-        setErrorMessage(
-          "Seu navegador não suporta reconhecimento de voz.",
-        );
+    const loadUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-        return;
+      if (!mounted) return;
+
+      if (user) {
+        setUserId(user.id);
       }
+    };
 
-      if (isListening) {
-        try {
-          recognition.stop();
-        } catch {
-          // Ignorado.
-        }
+    loadUser();
 
-        setIsListening(false);
-
-        return;
-      }
-
-      recognition.lang =
-        speechLanguage;
-
-      try {
-        recognition.start();
-      } catch {
-        /*
-         * Se o navegador ainda estiver encerrando
-         * uma sessão anterior, evitamos mostrar
-         * um erro técnico.
-         */
-        setIsListening(false);
-      }
-    }, [
-      isListening,
-      speechLanguage,
-    ]);
-
-  /*
-   * ============================================================
-   * SIDEBAR
-   * ============================================================
-   */
-
-  const getSidebarWidth = useCallback(() => {
-    if (sidebarRef.current) {
-      return sidebarRef.current.getBoundingClientRect()
-        .width;
-    }
-
-    return Math.min(
-      SIDEBAR_MAX_WIDTH,
-      window.innerWidth * 0.9,
-    );
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const paintSidebar = useCallback(
-    (
-      progress: number,
-      animate = false,
-    ) => {
-      const safeProgress = Math.max(
-        0,
-        Math.min(1, progress),
-      );
+  /*
+   * ---------------------------------------------------------
+   * CONVERSATIONS
+   * ---------------------------------------------------------
+   */
 
-      setSidebarProgress(
-        safeProgress,
-      );
+  const loadConversations = useCallback(async (currentUserId: string) => {
+    const { data } = await supabase
+      .from("conversations")
+      .select("id,title,created_at,updated_at")
+      .eq("user_id", currentUserId)
+      .order("updated_at", { ascending: false })
+      .limit(30);
+
+    if (data) {
+      setConversations(data);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    loadConversations(userId);
+  }, [userId, loadConversations]);
+
+  /*
+   * ---------------------------------------------------------
+   * SIDEBAR
+   * ---------------------------------------------------------
+   */
+
+  const paintSidebar = useCallback((progress: number) => {
+    const next = Math.min(1, Math.max(0, progress));
+
+    setSidebarProgress(next);
+
+    if (sidebarRef.current) {
+      sidebarRef.current.style.transform = `translate3d(${
+        -100 + next * 100
+      }%, 0, 0)`;
+    }
+  }, []);
+
+  const settleSidebar = useCallback(
+    (progress: number) => {
+      const next = progress >= 0.5 ? 1 : 0;
+
+      setSidebarProgress(next);
 
       if (sidebarRef.current) {
         sidebarRef.current.style.transition =
-          animate
-            ? "transform 220ms cubic-bezier(.2,.8,.2,1)"
-            : "none";
+          "transform 220ms cubic-bezier(.22,.61,.36,1)";
+        sidebarRef.current.style.transform = `translate3d(${
+          -100 + next * 100
+        }%, 0, 0)`;
 
-        sidebarRef.current.style.transform =
-          `translate3d(${
-            -100 + safeProgress * 100
-          }%, 0, 0)`;
+        window.setTimeout(() => {
+          if (sidebarRef.current) {
+            sidebarRef.current.style.transition = "";
+          }
+        }, 230);
       }
+
+      setSidebarOpen(next === 1);
     },
     [],
   );
 
-  const settleSidebar = useCallback(
-    (open: boolean) => {
-      setSidebarOpen(open);
-
-      paintSidebar(
-        open ? 1 : 0,
-        true,
-      );
-    },
-    [paintSidebar],
-  );
-
   const startSidebarDrag = (
-    event: ReactPointerEvent<HTMLElement>,
+    event: ReactPointerEvent<HTMLDivElement>,
   ) => {
-    if (
-      event.pointerType === "mouse" &&
-      event.button !== 0
-    ) {
-      return;
-    }
-
     dragState.current = {
       active: true,
       startX: event.clientX,
-      startProgress: sidebarOpen
-        ? 1
-        : sidebarProgress,
+      startProgress: sidebarProgress,
     };
 
-    event.currentTarget.setPointerCapture(
-      event.pointerId,
-    );
+    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
   const moveSidebarDrag = (
-    event: ReactPointerEvent<HTMLElement>,
+    event: ReactPointerEvent<HTMLDivElement>,
   ) => {
-    if (!dragState.current.active) {
-      return;
-    }
+    if (!dragState.current.active) return;
 
-    const width = getSidebarWidth();
-
-    if (!width) {
-      return;
-    }
-
-    const delta =
-      event.clientX -
-      dragState.current.startX;
+    const delta = event.clientX - dragState.current.startX;
 
     const progress =
       dragState.current.startProgress +
-      delta / width;
+      delta / SIDEBAR_MAX_WIDTH;
 
-    paintSidebar(
-      progress,
-      false,
-    );
+    paintSidebar(progress);
   };
 
-  const endSidebarDrag = () => {
-    if (!dragState.current.active) {
-      return;
-    }
+  const endSidebarDrag = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    if (!dragState.current.active) return;
 
     dragState.current.active = false;
 
-    const shouldOpen =
-      sidebarProgress >= 0.45;
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // noop
+    }
 
-    setSidebarOpen(shouldOpen);
-
-    paintSidebar(
-      shouldOpen ? 1 : 0,
-      true,
-    );
+    settleSidebar(sidebarProgress);
   };
 
-  useEffect(() => {
-    paintSidebar(
-      sidebarOpen ? 1 : 0,
-      false,
-    );
-  }, [
-    sidebarOpen,
-    paintSidebar,
-  ]);
-
   /*
-   * ============================================================
-   * TECLADO MOBILE
-   * ============================================================
+   * ---------------------------------------------------------
+   * NEW CONVERSATION
+   * ---------------------------------------------------------
    */
 
-  useEffect(() => {
-    const viewport =
-      window.visualViewport;
-
-    if (!viewport) {
-      return;
-    }
-
-    let frame = 0;
-
-    const updateKeyboard = () => {
-      cancelAnimationFrame(frame);
-
-      frame =
-        requestAnimationFrame(() => {
-          const keyboardHeight =
-            Math.max(
-              0,
-              Math.round(
-                window.innerHeight -
-                  viewport.height -
-                  viewport.offsetTop,
-              ),
-            );
-
-          setKeyboardOffset(
-            keyboardHeight,
-          );
-
-          if (keyboardHeight > 0) {
-            const chat =
-              chatRef.current;
-
-            if (chat) {
-              chat.scrollTop =
-                chat.scrollHeight;
-            }
-          }
-        });
-    };
-
-    viewport.addEventListener(
-      "resize",
-      updateKeyboard,
-      { passive: true },
-    );
-
-    viewport.addEventListener(
-      "scroll",
-      updateKeyboard,
-      { passive: true },
-    );
-
-    window.addEventListener(
-      "resize",
-      updateKeyboard,
-      { passive: true },
-    );
-
-    updateKeyboard();
-
-    return () => {
-      cancelAnimationFrame(frame);
-
-      viewport.removeEventListener(
-        "resize",
-        updateKeyboard,
-      );
-
-      viewport.removeEventListener(
-        "scroll",
-        updateKeyboard,
-      );
-
-      window.removeEventListener(
-        "resize",
-        updateKeyboard,
-      );
-    };
-  }, []);
-
-  /*
-   * ============================================================
-   * AUTO SCROLL
-   * ============================================================
-   */
-
-  useEffect(() => {
-    const chat =
-      chatRef.current;
-
-    if (!chat) {
-      return;
-    }
+  const newConversation = () => {
+    setMessages([]);
+    setInput("");
+    setErrorMessage("");
+    setSidebarOpen(false);
+    setSidebarProgress(0);
 
     requestAnimationFrame(() => {
-      chat.scrollTo({
-        top: chat.scrollHeight,
-        behavior: "smooth",
-      });
+      textareaRef.current?.focus();
     });
-  }, [
-    messages,
-    isLoading,
-  ]);
+  };
 
   /*
-   * ============================================================
-   * AUTH
-   * ============================================================
+   * ---------------------------------------------------------
+   * SAVE CONVERSATION
+   * ---------------------------------------------------------
    */
 
-  const getAuthenticatedUser =
-    useCallback(async () => {
-      const {
-        data,
-        error,
-      } =
-        await supabase.auth.getUser();
+  const saveConversationTitle = async (
+    currentUserId: string,
+    text: string,
+  ) => {
+    const title =
+      text.trim().length > 60
+        ? `${text.trim().slice(0, 60)}...`
+        : text.trim();
 
-      if (
-        error ||
-        !data.user
-      ) {
-        return null;
+    if (!title) return;
+
+    await supabase.from("conversations").insert({
+      user_id: currentUserId,
+      title,
+    });
+
+    await loadConversations(currentUserId);
+  };
+
+  /*
+   * ---------------------------------------------------------
+   * AI
+   * ---------------------------------------------------------
+   */
+
+  const getAIModel = async (currentUserId: string) => {
+    const { data } = await supabase
+      .from("subscription")
+      .select(
+        "id,user_id,plan,status,current_period_end",
+      )
+      .eq("user_id", currentUserId)
+      .order("current_period_end", {
+        ascending: false,
+      })
+      .limit(1)
+      .maybeSingle<Subscription>();
+
+    if (!data) {
+      return "decidly-ai-free";
+    }
+
+    const isActive =
+      data.status === "active" &&
+      (
+        !data.current_period_end ||
+        new Date(data.current_period_end).getTime() > Date.now()
+      );
+
+    const isVip =
+      data.plan === "vip" ||
+      data.plan === "VIP" ||
+      data.plan === "decidly-ai-vip";
+
+    if (isActive && isVip) {
+      return "decidly-ai";
+    }
+
+    return "decidly-ai-free";
+  };
+
+  const sendMessage = async () => {
+    const text = input.trim();
+
+    if (!text || isLoading) return;
+
+    if (!userId) {
+      setErrorMessage(
+        "Você precisa estar conectado para enviar uma mensagem.",
+      );
+      return;
+    }
+
+    setErrorMessage("");
+    setInput("");
+    setIsLoading(true);
+
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: text,
+    };
+
+    setMessages((current) => [...current, userMessage]);
+
+    try {
+      const model = await getAIModel(userId);
+
+      const history = [...messages, userMessage].map((message) => ({
+        role: message.role,
+        content: message.content,
+      }));
+
+      const { data, error } = await supabase.functions.invoke(
+        model,
+        {
+          body: {
+            message: text,
+            history,
+          },
+        },
+      );
+
+      if (error) {
+        const status = error.context?.status;
+
+        if (status === 402) {
+          throw new Error(
+            "Seu plano atual não permite usar este recurso.",
+          );
+        }
+
+        if (status === 429) {
+          throw new Error(
+            "Muitas solicitações no momento. Tente novamente em alguns instantes.",
+          );
+        }
+
+        if (status === 401 || status === 403) {
+          throw new Error(
+            "Sua sessão não permite realizar esta ação.",
+          );
+        }
+
+        if (status && status >= 500) {
+          throw new Error(
+            "A DecidlyAI está temporariamente indisponível. Tente novamente.",
+          );
+        }
+
+        throw new Error(
+          "Não foi possível obter uma resposta agora.",
+        );
       }
 
-      return data.user;
-    }, []);
+      const answer =
+        data?.answer ??
+        data?.response ??
+        data?.message ??
+        data?.content;
 
-  /*
-   * ============================================================
-   * HISTÓRICO
-   * ============================================================
-   */
-
-  const loadConversations =
-    useCallback(
-      async (
-        currentUserId: string,
-      ) => {
-        const { data } =
-          await supabase
-            .from("conversations")
-            .select(
-              "id,title,created_at,updated_at",
-            )
-            .eq(
-              "user_id",
-              currentUserId,
-            )
-            .order(
-              "updated_at",
-              {
-                ascending: false,
-              },
-            )
-            .limit(30);
-
-        if (!data) {
-          return;
-        }
-
-        setConversations(
-          data as Conversation[],
+      if (
+        typeof answer !== "string" ||
+        !answer.trim()
+      ) {
+        throw new Error(
+          "Não foi possível obter uma resposta agora.",
         );
-      },
-      [],
-    );
+      }
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const initialize =
-      async () => {
-        const user =
-          await getAuthenticatedUser();
-
-        if (
-          !user ||
-          cancelled
-        ) {
-          return;
-        }
-
-        setUserId(user.id);
-
-        await loadConversations(
-          user.id,
-        );
+      const assistantMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: answer,
       };
 
-    void initialize();
+      setMessages((current) => [
+        ...current,
+        assistantMessage,
+      ]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    getAuthenticatedUser,
-    loadConversations,
-  ]);
-
-  /*
-   * ============================================================
-   * NOVA DECISÃO
-   * ============================================================
-   */
-
-  const startNewConversation =
-    () => {
-      setMessages([]);
-      setInput("");
-      setErrorMessage("");
-
-      settleSidebar(false);
+      if (messages.length === 0) {
+        await saveConversationTitle(userId, text);
+      }
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível obter uma resposta agora.",
+      );
+    } finally {
+      setIsLoading(false);
 
       requestAnimationFrame(() => {
         textareaRef.current?.focus();
       });
-    };
-
-  /*
-   * ============================================================
-   * SALVAR CONVERSA
-   * ============================================================
-   */
-
-  const saveConversationTitle =
-    async (
-      firstMessage: string,
-    ) => {
-      if (!userId) {
-        return;
-      }
-
-      const title =
-        firstMessage.length > 70
-          ? `${firstMessage.slice(
-              0,
-              67,
-            )}...`
-          : firstMessage;
-
-      const { data } =
-        await supabase
-          .from("conversations")
-          .insert({
-            user_id: userId,
-            title,
-          })
-          .select(
-            "id,title,created_at,updated_at",
-          )
-          .single();
-
-      if (!data) {
-        return;
-      }
-
-      const conversation =
-        data as Conversation;
-
-      setConversations(
-        (current) => [
-          conversation,
-          ...current.filter(
-            (item) =>
-              item.id !==
-              conversation.id,
-          ),
-        ],
-      );
-    };
-
-  /*
-   * ============================================================
-   * IA
-   * ============================================================
-   */
-
-  const getAiFunction =
-    async (
-      currentUserId: string,
-    ) => {
-      const {
-        data,
-        error,
-      } =
-        await supabase
-          .from("subscription")
-          .select(
-            "plan,status,expires_at",
-          )
-          .eq(
-            "user_id",
-            currentUserId,
-          )
-          .order(
-            "created_at",
-            {
-              ascending: false,
-            },
-          )
-          .limit(1)
-          .maybeSingle();
-
-      if (
-        error ||
-        !data
-      ) {
-        return "decidly-ai-free";
-      }
-
-      const subscription =
-        data as Subscription;
-
-      const isVip =
-        subscription.plan ===
-          "vip" ||
-        subscription.plan ===
-          "VIP";
-
-      const isActive =
-        subscription.status ===
-          "active" ||
-        subscription.status ===
-          "ACTIVE";
-
-      const notExpired =
-        !subscription.expires_at ||
-        new Date(
-          subscription.expires_at,
-        ).getTime() >
-          Date.now();
-
-      if (
-        isVip &&
-        isActive &&
-        notExpired
-      ) {
-        return "decidly-ai";
-      }
-
-      return "decidly-ai-free";
-    };
-
-  /*
-   * ============================================================
-   * ERROS
-   * ============================================================
-   */
-
-  const getFriendlyAiError = (
-    status?: number,
-  ) => {
-    if (status === 402) {
-      return "Seu acesso atingiu o limite atual. Tente novamente mais tarde.";
     }
-
-    if (status === 429) {
-      return "A DecidlyAI está recebendo muitas solicitações agora. Tente novamente em alguns segundos.";
-    }
-
-    if (
-      status === 401 ||
-      status === 403
-    ) {
-      return "Sua sessão precisa ser atualizada. Recarregue a página e tente novamente.";
-    }
-
-    if (
-      status &&
-      status >= 500
-    ) {
-      return "A DecidlyAI está temporariamente indisponível. Tente novamente em instantes.";
-    }
-
-    return "Não consegui processar sua mensagem agora. Tente novamente.";
   };
 
   /*
-   * ============================================================
-   * ENVIAR MENSAGEM
-   * ============================================================
+   * ---------------------------------------------------------
+   * TEXTAREA
+   * ---------------------------------------------------------
    */
 
-  const sendMessage =
-    async () => {
-      const text =
-        input.trim();
+  const resizeTextarea = () => {
+    const textarea = textareaRef.current;
 
-      if (
-        !text ||
-        isLoading
-      ) {
-        return;
+    if (!textarea) return;
+
+    textarea.style.height = "auto";
+
+    const nextHeight = Math.min(
+      Math.max(textarea.scrollHeight, 58),
+      140,
+    );
+
+    textarea.style.height = `${nextHeight}px`;
+  };
+
+  useEffect(() => {
+    resizeTextarea();
+  }, [input]);
+
+  const handleTextareaKeyDown = (
+    event: React.KeyboardEvent<HTMLTextAreaElement>,
+  ) => {
+    if (
+      event.key === "Enter" &&
+      (event.ctrlKey || event.metaKey)
+    ) {
+      event.preventDefault();
+      sendMessage();
+    }
+  };
+
+  const handleTextareaFocus = () => {
+    setTimeout(() => {
+      textareaRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+
+      const chat = chatRef.current;
+
+      if (chat) {
+        chat.scrollTop = chat.scrollHeight;
       }
+    }, 100);
+  };
 
-      setInput("");
-      setErrorMessage("");
+  /*
+   * ---------------------------------------------------------
+   * MICROPHONE
+   * ---------------------------------------------------------
+   *
+   * IMPORTANTE:
+   * O navegador não fornece detecção automática de idioma
+   * perfeita. Aqui usamos o idioma configurado no navegador.
+   *
+   * Não existe select ocupando espaço no compositor.
+   */
 
-      if (
-        textareaRef.current
-      ) {
-        textareaRef.current.style.height =
-          "58px";
-      }
+  const stopListening = useCallback(() => {
+    shouldKeepListeningRef.current = false;
 
-      const userMessage: ChatMessage =
-        {
-          role: "user",
-          content: text,
-        };
+    const recognition = recognitionRef.current;
 
-      const nextMessages = [
-        ...messages,
-        userMessage,
-      ];
-
-      setMessages(
-        nextMessages,
-      );
-
-      setIsLoading(true);
-
+    if (recognition) {
       try {
-        const user =
-          await getAuthenticatedUser();
-
-        if (!user) {
-          setErrorMessage(
-            "Sua sessão expirou. Recarregue a página e tente novamente.",
-          );
-
-          return;
-        }
-
-        setUserId(user.id);
-
-        const functionName =
-          await getAiFunction(
-            user.id,
-          );
-
-        const history =
-          nextMessages
-            .slice(-12)
-            .map(
-              (message) => ({
-                role:
-                  message.role,
-                content:
-                  message.content,
-              }),
-            );
-
-        const {
-          data,
-          error,
-        } =
-          await supabase.functions.invoke(
-            functionName,
-            {
-              body: {
-                message: text,
-                history,
-              },
-            },
-          );
-
-        if (error) {
-          const context =
-            (
-              error as {
-                context?: Response;
-              }
-            ).context;
-
-          setErrorMessage(
-            getFriendlyAiError(
-              context?.status,
-            ),
-          );
-
-          return;
-        }
-
-        const responseData =
-          data as {
-            response?: unknown;
-            answer?: unknown;
-          } | null;
-
-        const response =
-          typeof responseData?.response ===
-          "string"
-            ? responseData.response
-            : typeof responseData?.answer ===
-                "string"
-              ? responseData.answer
-              : "";
-
-        if (
-          !response.trim()
-        ) {
-          setErrorMessage(
-            "A DecidlyAI não retornou uma resposta. Tente novamente.",
-          );
-
-          return;
-        }
-
-        setMessages(
-          (current) => [
-            ...current,
-            {
-              role: "assistant",
-              content:
-                response,
-            },
-          ],
-        );
-
-        if (
-          messages.length === 0
-        ) {
-          void saveConversationTitle(
-            text,
-          );
-        }
+        recognition.stop();
       } catch {
-        setErrorMessage(
-          "Não consegui conectar à DecidlyAI agora. Tente novamente em instantes.",
-        );
-      } finally {
-        setIsLoading(false);
+        // noop
+      }
+    }
 
-        requestAnimationFrame(() => {
-          textareaRef.current?.focus();
+    setIsListening(false);
+  }, []);
 
-          const chat =
-            chatRef.current;
+  const startListening = useCallback(() => {
+    const SpeechRecognition =
+      window.SpeechRecognition ||
+      window.webkitSpeechRecognition;
 
-          if (chat) {
-            chat.scrollTop =
-              chat.scrollHeight;
+    if (!SpeechRecognition) {
+      setErrorMessage(
+        "O reconhecimento de voz não é compatível com este navegador. Tente usar o Chrome ou Edge.",
+      );
+      return;
+    }
+
+    if (isLoading) return;
+
+    if (isListening) {
+      stopListening();
+      return;
+    }
+
+    setErrorMessage("");
+
+    const recognition = new SpeechRecognition();
+
+    /*
+     * Usa o idioma do navegador automaticamente.
+     * Exemplos:
+     * pt-BR, en-US, es-ES, fr-FR...
+     */
+    const browserLanguage =
+      navigator.language || "pt-BR";
+
+    recognition.lang = browserLanguage;
+    recognition.continuous = false;
+    recognition.interimResults = true;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      shouldKeepListeningRef.current = true;
+    };
+
+    recognition.onresult = (event) => {
+      let transcript = "";
+
+      for (
+        let i = 0;
+        i < event.results.length;
+        i++
+      ) {
+        transcript += event.results[i][0].transcript;
+      }
+
+      if (transcript.trim()) {
+        setInput((current) => {
+          const existing = current.trim();
+
+          if (!existing) {
+            return transcript.trim();
           }
+
+          return `${existing} ${transcript.trim()}`;
         });
       }
     };
 
-  const handleSubmit = (
-    event: FormEvent,
-  ) => {
-    event.preventDefault();
+    recognition.onerror = (event) => {
+      shouldKeepListeningRef.current = false;
+      setIsListening(false);
 
-    void sendMessage();
-  };
-
-  /*
-   * ============================================================
-   * TEXTAREA
-   * ============================================================
-   */
-
-  const resizeTextarea =
-    (
-      element: HTMLTextAreaElement,
-    ) => {
-      element.style.height =
-        "0px";
-
-      const nextHeight =
-        Math.min(
-          Math.max(
-            element.scrollHeight,
-            58,
-          ),
-          140,
+      if (event.error === "not-allowed") {
+        setErrorMessage(
+          "Permissão do microfone bloqueada. Permita o acesso ao microfone no navegador.",
         );
+        return;
+      }
 
-      element.style.height =
-        `${nextHeight}px`;
+      if (event.error === "no-speech") {
+        setErrorMessage(
+          "Não consegui ouvir sua voz. Tente falar novamente.",
+        );
+        return;
+      }
+
+      if (event.error === "audio-capture") {
+        setErrorMessage(
+          "Não foi possível acessar o microfone.",
+        );
+        return;
+      }
+
+      if (event.error === "network") {
+        setErrorMessage(
+          "O reconhecimento de voz precisa de conexão com a internet.",
+        );
+        return;
+      }
+
+      setErrorMessage(
+        "Não foi possível usar o microfone agora.",
+      );
     };
 
-  const handleInput = (
-    value: string,
-    element: HTMLTextAreaElement,
-  ) => {
-    setInput(value);
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+      shouldKeepListeningRef.current = false;
 
-    resizeTextarea(
-      element,
-    );
-  };
+      requestAnimationFrame(() => {
+        textareaRef.current?.focus();
+        resizeTextarea();
+      });
+    };
 
-  const handleTextareaKeyDown =
-    (
-      event: KeyboardEvent<HTMLTextAreaElement>,
-    ) => {
-      if (
-        event.key === "Enter" &&
-        (event.ctrlKey ||
-          event.metaKey)
-      ) {
-        event.preventDefault();
+    recognitionRef.current = recognition;
 
-        void sendMessage();
+    try {
+      recognition.start();
+    } catch {
+      recognitionRef.current = null;
+      setIsListening(false);
+      setErrorMessage(
+        "Não foi possível iniciar o microfone. Tente novamente.",
+      );
+    }
+  }, [
+    isListening,
+    isLoading,
+    stopListening,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      shouldKeepListeningRef.current = false;
+
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {
+          // noop
+        }
       }
     };
-
-  const handleTextareaFocus =
-    () => {
-      setTimeout(() => {
-        textareaRef.current?.scrollIntoView(
-          {
-            block: "nearest",
-            inline: "nearest",
-          },
-        );
-
-        const chat =
-          chatRef.current;
-
-        if (chat) {
-          chat.scrollTop =
-            chat.scrollHeight;
-        }
-      }, 50);
-    };
-
-  const filteredConversations =
-    conversations.filter(
-      (conversation) =>
-        conversation.title
-          .toLowerCase()
-          .includes(
-            search.toLowerCase(),
-          ),
-    );
+  }, []);
 
   /*
-   * ============================================================
+   * ---------------------------------------------------------
+   * SEARCH
+   * ---------------------------------------------------------
+   */
+
+  const filteredConversations = conversations.filter(
+    (conversation) =>
+      conversation.title
+        .toLowerCase()
+        .includes(search.toLowerCase()),
+  );
+
+  /*
+   * ---------------------------------------------------------
    * RENDER
-   * ============================================================
+   * ---------------------------------------------------------
    */
 
   return (
     <div className="relative min-h-[100dvh] overflow-hidden bg-[#0d0912] text-white">
-      {/* ======================================================
-          SIDEBAR FIXO
-          ====================================================== */}
+      {/* SIDEBAR */}
 
-      <aside
+      <div
         ref={sidebarRef}
-        onPointerDown={
-          startSidebarDrag
-        }
-        onPointerMove={
-          moveSidebarDrag
-        }
-        onPointerUp={
-          endSidebarDrag
-        }
-        onPointerCancel={
-          endSidebarDrag
-        }
-        className="fixed inset-y-0 left-0 z-[100] flex w-[min(90vw,320px)] touch-pan-y flex-col bg-[#110c17] shadow-[20px_0_60px_rgba(0,0,0,0.35)]"
+        className="fixed inset-y-0 left-0 z-[100] w-[min(320px,88vw)] bg-[#120d19] shadow-2xl"
         style={{
-          transform:
-            "translate3d(-100%,0,0)",
-          willChange:
-            "transform",
+          transform: `translate3d(${
+            -100 + sidebarProgress * 100
+          }%, 0, 0)`,
         }}
+        onPointerDown={startSidebarDrag}
+        onPointerMove={moveSidebarDrag}
+        onPointerUp={endSidebarDrag}
+        onPointerCancel={endSidebarDrag}
       >
-        <div
-          className="flex shrink-0 items-center justify-between px-4 py-4"
-          onPointerDown={(
-            event,
-          ) =>
-            event.stopPropagation()
-          }
-        >
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1b1225]">
-              <Sparkles
-                size={17}
-                className="text-purple-300"
-              />
-            </div>
-
-            <div>
-              <p className="text-sm font-semibold">
-                DecidlyAI
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() =>
-              settleSidebar(
-                false,
-              )
-            }
-            className="flex h-9 w-9 items-center justify-center rounded-xl text-white/45 transition hover:bg-white/[0.05] hover:text-white"
-            aria-label="Fechar menu"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <div
-          className="px-3"
-          onPointerDown={(
-            event,
-          ) =>
-            event.stopPropagation()
-          }
-        >
-          <button
-            type="button"
-            onClick={
-              startNewConversation
-            }
-            className="flex w-full items-center gap-3 rounded-xl bg-purple-600/90 px-4 py-3 text-sm font-medium transition hover:bg-purple-600"
-          >
-            <Plus size={18} />
-            Nova decisão
-          </button>
-        </div>
-
-        <div
-          className="px-3 pt-4"
-          onPointerDown={(
-            event,
-          ) =>
-            event.stopPropagation()
-          }
-        >
-          <div className="flex items-center gap-2 rounded-xl bg-white/[0.035] px-3 py-2.5">
-            <Search
-              size={16}
-              className="shrink-0 text-white/30"
-            />
-
-            <input
-              value={search}
-              onChange={(
-                event,
-              ) =>
-                setSearch(
-                  event.target
-                    .value,
-                )
-              }
-              placeholder="Buscar decisões..."
-              className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/25"
-            />
-          </div>
-        </div>
-
-        <div
-          className="min-h-0 flex-1 overflow-y-auto px-3 py-5"
-          onPointerDown={(
-            event,
-          ) =>
-            event.stopPropagation()
-          }
-        >
-          <p className="mb-3 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/25">
-            Histórico
-          </p>
-
-          {filteredConversations.length ===
-          0 ? (
-            <div className="px-2 py-8 text-center text-xs text-white/25">
-              Nenhuma decisão encontrada.
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {filteredConversations.map(
-                (
-                  conversation,
-                ) => (
-                  <div
-                    key={
-                      conversation.id
-                    }
-                    className="rounded-xl px-3 py-3 text-sm text-white/55 transition hover:bg-white/[0.035] hover:text-white/80"
-                  >
-                    <p className="line-clamp-2 leading-5">
-                      {
-                        conversation.title
-                      }
-                    </p>
-                  </div>
-                ),
-              )}
-            </div>
-          )}
-        </div>
-      </aside>
-
-      {/* ======================================================
-          BACKDROP
-          ====================================================== */}
-
-      <button
-        type="button"
-        aria-label="Fechar menu"
-        onClick={() =>
-          settleSidebar(
-            false,
-          )
-        }
-        className={`fixed inset-0 z-[90] bg-black/45 backdrop-blur-[1px] transition-opacity duration-200 ${
-          sidebarOpen
-            ? "pointer-events-auto opacity-100"
-            : "pointer-events-none opacity-0"
-        }`}
-      />
-
-      {/* ======================================================
-          ÁREA PRINCIPAL
-          ====================================================== */}
-
-      <main className="relative min-h-[100dvh]">
-        {/* TOPBAR */}
-
-        <header className="fixed inset-x-0 top-0 z-40 h-16 bg-[#0d0912]/90 backdrop-blur-xl">
-          <div className="flex h-full items-center px-4">
-            <button
-              type="button"
-              onClick={() =>
-                settleSidebar(
-                  true,
-                )
-              }
-              className="flex h-10 w-10 items-center justify-center rounded-xl text-white/65 transition hover:bg-white/[0.05] hover:text-white"
-              aria-label="Abrir menu"
-            >
-              <Menu size={20} />
-            </button>
-
-            <div className="ml-2 flex items-center gap-2">
+        <div className="flex h-full flex-col">
+          <div className="flex items-center justify-between px-4 py-4">
+            <div className="flex items-center gap-2">
               <img
                 src="/appicon.png"
                 alt="DecidlyAI"
-                className="h-8 w-8 rounded-lg"
+                className="h-8 w-8 rounded-xl"
               />
 
-              <p className="text-sm font-semibold tracking-tight">
+              <span className="font-semibold">
                 DecidlyAI
-              </p>
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSidebarOpen(false);
+                setSidebarProgress(0);
+              }}
+              className="rounded-xl p-2 text-white/60 transition hover:bg-white/10 hover:text-white"
+              aria-label="Fechar menu"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="px-3">
+            <button
+              type="button"
+              onClick={newConversation}
+              className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition hover:bg-white/10"
+            >
+              <Plus size={18} />
+              Nova conversa
+            </button>
+          </div>
+
+          <div className="px-3 pt-4">
+            <div className="flex items-center gap-2 rounded-2xl bg-white/[0.06] px-3 py-2.5">
+              <Search
+                size={17}
+                className="text-white/40"
+              />
+
+              <input
+                value={search}
+                onChange={(event) =>
+                  setSearch(event.target.value)
+                }
+                placeholder="Pesquisar"
+                className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/35"
+              />
             </div>
           </div>
-        </header>
 
-        {/* ====================================================
-            CHAT
-            ==================================================== */}
+          <div className="flex-1 overflow-y-auto px-3 py-4">
+            <div className="mb-2 px-2 text-xs font-medium text-white/35">
+              Conversas
+            </div>
 
-        <section
-          ref={chatRef}
-          className="h-[100dvh] overflow-y-auto overscroll-contain px-4 pt-24 pb-28"
-        >
-          <div className="mx-auto w-full max-w-3xl">
-            {messages.length ===
-              0 && (
-              <div className="flex min-h-[calc(100dvh-260px)] flex-col items-center justify-center px-4 pb-8 text-center">
-                <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#191020] shadow-[0_0_50px_rgba(139,92,246,0.08)]">
-                  <img
-                    src="/appicon.png"
-                    alt=""
-                    className="h-11 w-11 rounded-xl"
+            <div className="space-y-1">
+              {filteredConversations.map(
+                (conversation) => (
+                  <button
+                    key={conversation.id}
+                    type="button"
+                    className="w-full rounded-xl px-3 py-2.5 text-left text-sm text-white/70 transition hover:bg-white/[0.06] hover:text-white"
+                  >
+                    <div className="truncate">
+                      {conversation.title}
+                    </div>
+                  </button>
+                ),
+              )}
+
+              {filteredConversations.length === 0 && (
+                <div className="px-3 py-3 text-sm text-white/30">
+                  Nenhuma conversa encontrada.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* SIDEBAR BACKDROP */}
+
+      {sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Fechar menu"
+          className="fixed inset-0 z-[90] bg-black/50"
+          onClick={() => {
+            setSidebarOpen(false);
+            setSidebarProgress(0);
+          }}
+        />
+      )}
+
+      {/* FIXED MENU BUTTON */}
+
+      <button
+        type="button"
+        onClick={() => {
+          setSidebarOpen(true);
+          setSidebarProgress(1);
+        }}
+        className="fixed left-4 top-4 z-[110] flex h-11 w-11 items-center justify-center rounded-2xl bg-[#17111e]/90 text-white shadow-lg backdrop-blur-md transition hover:bg-[#211827]"
+        aria-label="Abrir menu"
+      >
+        <Menu size={21} />
+      </button>
+
+      {/* TOP BAR */}
+
+      <header className="fixed left-0 right-0 top-0 z-40 flex h-16 items-center justify-center pointer-events-none">
+        <div className="flex items-center gap-2">
+          <img
+            src="/appicon.png"
+            alt="DecidlyAI"
+            className="h-7 w-7 rounded-lg"
+          />
+
+          <span className="text-sm font-semibold">
+            DecidlyAI
+          </span>
+        </div>
+      </header>
+
+      {/* CHAT */}
+
+      <main
+        ref={chatRef}
+        className="h-[100dvh] overflow-y-auto overscroll-contain px-4 pb-32 pt-24"
+      >
+        <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col">
+          {messages.length === 0 ? (
+            <div className="flex flex-1 items-center justify-center pb-32">
+              <div className="w-full max-w-2xl text-center">
+                <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/[0.06]">
+                  <Sparkles
+                    size={25}
+                    className="text-white/80"
                   />
                 </div>
 
                 <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                  O que você está
-                  decidindo?
+                  O que você está decidindo?
                 </h1>
 
-                <p className="mt-3 max-w-md text-sm leading-6 text-white/35">
-                  Explique a situação,
-                  as opções que você
-                  tem e o que está te
-                  deixando em dúvida.
+                <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-white/45">
+                  Explique a situação, as opções que você tem e o que está te deixando em dúvida.
                 </p>
               </div>
-            )}
-
-            <div className="space-y-4">
-              {messages.map(
-                (
-                  message,
-                  index,
-                ) => (
+            </div>
+          ) : (
+            <div className="space-y-5 pb-10">
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={
+                    message.role === "user"
+                      ? "flex justify-end"
+                      : "flex justify-start"
+                  }
+                >
                   <div
-                    key={`${message.role}-${index}`}
-                    className={`flex ${
-                      message.role ===
-                      "user"
-                        ? "justify-end"
-                        : "justify-start"
-                    }`}
+                    className={
+                      message.role === "user"
+                        ? "max-w-[85%] rounded-2xl bg-white/[0.08] px-4 py-3 text-sm leading-6"
+                        : "max-w-[90%] text-sm leading-7 text-white/85"
+                    }
                   >
-                    {message.role ===
-                    "user" ? (
-                      <div className="max-w-[85%] rounded-[20px] bg-purple-600/90 px-4 py-3 text-sm leading-6 text-white shadow-lg shadow-purple-950/20">
-                        {
-                          message.content
-                        }
-                      </div>
+                    {message.role === "assistant" ? (
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
                     ) : (
-                      <div className="max-w-[90%] rounded-[20px] bg-white/[0.045] px-4 py-3 text-sm leading-6 text-white/85">
-                        <div className="prose prose-invert prose-sm max-w-none prose-p:my-2 prose-headings:mb-2 prose-headings:mt-4 prose-ul:my-2 prose-ol:my-2 prose-li:my-0">
-                          <ReactMarkdown
-                            remarkPlugins={[
-                              remarkGfm,
-                            ]}
-                          >
-                            {
-                              message.content
-                            }
-                          </ReactMarkdown>
-                        </div>
-                      </div>
+                      message.content
                     )}
                   </div>
-                ),
-              )}
+                </div>
+              ))}
 
               {isLoading && (
-                <div className="flex justify-start">
-                  <div className="rounded-[20px] bg-white/[0.045] px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <Sparkles
-                        size={14}
-                        className="text-purple-300"
-                      />
-
-                      <span className="text-xs text-white/45">
-                        DecidlyAI está
-                        pensando...
-                      </span>
-
-                      <div className="ml-1 flex gap-1">
-                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/40" />
-
-                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/40 [animation-delay:150ms]" />
-
-                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/40 [animation-delay:300ms]" />
-                      </div>
-                    </div>
-                  </div>
+                <div className="flex items-center gap-2 text-sm text-white/40">
+                  <Sparkles size={15} />
+                  <span>
+                    DecidlyAI está pensando...
+                  </span>
                 </div>
               )}
 
               {errorMessage && (
-                <div className="mx-auto max-w-lg rounded-2xl bg-red-500/[0.07] px-4 py-3 text-center text-xs leading-5 text-red-200/75">
-                  {
-                    errorMessage
-                  }
+                <div className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                  {errorMessage}
                 </div>
               )}
             </div>
-          </div>
-        </section>
-
-        {/* ====================================================
-            COMPOSER
-            ==================================================== */}
-
-        <div
-          className="fixed inset-x-0 bottom-0 z-50 px-3 sm:px-4"
-          style={{
-            transform: `translate3d(0, -${keyboardOffset}px, 0)`,
-            willChange:
-              "transform",
-            paddingBottom:
-              "10px",
-          }}
-        >
-          <form
-            onSubmit={handleSubmit}
-            className="mx-auto w-full max-w-3xl"
-          >
-            <div className="rounded-[22px] bg-[#15101d]/95 p-2 shadow-[0_16px_50px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
-              <div className="flex items-end gap-2">
-                <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(
-                    event,
-                  ) =>
-                    handleInput(
-                      event.target
-                        .value,
-                      event.target,
-                    )
-                  }
-                  onKeyDown={
-                    handleTextareaKeyDown
-                  }
-                  onFocus={
-                    handleTextareaFocus
-                  }
-                  disabled={
-                    isLoading
-                  }
-                  rows={1}
-                  placeholder="Escreva sua decisão..."
-                  className="block min-h-[58px] max-h-[140px] flex-1 resize-none overflow-y-auto bg-transparent px-3 py-4 text-[15px] leading-6 text-white caret-purple-300 placeholder:text-white/25 disabled:cursor-not-allowed disabled:opacity-50"
-                  style={{
-                    border:
-                      "none",
-                    outline:
-                      "none",
-                    boxShadow:
-                      "none",
-                    WebkitAppearance:
-                      "none",
-                  }}
-                />
-
-                {/* ==================================================
-                    SELETOR DE IDIOMA
-                    ================================================== */}
-
-                <div className="relative mb-1">
-                  <select
-                    value={
-                      speechLanguage
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      setSpeechLanguage(
-                        event.target
-                          .value,
-                      )
-                    }
-                    disabled={
-                      isListening ||
-                      isLoading
-                    }
-                    aria-label="Idioma do microfone"
-                    className="h-11 max-w-[105px] appearance-none rounded-[15px] bg-white/[0.05] px-2 text-[11px] text-white/55 outline-none transition hover:bg-white/[0.08] disabled:opacity-40"
-                  >
-                    {SPEECH_LANGUAGES.map(
-                      (
-                        language,
-                      ) => (
-                        <option
-                          key={
-                            language.code
-                          }
-                          value={
-                            language.code
-                          }
-                          className="bg-[#15101d] text-white"
-                        >
-                          {
-                            language.name
-                          }
-                        </option>
-                      ),
-                    )}
-                  </select>
-                </div>
-
-                {/* ==================================================
-                    MICROFONE
-                    ================================================== */}
-
-                <button
-                  type="button"
-                  onClick={
-                    toggleMicrophone
-                  }
-                  disabled={
-                    isLoading
-                  }
-                  aria-label={
-                    isListening
-                      ? "Parar microfone"
-                      : "Usar microfone"
-                  }
-                  title={
-                    isListening
-                      ? "Parar microfone"
-                      : "Usar microfone"
-                  }
-                  className={`mb-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] transition active:scale-95 ${
-                    isListening
-                      ? "bg-red-500 text-white shadow-lg shadow-red-950/30"
-                      : "bg-white/[0.05] text-white/65 hover:bg-white/[0.09] hover:text-white"
-                  } disabled:cursor-not-allowed disabled:opacity-25`}
-                >
-                  {isListening ? (
-                    <X
-                      size={18}
-                      strokeWidth={
-                        2.2
-                      }
-                    />
-                  ) : (
-                    <Mic
-                      size={18}
-                      strokeWidth={
-                        2.1
-                      }
-                    />
-                  )}
-                </button>
-
-                {/* ==================================================
-                    ENVIAR
-                    ================================================== */}
-
-                <button
-                  type="submit"
-                  disabled={
-                    !input.trim() ||
-                    isLoading
-                  }
-                  className="mb-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-purple-600 text-white shadow-lg shadow-purple-950/25 transition hover:bg-purple-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-25"
-                  aria-label="Enviar mensagem"
-                >
-                  <Send
-                    size={17}
-                    strokeWidth={2.2}
-                  />
-                </button>
-              </div>
-            </div>
-
-            <p className="mt-2 text-center text-[10px] text-white/20">
-              A DecidlyAI pode cometer
-              erros. Verifique informações
-              importantes.
-            </p>
-          </form>
+          )}
         </div>
       </main>
 
-      {/* ======================================================
-          SWIPE EDGE
-          ====================================================== */}
+      {/* COMPOSER */}
 
-      {!sidebarOpen && (
-        <div
-          className="fixed inset-y-0 left-0 z-[80] w-7 touch-pan-y"
-          onPointerDown={
-            startSidebarDrag
-          }
-          onPointerMove={
-            moveSidebarDrag
-          }
-          onPointerUp={
-            endSidebarDrag
-          }
-          onPointerCancel={
-            endSidebarDrag
-          }
-          aria-hidden="true"
-        />
-      )}
+      <div
+        className="fixed left-0 right-0 z-50 px-3 sm:px-4"
+        style={{
+          bottom: 0,
+          transform: `translate3d(0, -${keyboardOffset}px, 0)`,
+          transition:
+            "transform 90ms linear",
+        }}
+      >
+        <div className="mx-auto w-full max-w-3xl pb-3 sm:pb-5">
+          <div className="rounded-[26px] bg-[#17111e]/95 px-2 py-2 shadow-2xl backdrop-blur-xl">
+            <div className="flex items-end gap-1">
+              {/* MICROPHONE */}
+
+              <button
+                type="button"
+                onClick={startListening}
+                disabled={isLoading}
+                className={`mb-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition ${
+                  isListening
+                    ? "bg-white text-black"
+                    : "text-white/45 hover:bg-white/[0.06] hover:text-white"
+                } disabled:cursor-not-allowed disabled:opacity-30`}
+                aria-label={
+                  isListening
+                    ? "Parar microfone"
+                    : "Usar microfone"
+                }
+                title={
+                  isListening
+                    ? "Parar microfone"
+                    : "Usar microfone"
+                }
+              >
+                {isListening ? (
+                  <MicOff size={20} />
+                ) : (
+                  <Mic size={20} />
+                )}
+              </button>
+
+              {/* TEXTAREA */}
+
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(event) =>
+                  setInput(event.target.value)
+                }
+                onKeyDown={handleTextareaKeyDown}
+                onFocus={handleTextareaFocus}
+                placeholder="Escreva sua decisão..."
+                rows={1}
+                disabled={isLoading}
+                className="min-h-[58px] flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-3 text-[15px] leading-6 text-white outline-none ring-0 shadow-none placeholder:text-white/35 focus:border-0 focus:outline-none focus:ring-0 disabled:opacity-50"
+              />
+
+              {/* SEND */}
+
+              <button
+                type="button"
+                onClick={sendMessage}
+                disabled={!input.trim() || isLoading}
+                className="mb-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-25"
+                aria-label="Enviar"
+              >
+                <Send size={18} />
+              </button>
+            </div>
+          </div>
+
+          <p className="mt-2 text-center text-[11px] text-white/25">
+            A DecidlyAI pode cometer erros. Verifique informações importantes.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
