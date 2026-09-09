@@ -3,9 +3,15 @@ import {
   Link,
   useNavigate,
 } from "@tanstack/react-router"
-import { useEffect, useMemo, useRef, useState } from "react"
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import {
   ArrowUp,
+  Check,
   ChevronRight,
   Copy,
   Menu,
@@ -14,7 +20,6 @@ import {
   Search,
   Sparkles,
   X,
-  Check,
 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -49,10 +54,12 @@ type Subscription = {
   expires_at: string | null
 }
 
+const SIDEBAR_WIDTH = 320
+
 function getFriendlyAiError(
   status?: number,
   backendMessage?: string,
-): string {
+) {
   const message = String(
     backendMessage ?? "",
   ).toLowerCase()
@@ -113,7 +120,7 @@ async function getAiFunction(
   setModelLabel: (
     value: string,
   ) => void,
-): Promise<string> {
+) {
   const { data, error } =
     await supabase.auth.getUser()
 
@@ -130,7 +137,10 @@ async function getAiFunction(
       .select(
         "plan,status,expires_at",
       )
-      .eq("user_id", data.user.id)
+      .eq(
+        "user_id",
+        data.user.id,
+      )
       .order("created_at", {
         ascending: false,
       })
@@ -149,7 +159,7 @@ async function getAiFunction(
     status === "active" ||
     status === "ativo"
 
-  const validDate =
+  const valid =
     !subscription?.expires_at ||
     new Date(
       subscription.expires_at,
@@ -158,13 +168,14 @@ async function getAiFunction(
   if (
     plan === "vip" &&
     active &&
-    validDate
+    valid
   ) {
     setModelLabel("VIP")
     return "decidly-ai"
   }
 
   setModelLabel("Free")
+
   return "decidly-ai-free"
 }
 
@@ -201,17 +212,24 @@ function ConversationWorkspace() {
   const [search, setSearch] =
     useState("")
 
-  const [sidebarProgress, setSidebarProgress] =
-    useState(0)
-
-  const [dragging, setDragging] =
-    useState(false)
-
   const [copiedId, setCopiedId] =
     useState<string | null>(null)
 
   const [error, setError] =
     useState<string | null>(null)
+
+  /*
+   * Sidebar
+   */
+
+  const sidebarRef =
+    useRef<HTMLElement | null>(null)
+
+  const backdropRef =
+    useRef<HTMLDivElement | null>(null)
+
+  const sidebarProgress =
+    useRef(0)
 
   const dragStartX =
     useRef(0)
@@ -219,154 +237,663 @@ function ConversationWorkspace() {
   const startProgress =
     useRef(0)
 
+  const dragging =
+    useRef(false)
+
+  const raf =
+    useRef<number | null>(null)
+
   const messagesEndRef =
     useRef<HTMLDivElement | null>(null)
 
-  const SIDEBAR_WIDTH = 300
+  /*
+   * Evita mandar a mesma mensagem
+   * duas vezes.
+   */
 
-  const sidebarOpen =
-    sidebarProgress > 0
+  const processingInitialMessage =
+    useRef(false)
+
+  const setSidebarVisual = (
+    progress: number,
+  ) => {
+    sidebarProgress.current =
+      progress
+
+    if (raf.current !== null) {
+      cancelAnimationFrame(
+        raf.current,
+      )
+    }
+
+    raf.current =
+      requestAnimationFrame(() => {
+        if (sidebarRef.current) {
+          sidebarRef.current.style.transform =
+            `translate3d(${
+              -SIDEBAR_WIDTH +
+              SIDEBAR_WIDTH *
+                progress
+            }px, 0, 0)`
+        }
+
+        if (backdropRef.current) {
+          backdropRef.current.style.opacity =
+            String(progress * 0.75)
+
+          backdropRef.current.style.pointerEvents =
+            progress > 0.01
+              ? "auto"
+              : "none"
+        }
+      })
+  }
+
+  const finishSidebar = (
+    open: boolean,
+  ) => {
+    dragging.current = false
+
+    const target = open ? 1 : 0
+
+    sidebarProgress.current =
+      target
+
+    if (sidebarRef.current) {
+      sidebarRef.current.style.transition =
+        "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)"
+
+      sidebarRef.current.style.transform =
+        `translate3d(${
+          -SIDEBAR_WIDTH +
+          SIDEBAR_WIDTH *
+            target
+        }px, 0, 0)`
+    }
+
+    if (backdropRef.current) {
+      backdropRef.current.style.transition =
+        "opacity 260ms ease"
+
+      backdropRef.current.style.opacity =
+        String(target * 0.75)
+
+      backdropRef.current.style.pointerEvents =
+        target
+          ? "auto"
+          : "none"
+    }
+
+    window.setTimeout(() => {
+      if (sidebarRef.current) {
+        sidebarRef.current.style.transition =
+          "none"
+      }
+
+      if (backdropRef.current) {
+        backdropRef.current.style.transition =
+          "none"
+      }
+    }, 280)
+  }
 
   const openSidebar = () => {
-    setSidebarProgress(1)
+    finishSidebar(true)
   }
 
   const closeSidebar = () => {
-    setSidebarProgress(0)
+    finishSidebar(false)
   }
 
-  const loadData = async () => {
-    setLoading(true)
-    setError(null)
+  const startSidebarDrag = (
+    clientX: number,
+  ) => {
+    dragging.current = true
 
-    const { data: authData } =
-      await supabase.auth.getUser()
+    dragStartX.current =
+      clientX
 
-    if (!authData.user) {
-      navigate({
-        to: "/login",
-      })
-      return
+    startProgress.current =
+      sidebarProgress.current
+
+    if (sidebarRef.current) {
+      sidebarRef.current.style.transition =
+        "none"
     }
 
-    const uid = authData.user.id
+    if (backdropRef.current) {
+      backdropRef.current.style.transition =
+        "none"
+    }
+  }
 
-    setUserId(uid)
+  const moveSidebarDrag = (
+    clientX: number,
+  ) => {
+    if (!dragging.current) return
 
-    const [
-      conversationResult,
-      conversationsResult,
-      messagesResult,
-    ] = await Promise.all([
-      supabase
-        .from("conversations")
-        .select("*")
-        .eq("id", conversationId)
-        .eq("user_id", uid)
-        .maybeSingle(),
+    const delta =
+      clientX -
+      dragStartX.current
 
-      supabase
-        .from("conversations")
-        .select("*")
-        .eq("user_id", uid)
-        .order("updated_at", {
-          ascending: false,
-        }),
+    let progress =
+      startProgress.current +
+      delta / SIDEBAR_WIDTH
 
-      supabase
-        .from("messages")
-        .select("*")
-        .eq(
-          "conversation_id",
-          conversationId,
+    progress = Math.max(
+      0,
+      Math.min(1, progress),
+    )
+
+    setSidebarVisual(progress)
+  }
+
+  const endSidebarDrag = () => {
+    if (!dragging.current) return
+
+    const progress =
+      sidebarProgress.current
+
+    /*
+     * 51% ou mais = abre.
+     * 50% ou menos = fecha.
+     */
+    finishSidebar(
+      progress > 0.5,
+    )
+  }
+
+  /*
+   * Carrega conversa.
+   */
+
+  const loadConversation =
+    async () => {
+      setLoading(true)
+      setError(null)
+
+      const { data: authData } =
+        await supabase.auth.getUser()
+
+      if (!authData.user) {
+        navigate({
+          to: "/login",
+        })
+        return
+      }
+
+      const uid =
+        authData.user.id
+
+      setUserId(uid)
+
+      /*
+       * Primeiro coloca a mensagem
+       * pendente na tela imediatamente.
+       */
+
+      let pendingMessage: string | null =
+        null
+
+      try {
+        pendingMessage =
+          sessionStorage.getItem(
+            `decidly-pending-${conversationId}`,
+          )
+      } catch {
+        pendingMessage = null
+      }
+
+      if (
+        pendingMessage &&
+        pendingMessage.trim()
+      ) {
+        const instantMessage: Message =
+          {
+            id: `instant-${Date.now()}`,
+            conversation_id:
+              conversationId,
+            user_id: uid,
+            role: "user",
+            content:
+              pendingMessage,
+            created_at:
+              new Date().toISOString(),
+          }
+
+        setMessages([
+          instantMessage,
+        ])
+
+        /*
+         * Remove da sessionStorage para
+         * não aparecer novamente em
+         * um refresh.
+         */
+        try {
+          sessionStorage.removeItem(
+            `decidly-pending-${conversationId}`,
+          )
+        } catch {
+          // Ignora
+        }
+
+        /*
+         * A IA começa imediatamente.
+         */
+        if (
+          !processingInitialMessage.current
+        ) {
+          processingInitialMessage.current =
+            true
+
+          void processMessage(
+            uid,
+            pendingMessage,
+            [],
+          )
+        }
+      }
+
+      const [
+        conversationResult,
+        conversationsResult,
+        messagesResult,
+      ] = await Promise.all([
+        supabase
+          .from("conversations")
+          .select("*")
+          .eq(
+            "id",
+            conversationId,
+          )
+          .eq(
+            "user_id",
+            uid,
+          )
+          .maybeSingle(),
+
+        supabase
+          .from("conversations")
+          .select("*")
+          .eq(
+            "user_id",
+            uid,
+          )
+          .order(
+            "updated_at",
+            {
+              ascending: false,
+            },
+          ),
+
+        supabase
+          .from("messages")
+          .select("*")
+          .eq(
+            "conversation_id",
+            conversationId,
+          )
+          .eq(
+            "user_id",
+            uid,
+          )
+          .order(
+            "created_at",
+            {
+              ascending: true,
+            },
+          ),
+      ])
+
+      if (
+        conversationResult.error ||
+        !conversationResult.data
+      ) {
+        setError(
+          "Esta decisão não existe ou você não tem acesso a ela.",
         )
-        .eq("user_id", uid)
-        .order("created_at", {
-          ascending: true,
-        }),
-    ])
 
-    if (
-      conversationResult.error ||
-      !conversationResult.data
-    ) {
-      setError(
-        "Esta decisão não existe ou você não tem acesso a ela.",
+        setLoading(false)
+        return
+      }
+
+      setConversation(
+        conversationResult.data as Conversation,
       )
+
+      setConversations(
+        (conversationsResult.data ??
+          []) as Conversation[],
+      )
+
+      /*
+       * Se existe mensagem pendente,
+       * não sobrescreve a mensagem
+       * instantânea.
+       */
+      if (
+        !pendingMessage
+      ) {
+        setMessages(
+          (messagesResult.data ??
+            []) as Message[],
+        )
+      } else if (
+        messagesResult.data
+      ) {
+        const databaseMessages =
+          messagesResult.data as Message[]
+
+        setMessages(
+          databaseMessages.length
+            ? databaseMessages
+            : [
+                {
+                  id: `instant-${Date.now()}`,
+                  conversation_id:
+                    conversationId,
+                  user_id: uid,
+                  role: "user",
+                  content:
+                    pendingMessage,
+                  created_at:
+                    new Date().toISOString(),
+                },
+              ],
+        )
+      }
+
       setLoading(false)
-      return
     }
-
-    setConversation(
-      conversationResult.data as Conversation,
-    )
-
-    setConversations(
-      (conversationsResult.data ??
-        []) as Conversation[],
-    )
-
-    setMessages(
-      (messagesResult.data ??
-        []) as Message[],
-    )
-
-    setLoading(false)
-  }
 
   useEffect(() => {
-    loadData()
+    loadConversation()
   }, [conversationId])
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: "smooth",
-    })
+    messagesEndRef.current?.scrollIntoView(
+      {
+        behavior: "smooth",
+      },
+    )
   }, [messages, sending])
 
-  const filteredConversations =
-    useMemo(() => {
-      const term =
-        search.trim().toLowerCase()
+  /*
+   * Envio da IA.
+   */
 
-      if (!term) {
-        return conversations
+  const processMessage =
+    async (
+      uid: string,
+      text: string,
+      history: {
+        role:
+          | "user"
+          | "assistant"
+        content: string
+      }[],
+    ) => {
+      setSending(true)
+
+      try {
+        const functionName =
+          await getAiFunction(
+            setModelLabel,
+          )
+
+        const {
+          data,
+          error:
+            functionError,
+        } =
+          await supabase.functions.invoke(
+            functionName,
+            {
+              body: {
+                message: text,
+                history,
+                conversationId,
+              },
+            },
+          )
+
+        if (functionError) {
+          let backendMessage =
+            functionError.message
+
+          try {
+            if (
+              functionError.context
+            ) {
+              const cloned =
+                functionError.context.clone()
+
+              const json =
+                await cloned.json()
+
+              backendMessage =
+                json?.error ??
+                json?.message ??
+                backendMessage
+            }
+          } catch {
+            // Mantém mensagem original
+          }
+
+          throw {
+            status:
+              functionError.context
+                ?.status,
+            message:
+              backendMessage,
+          }
+        }
+
+        if (data?.error) {
+          throw {
+            status:
+              data.status,
+            message:
+              data.error,
+          }
+        }
+
+        if (
+          !data ||
+          typeof data.response !==
+            "string" ||
+          !data.response.trim()
+        ) {
+          throw {
+            status: 500,
+            message:
+              "Resposta inválida da IA.",
+          }
+        }
+
+        const answer =
+          data.response.trim()
+
+        /*
+         * Salva a mensagem do usuário.
+         */
+        await supabase
+          .from("messages")
+          .insert({
+            conversation_id:
+              conversationId,
+            user_id: uid,
+            role: "user",
+            content: text,
+          })
+
+        /*
+         * Salva a resposta.
+         */
+        await supabase
+          .from("messages")
+          .insert({
+            conversation_id:
+              conversationId,
+            user_id: uid,
+            role: "assistant",
+            content: answer,
+          })
+
+        await supabase
+          .from("conversations")
+          .update({
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq(
+            "id",
+            conversationId,
+          )
+          .eq(
+            "user_id",
+            uid,
+          )
+
+        const assistantMessage: Message =
+          {
+            id: crypto.randomUUID(),
+            conversation_id:
+              conversationId,
+            user_id: uid,
+            role: "assistant",
+            content: answer,
+            created_at:
+              new Date().toISOString(),
+          }
+
+        /*
+         * Remove qualquer mensagem
+         * temporária/duplicada do usuário
+         * com o mesmo conteúdo e garante
+         * uma única mensagem visível.
+         */
+        setMessages(
+          (current) => {
+            const withoutDuplicates =
+              current.filter(
+                (message) =>
+                  !(
+                    message.role ===
+                      "user" &&
+                    message.content ===
+                      text &&
+                    message.id.startsWith(
+                      "instant-",
+                    )
+                  ),
+              )
+
+            return [
+              ...withoutDuplicates,
+              {
+                id: crypto.randomUUID(),
+                conversation_id:
+                  conversationId,
+                user_id: uid,
+                role: "user",
+                content: text,
+                created_at:
+                  new Date().toISOString(),
+              },
+              assistantMessage,
+            ]
+          },
+        )
+      } catch (caught) {
+        const typed =
+          caught as {
+            status?: number
+            message?: string
+          }
+
+        setMessages(
+          (current) => [
+            ...current,
+            {
+              id: crypto.randomUUID(),
+              conversation_id:
+                conversationId,
+              user_id: uid,
+              role: "assistant",
+              content:
+                getFriendlyAiError(
+                  typed.status,
+                  typed.message,
+                ),
+              created_at:
+                new Date().toISOString(),
+            },
+          ],
+        )
+      } finally {
+        setSending(false)
+        processingInitialMessage.current =
+          false
       }
+    }
 
-      return conversations.filter(
-        (item) =>
-          item.title
-            .toLowerCase()
-            .includes(term),
-      )
-    }, [conversations, search])
+  /*
+   * Mensagem enviada dentro de uma
+   * conversa já existente.
+   */
 
-  const createConversation = async () => {
-    if (!userId) return
+  const sendMessage = async () => {
+    const text =
+      input.trim()
 
-    const id = crypto.randomUUID()
-
-    const { error } =
-      await supabase
-        .from("conversations")
-        .insert({
-          id,
-          user_id: userId,
-          title: "Nova decisão",
-        })
-
-    if (error) {
+    if (
+      !text ||
+      sending ||
+      !userId
+    ) {
       return
     }
 
-    navigate({
-      to: "/workspace/$conversationId",
-      params: {
-        conversationId: id,
-      },
-    })
+    setInput("")
 
-    closeSidebar()
+    const instantMessage: Message =
+      {
+        id: `instant-${Date.now()}`,
+        conversation_id:
+          conversationId,
+        user_id: userId,
+        role: "user",
+        content: text,
+        created_at:
+          new Date().toISOString(),
+      }
+
+    /*
+     * Aparece na mesma hora.
+     */
+    setMessages(
+      (current) => [
+        ...current,
+        instantMessage,
+      ],
+    )
+
+    const history =
+      messages
+        .slice(-12)
+        .map((message) => ({
+          role: message.role,
+          content:
+            message.content,
+        }))
+
+    void processMessage(
+      userId,
+      text,
+      history,
+    )
   }
 
   const copyMessage = async (
@@ -379,364 +906,131 @@ function ConversationWorkspace() {
 
       setCopiedId(message.id)
 
-      setTimeout(() => {
+      window.setTimeout(() => {
         setCopiedId(null)
       }, 1500)
     } catch {
-      // Clipboard indisponível
-    }
-  }
-
-  const sendMessage = async () => {
-    const trimmed =
-      input.trim()
-
-    if (
-      !trimmed ||
-      sending ||
-      !userId
-    ) {
-      return
-    }
-
-    setInput("")
-    setSending(true)
-    setError(null)
-
-    const temporaryMessage: Message = {
-      id: `temporary-${Date.now()}`,
-      conversation_id:
-        conversationId,
-      user_id: userId,
-      role: "user",
-      content: trimmed,
-      created_at:
-        new Date().toISOString(),
-    }
-
-    setMessages((current) => [
-      ...current,
-      temporaryMessage,
-    ])
-
-    try {
-      const functionName =
-        await getAiFunction(
-          setModelLabel,
-        )
-
-      const history = messages
-        .slice(-12)
-        .map((message) => ({
-          role: message.role,
-          content: message.content,
-        }))
-
-      const {
-        data,
-        error: functionError,
-      } = await supabase.functions.invoke(
-        functionName,
-        {
-          body: {
-            message: trimmed,
-            history,
-            conversationId,
-          },
-        },
-      )
-
-      if (functionError) {
-        let backendMessage =
-          functionError.message
-
-        try {
-          if (
-            functionError.context
-          ) {
-            const cloned =
-              functionError.context.clone()
-
-            const json =
-              await cloned.json()
-
-            backendMessage =
-              json?.error ??
-              json?.message ??
-              backendMessage
-          }
-        } catch {
-          // Mantém mensagem original
-        }
-
-        throw {
-          status:
-            functionError.context
-              ?.status,
-          message:
-            backendMessage,
-        }
-      }
-
-      if (data?.error) {
-        throw {
-          status: data.status,
-          message: data.error,
-        }
-      }
-
-      if (
-        !data ||
-        typeof data.response !==
-          "string" ||
-        !data.response.trim()
-      ) {
-        throw {
-          status: 500,
-          message:
-            "Resposta inválida da IA.",
-        }
-      }
-
-      const assistantMessage: Message =
-        {
-          id: crypto.randomUUID(),
-          conversation_id:
-            conversationId,
-          user_id: userId,
-          role: "assistant",
-          content:
-            data.response.trim(),
-          created_at:
-            new Date().toISOString(),
-        }
-
-      const { error: userInsertError } =
-        await supabase
-          .from("messages")
-          .insert({
-            conversation_id:
-              conversationId,
-            user_id: userId,
-            role: "user",
-            content: trimmed,
-          })
-
-      if (userInsertError) {
-        throw {
-          status: 500,
-          message:
-            userInsertError.message,
-        }
-      }
-
-      const {
-        error: assistantInsertError,
-      } = await supabase
-        .from("messages")
-        .insert({
-          conversation_id:
-            conversationId,
-          user_id: userId,
-          role: "assistant",
-          content:
-            assistantMessage.content,
-        })
-
-      if (assistantInsertError) {
-        throw {
-          status: 500,
-          message:
-            assistantInsertError.message,
-        }
-      }
-
-      await supabase
-        .from("conversations")
-        .update({
-          updated_at:
-            new Date().toISOString(),
-        })
-        .eq(
-          "id",
-          conversationId,
-        )
-        .eq(
-          "user_id",
-          userId,
-        )
-
-      setMessages((current) =>
-        current
-          .filter(
-            (message) =>
-              message.id !==
-              temporaryMessage.id,
-          )
-          .concat([
-            {
-              ...temporaryMessage,
-              id: crypto.randomUUID(),
-            },
-            assistantMessage,
-          ]),
-      )
-
-      setConversations((current) =>
-        current.map((item) =>
-          item.id ===
-          conversationId
-            ? {
-                ...item,
-                updated_at:
-                  new Date().toISOString(),
-              }
-            : item,
-        ),
-      )
-    } catch (caught) {
-      const typed =
-        caught as {
-          status?: number
-          message?: string
-        }
-
-      setMessages((current) => [
-        ...current,
-        {
-          id: crypto.randomUUID(),
-          conversation_id:
-            conversationId,
-          user_id: userId,
-          role: "assistant",
-          content:
-            getFriendlyAiError(
-              typed.status,
-              typed.message,
-            ),
-          created_at:
-            new Date().toISOString(),
-        },
-      ])
-    } finally {
-      setSending(false)
-    }
-  }
-
-  const handlePointerDown = (
-    event: React.PointerEvent,
-  ) => {
-    event.currentTarget.setPointerCapture(
-      event.pointerId,
-    )
-
-    dragStartX.current =
-      event.clientX
-
-    startProgress.current =
-      sidebarProgress
-
-    setDragging(true)
-  }
-
-  const handlePointerMove = (
-    event: React.PointerEvent,
-  ) => {
-    if (!dragging) return
-
-    const difference =
-      event.clientX -
-      dragStartX.current
-
-    let progress =
-      startProgress.current +
-      difference / SIDEBAR_WIDTH
-
-    progress = Math.max(
-      0,
-      Math.min(1, progress),
-    )
-
-    setSidebarProgress(progress)
-  }
-
-  const handlePointerUp = (
-    event: React.PointerEvent,
-  ) => {
-    if (!dragging) return
-
-    try {
-      event.currentTarget.releasePointerCapture(
-        event.pointerId,
-      )
-    } catch {
       // Ignora
     }
-
-    setDragging(false)
-
-    if (sidebarProgress >= 0.45) {
-      openSidebar()
-    } else {
-      closeSidebar()
-    }
   }
 
-  return (
-    <div
-      className="relative h-screen w-full overflow-hidden bg-[#090611] text-white"
-      onPointerMove={
-        dragging
-          ? handlePointerMove
-          : undefined
+  const createConversation =
+    async () => {
+      if (!userId) return
+
+      const id =
+        crypto.randomUUID()
+
+      const { error: insertError } =
+        await supabase
+          .from("conversations")
+          .insert({
+            id,
+            user_id: userId,
+            title:
+              "Nova decisão",
+          })
+
+      if (insertError) {
+        return
       }
-    >
-      {/* BACKDROP */}
+
+      navigate({
+        to: "/workspace/$conversationId",
+        params: {
+          conversationId: id,
+        },
+      })
+
+      closeSidebar()
+    }
+
+  const filtered =
+    useMemo(() => {
+      const term =
+        search
+          .trim()
+          .toLowerCase()
+
+      if (!term) {
+        return conversations
+      }
+
+      return conversations.filter(
+        (item) =>
+          item.title
+            .toLowerCase()
+            .includes(term),
+      )
+    }, [
+      conversations,
+      search,
+    ])
+
+  return (
+    <div className="relative h-screen w-full overflow-hidden bg-[#090611] text-white">
+
+      {/* =====================================================
+          BACKDROP
+      ====================================================== */}
+
       <div
-        className="fixed inset-0 z-30 bg-black/60 backdrop-blur-[2px]"
+        ref={backdropRef}
+        className="fixed inset-0 z-40 bg-black/70 backdrop-blur-[2px]"
         style={{
-          opacity:
-            sidebarProgress * 0.8,
-          pointerEvents:
-            sidebarProgress > 0
-              ? "auto"
-              : "none",
-          transition: dragging
-            ? "none"
-            : "opacity 280ms ease",
+          opacity: 0,
+          pointerEvents: "none",
         }}
         onClick={closeSidebar}
       />
 
-      {/* SIDEBAR */}
+      {/* =====================================================
+          SIDEBAR
+      ====================================================== */}
+
       <aside
-        className="fixed left-0 top-0 z-50 flex h-full flex-col border-r border-white/[0.08] bg-[#0d0918] shadow-2xl shadow-black/60"
+        ref={sidebarRef}
+        className="fixed left-0 top-0 z-50 flex h-full flex-col border-r border-white/[0.08] bg-[#0c0816] shadow-[20px_0_70px_rgba(0,0,0,0.45)]"
         style={{
           width: SIDEBAR_WIDTH,
-          transform: `translateX(${
-            -SIDEBAR_WIDTH +
-            SIDEBAR_WIDTH *
-              sidebarProgress
-          }px)`,
-          transition: dragging
-            ? "none"
-            : "transform 280ms cubic-bezier(0.22, 1, 0.36, 1)",
+          transform: `translate3d(-${SIDEBAR_WIDTH}px,0,0)`,
+          transition: "none",
+          willChange: "transform",
+          touchAction: "pan-y",
         }}
-        onPointerDown={
-          handlePointerDown
-        }
-        onPointerMove={
-          handlePointerMove
-        }
-        onPointerUp={
-          handlePointerUp
-        }
+        onPointerDown={(event) => {
+          event.currentTarget.setPointerCapture(
+            event.pointerId,
+          )
+
+          startSidebarDrag(
+            event.clientX,
+          )
+        }}
+        onPointerMove={(event) => {
+          if (!dragging.current)
+            return
+
+          moveSidebarDrag(
+            event.clientX,
+          )
+        }}
+        onPointerUp={() => {
+          endSidebarDrag()
+        }}
+        onPointerCancel={() => {
+          endSidebarDrag()
+        }}
       >
+
         {/* HEADER */}
+
         <div className="flex h-[72px] shrink-0 items-center justify-between border-b border-white/[0.06] px-5">
           <Link
             to="/workspace"
-            onClick={closeSidebar}
+            onPointerDown={(event) =>
+              event.stopPropagation()
+            }
             className="flex items-center gap-3"
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-700 shadow-lg shadow-purple-950/40">
@@ -755,18 +1049,25 @@ function ConversationWorkspace() {
           </Link>
 
           <button
+            onPointerDown={(event) =>
+              event.stopPropagation()
+            }
             onClick={closeSidebar}
-            className="rounded-lg p-2 text-white/40 transition hover:bg-white/5 hover:text-white"
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-white/40 transition hover:bg-white/[0.06] hover:text-white"
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* NEW */}
+        {/* NOVA DECISÃO */}
+
         <div className="p-4">
           <button
+            onPointerDown={(event) =>
+              event.stopPropagation()
+            }
             onClick={createConversation}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-3 text-sm font-semibold shadow-lg shadow-purple-950/30 transition hover:brightness-110 active:scale-[0.98]"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-3 text-sm font-semibold shadow-lg shadow-purple-950/30 transition active:scale-[0.98]"
           >
             <Plus size={17} />
             Nova decisão
@@ -774,7 +1075,13 @@ function ConversationWorkspace() {
         </div>
 
         {/* SEARCH */}
-        <div className="px-4 pb-4">
+
+        <div
+          className="px-4 pb-4"
+          onPointerDown={(event) =>
+            event.stopPropagation()
+          }
+        >
           <div className="relative">
             <Search
               size={16}
@@ -788,29 +1095,31 @@ function ConversationWorkspace() {
                   event.target.value,
                 )
               }
-              onPointerDown={(event) =>
-                event.stopPropagation()
-              }
               placeholder="Pesquisar decisões"
               className="h-10 w-full rounded-xl border border-white/[0.07] bg-white/[0.035] pl-9 pr-3 text-xs text-white outline-none placeholder:text-white/25 focus:border-violet-500/40"
             />
           </div>
         </div>
 
-        {/* HISTORY */}
-        <div className="min-h-0 flex-1 overflow-y-auto px-3">
+        {/* HISTÓRICO */}
+
+        <div
+          className="min-h-0 flex-1 overflow-y-auto px-3"
+          onPointerDown={(event) =>
+            event.stopPropagation()
+          }
+        >
           <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/25">
-            Decisões
+            Suas decisões
           </div>
 
-          {filteredConversations.length ===
-          0 ? (
+          {filtered.length === 0 ? (
             <div className="px-3 py-8 text-center text-xs text-white/25">
               Nenhuma decisão encontrada.
             </div>
           ) : (
             <div className="space-y-1">
-              {filteredConversations.map(
+              {filtered.map(
                 (item) => {
                   const active =
                     item.id ===
@@ -859,7 +1168,7 @@ function ConversationWorkspace() {
 
                       <ChevronRight
                         size={14}
-                        className="text-white/20"
+                        className="text-white/15"
                       />
                     </button>
                   )
@@ -869,8 +1178,14 @@ function ConversationWorkspace() {
           )}
         </div>
 
-        {/* ACCOUNT */}
-        <div className="shrink-0 border-t border-white/[0.06] p-3">
+        {/* CONTA */}
+
+        <div
+          className="shrink-0 border-t border-white/[0.06] p-3"
+          onPointerDown={(event) =>
+            event.stopPropagation()
+          }
+        >
           <button
             onClick={() =>
               navigate({
@@ -883,7 +1198,7 @@ function ConversationWorkspace() {
               D
             </div>
 
-            <div className="min-w-0 flex-1">
+            <div>
               <div className="text-xs font-semibold text-white/70">
                 Minha conta
               </div>
@@ -896,46 +1211,61 @@ function ConversationWorkspace() {
         </div>
       </aside>
 
-      {/* EDGE SWIPE */}
+      {/* =====================================================
+          BORDA PARA COMEÇAR O SWIPE
+      ====================================================== */}
+
       <div
-        className="fixed left-0 top-0 z-40 h-full w-6 touch-none"
+        className="fixed left-0 top-0 z-30 h-full w-7 touch-none"
         onPointerDown={(event) => {
           if (
-            sidebarProgress !== 0
+            sidebarProgress.current !== 0
           ) {
             return
           }
 
-          dragStartX.current =
-            event.clientX
-
-          startProgress.current = 0
-
-          setDragging(true)
-
           event.currentTarget.setPointerCapture(
             event.pointerId,
           )
+
+          dragging.current = true
+          dragStartX.current =
+            event.clientX
+          startProgress.current = 0
+
+          if (sidebarRef.current) {
+            sidebarRef.current.style.transition =
+              "none"
+          }
         }}
-        onPointerMove={
-          dragging
-            ? handlePointerMove
-            : undefined
-        }
-        onPointerUp={
-          dragging
-            ? handlePointerUp
-            : undefined
-        }
+        onPointerMove={(event) => {
+          if (!dragging.current)
+            return
+
+          moveSidebarDrag(
+            event.clientX,
+          )
+        }}
+        onPointerUp={() => {
+          endSidebarDrag()
+        }}
+        onPointerCancel={() => {
+          endSidebarDrag()
+        }}
       />
 
-      {/* MAIN */}
-      <main className="relative flex h-full w-full flex-col">
-        {/* TOP */}
+      {/* =====================================================
+          CHAT
+      ====================================================== */}
+
+      <main className="flex h-full w-full flex-col">
+
+        {/* HEADER */}
+
         <header className="flex h-[72px] shrink-0 items-center gap-3 px-4 sm:px-6">
           <button
             onClick={openSidebar}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.035] text-white/60 transition hover:border-violet-400/20 hover:bg-white/[0.06] hover:text-white active:scale-95"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.035] text-white/60 transition hover:bg-white/[0.06] hover:text-white active:scale-95"
           >
             <Menu size={19} />
           </button>
@@ -943,7 +1273,7 @@ function ConversationWorkspace() {
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-sm font-semibold text-white/80">
               {conversation?.title ??
-                "Decisão"}
+                "Nova decisão"}
             </h1>
 
             <div className="mt-0.5 flex items-center gap-2 text-[10px] text-white/25">
@@ -964,28 +1294,35 @@ function ConversationWorkspace() {
           </div>
         </header>
 
-        {/* CONTENT */}
+        {/* ===================================================
+            MENSAGENS
+        ==================================================== */}
+
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-32 sm:px-8">
-          <div className="mx-auto max-w-3xl pt-6">
-            {loading ? (
-              <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="mx-auto max-w-3xl pt-5">
+
+            {loading &&
+            messages.length === 0 ? (
+              <div className="flex min-h-[55vh] items-center justify-center">
                 <div className="flex items-center gap-3 text-sm text-white/30">
                   <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/10 border-t-violet-400" />
-                  Carregando análise...
+                  Abrindo decisão...
                 </div>
               </div>
             ) : error ? (
-              <div className="rounded-2xl border border-red-400/10 bg-red-500/[0.04] p-6 text-center">
-                <p className="text-sm text-white/60">
-                  {error}
-                </p>
+              <div className="flex min-h-[50vh] items-center justify-center">
+                <div className="rounded-2xl border border-red-400/10 bg-red-500/[0.04] p-6 text-center">
+                  <p className="text-sm text-white/60">
+                    {error}
+                  </p>
 
-                <Link
-                  to="/workspace"
-                  className="mt-4 inline-flex rounded-xl bg-violet-600 px-4 py-2 text-xs font-semibold"
-                >
-                  Voltar ao workspace
-                </Link>
+                  <Link
+                    to="/workspace"
+                    className="mt-4 inline-flex rounded-xl bg-violet-600 px-4 py-2 text-xs font-semibold"
+                  >
+                    Voltar ao workspace
+                  </Link>
+                </div>
               </div>
             ) : messages.length === 0 ? (
               <div className="flex min-h-[55vh] flex-col items-center justify-center text-center">
@@ -1008,6 +1345,7 @@ function ConversationWorkspace() {
               </div>
             ) : (
               <div className="space-y-7">
+
                 {messages.map(
                   (message) => (
                     <div
@@ -1019,13 +1357,15 @@ function ConversationWorkspace() {
                           : "flex justify-start"
                       }
                     >
+
                       {message.role ===
                       "user" ? (
-                        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-violet-600/90 px-4 py-3 text-sm leading-6 shadow-lg shadow-violet-950/20">
+                        <div className="max-w-[88%] rounded-2xl rounded-br-md bg-violet-600/90 px-4 py-3 text-sm leading-6 shadow-lg shadow-violet-950/20 sm:max-w-[80%]">
                           {message.content}
                         </div>
                       ) : (
                         <div className="w-full max-w-3xl">
+
                           <div className="mb-3 flex items-center gap-2">
                             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-700">
                               <Sparkles
@@ -1039,7 +1379,8 @@ function ConversationWorkspace() {
                           </div>
 
                           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5 shadow-xl shadow-black/10">
-                            <div className="prose prose-invert prose-sm max-w-none prose-p:leading-7 prose-headings:text-white prose-p:text-white/65 prose-strong:text-white prose-li:text-white/65">
+
+                            <div className="prose prose-invert prose-sm max-w-none prose-p:leading-7 prose-p:text-white/65 prose-headings:text-white prose-strong:text-white prose-li:text-white/65">
                               <ReactMarkdown
                                 remarkPlugins={[
                                   remarkGfm,
@@ -1051,7 +1392,7 @@ function ConversationWorkspace() {
                               </ReactMarkdown>
                             </div>
 
-                            <div className="mt-5 flex items-center border-t border-white/[0.06] pt-3">
+                            <div className="mt-5 border-t border-white/[0.06] pt-3">
                               <button
                                 onClick={() =>
                                   copyMessage(
@@ -1089,9 +1430,11 @@ function ConversationWorkspace() {
                   ),
                 )}
 
+                {/* DIGITANDO */}
+
                 {sending && (
                   <div className="flex items-start gap-3">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-700">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-700">
                       <Sparkles
                         size={13}
                       />
@@ -1100,6 +1443,7 @@ function ConversationWorkspace() {
                     <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] px-5 py-4">
                       <div className="flex gap-1">
                         <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-300" />
+
                         <span
                           className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-300"
                           style={{
@@ -1107,6 +1451,7 @@ function ConversationWorkspace() {
                               "120ms",
                           }}
                         />
+
                         <span
                           className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-300"
                           style={{
@@ -1119,16 +1464,25 @@ function ConversationWorkspace() {
                   </div>
                 )}
 
-                <div ref={messagesEndRef} />
+                <div
+                  ref={
+                    messagesEndRef
+                  }
+                />
               </div>
             )}
           </div>
         </div>
 
-        {/* INPUT FIXO */}
+        {/* ===================================================
+            INPUT
+        ==================================================== */}
+
         <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-20 px-4 pb-4 sm:px-8">
           <div className="pointer-events-auto mx-auto max-w-3xl">
+
             <div className="rounded-2xl border border-white/[0.08] bg-[#100b1b]/95 p-2 shadow-2xl shadow-black/40 backdrop-blur-xl transition focus-within:border-violet-400/25">
+
               <textarea
                 value={input}
                 onChange={(event) =>
@@ -1166,9 +1520,7 @@ function ConversationWorkspace() {
                   }
                   className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-600 text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-25"
                 >
-                  <ArrowUp
-                    size={17}
-                  />
+                  <ArrowUp size={17} />
                 </button>
               </div>
             </div>
@@ -1177,6 +1529,7 @@ function ConversationWorkspace() {
               O DecidlyAI pode cometer erros.
               Revise informações importantes.
             </p>
+
           </div>
         </div>
       </main>
