@@ -6,9 +6,9 @@ import {
   useEffect,
   useRef,
   useState,
-  type PointerEvent as ReactPointerEvent,
-  type KeyboardEvent,
   type FormEvent,
+  type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
   Menu,
@@ -47,14 +47,15 @@ type Subscription = {
 };
 
 const SIDEBAR_MAX_WIDTH = 320;
-const SIDEBAR_EDGE_SIZE = 28;
 
 function Workspace() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarProgress, setSidebarProgress] = useState(0);
 
   const [search, setSearch] = useState("");
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<
+    Conversation[]
+  >([]);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -63,6 +64,8 @@ function Workspace() {
   const [errorMessage, setErrorMessage] = useState("");
 
   const [userId, setUserId] = useState<string | null>(null);
+
+  // Altura que o teclado está ocupando no visual viewport.
   const [keyboardOffset, setKeyboardOffset] = useState(0);
 
   const sidebarRef = useRef<HTMLElement | null>(null);
@@ -76,9 +79,12 @@ function Workspace() {
   });
 
   /*
-   * ---------------------------------------------------------
+   * ============================================================
    * SIDEBAR
-   * ---------------------------------------------------------
+   *
+   * O sidebar é FIXED e fica em uma camada própria.
+   * Ele não participa do layout do chat.
+   * ============================================================
    */
 
   const getSidebarWidth = useCallback(() => {
@@ -94,7 +100,10 @@ function Workspace() {
 
   const paintSidebar = useCallback(
     (progress: number, animate = false) => {
-      const safeProgress = Math.max(0, Math.min(1, progress));
+      const safeProgress = Math.max(
+        0,
+        Math.min(1, progress),
+      );
 
       setSidebarProgress(safeProgress);
 
@@ -103,9 +112,8 @@ function Workspace() {
           ? "transform 220ms cubic-bezier(.2,.8,.2,1)"
           : "none";
 
-        sidebarRef.current.style.transform = `translate3d(${
-          -100 + safeProgress * 100
-        }%, 0, 0)`;
+        sidebarRef.current.style.transform =
+          `translate3d(${-100 + safeProgress * 100}%, 0, 0)`;
       }
     },
     [],
@@ -122,7 +130,10 @@ function Workspace() {
   const startSidebarDrag = (
     event: ReactPointerEvent<HTMLElement>,
   ) => {
-    if (event.pointerType === "mouse" && event.button !== 0) {
+    if (
+      event.pointerType === "mouse" &&
+      event.button !== 0
+    ) {
       return;
     }
 
@@ -133,10 +144,12 @@ function Workspace() {
       startX: event.clientX,
       startProgress: sidebarOpen
         ? 1
-        : sidebarProgress || 0,
+        : sidebarProgress,
     };
 
-    event.currentTarget.setPointerCapture(event.pointerId);
+    event.currentTarget.setPointerCapture(
+      event.pointerId,
+    );
 
     if (width > 0) {
       paintSidebar(
@@ -155,11 +168,14 @@ function Workspace() {
 
     const width = getSidebarWidth();
 
-    if (width <= 0) {
+    if (!width) {
       return;
     }
 
-    const delta = event.clientX - dragState.current.startX;
+    const delta =
+      event.clientX -
+      dragState.current.startX;
+
     const progress =
       dragState.current.startProgress +
       delta / width;
@@ -174,26 +190,30 @@ function Workspace() {
 
     dragState.current.active = false;
 
-    const shouldOpen = sidebarProgress >= 0.45;
+    setSidebarOpen(
+      sidebarProgress >= 0.45,
+    );
 
-    settleSidebar(shouldOpen);
+    paintSidebar(
+      sidebarProgress >= 0.45 ? 1 : 0,
+      true,
+    );
   };
 
   useEffect(() => {
-    if (!sidebarOpen) {
-      paintSidebar(0, false);
-    } else {
-      paintSidebar(1, false);
-    }
+    paintSidebar(
+      sidebarOpen ? 1 : 0,
+      false,
+    );
   }, [sidebarOpen, paintSidebar]);
 
   /*
-   * ---------------------------------------------------------
-   * MOBILE KEYBOARD
+   * ============================================================
+   * TECLADO MOBILE
    *
-   * O composer fica preso ao visual viewport.
-   * Quando o teclado abre, o bottom sobe automaticamente.
-   * ---------------------------------------------------------
+   * Não espera animação.
+   * O composer acompanha diretamente o visualViewport.
+   * ============================================================
    */
 
   useEffect(() => {
@@ -203,76 +223,65 @@ function Workspace() {
       return;
     }
 
-    let frame = 0;
+    let animationFrame = 0;
 
-    const updateKeyboardPosition = () => {
-      cancelAnimationFrame(frame);
+    const updateKeyboard = () => {
+      cancelAnimationFrame(animationFrame);
 
-      frame = requestAnimationFrame(() => {
-        const viewportBottom =
-          window.innerHeight -
-          (viewport.height + viewport.offsetTop);
-
-        const nextOffset = Math.max(
+      animationFrame = requestAnimationFrame(() => {
+        const keyboardHeight = Math.max(
           0,
-          Math.round(viewportBottom),
+          Math.round(
+            window.innerHeight -
+              (viewport.height +
+                viewport.offsetTop),
+          ),
         );
 
-        setKeyboardOffset(nextOffset);
+        setKeyboardOffset(keyboardHeight);
 
-        if (nextOffset > 0) {
-          requestAnimationFrame(() => {
-            const chat = chatRef.current;
+        if (keyboardHeight > 0) {
+          const chat = chatRef.current;
 
-            if (chat) {
-              chat.scrollTop = chat.scrollHeight;
-            }
-          });
+          if (chat) {
+            chat.scrollTop =
+              chat.scrollHeight;
+          }
         }
       });
     };
 
     viewport.addEventListener(
       "resize",
-      updateKeyboardPosition,
+      updateKeyboard,
     );
 
     viewport.addEventListener(
       "scroll",
-      updateKeyboardPosition,
+      updateKeyboard,
     );
 
-    window.addEventListener(
-      "resize",
-      updateKeyboardPosition,
-    );
-
-    updateKeyboardPosition();
+    updateKeyboard();
 
     return () => {
-      cancelAnimationFrame(frame);
+      cancelAnimationFrame(animationFrame);
 
       viewport.removeEventListener(
         "resize",
-        updateKeyboardPosition,
+        updateKeyboard,
       );
 
       viewport.removeEventListener(
         "scroll",
-        updateKeyboardPosition,
-      );
-
-      window.removeEventListener(
-        "resize",
-        updateKeyboardPosition,
+        updateKeyboard,
       );
     };
   }, []);
 
   /*
-   * ---------------------------------------------------------
-   * AUTO SCROLL DO CHAT
-   * ---------------------------------------------------------
+   * ============================================================
+   * AUTO SCROLL
+   * ============================================================
    */
 
   useEffect(() => {
@@ -291,17 +300,15 @@ function Workspace() {
   }, [messages, isLoading]);
 
   /*
-   * ---------------------------------------------------------
+   * ============================================================
    * AUTH
-   * ---------------------------------------------------------
+   * ============================================================
    */
 
   const getAuthenticatedUser = useCallback(
     async () => {
-      const {
-        data,
-        error,
-      } = await supabase.auth.getUser();
+      const { data, error } =
+        await supabase.auth.getUser();
 
       if (error || !data.user) {
         return null;
@@ -313,9 +320,9 @@ function Workspace() {
   );
 
   /*
-   * ---------------------------------------------------------
+   * ============================================================
    * HISTÓRICO
-   * ---------------------------------------------------------
+   * ============================================================
    */
 
   const loadConversations = useCallback(
@@ -345,11 +352,11 @@ function Workspace() {
   useEffect(() => {
     let cancelled = false;
 
-    const initializeWorkspace = async () => {
+    const initialize = async () => {
       const user =
         await getAuthenticatedUser();
 
-      if (cancelled || !user) {
+      if (!user || cancelled) {
         return;
       }
 
@@ -358,7 +365,7 @@ function Workspace() {
       await loadConversations(user.id);
     };
 
-    void initializeWorkspace();
+    void initialize();
 
     return () => {
       cancelled = true;
@@ -369,9 +376,9 @@ function Workspace() {
   ]);
 
   /*
-   * ---------------------------------------------------------
-   * NOVA CONVERSA
-   * ---------------------------------------------------------
+   * ============================================================
+   * NOVA DECISÃO
+   * ============================================================
    */
 
   const startNewConversation = () => {
@@ -379,12 +386,6 @@ function Workspace() {
     setInput("");
     setErrorMessage("");
     setSidebarOpen(false);
-    setSidebarProgress(0);
-
-    if (sidebarRef.current) {
-      sidebarRef.current.style.transform =
-        "translate3d(-100%, 0, 0)";
-    }
 
     requestAnimationFrame(() => {
       textareaRef.current?.focus();
@@ -392,12 +393,9 @@ function Workspace() {
   };
 
   /*
-   * ---------------------------------------------------------
-   * CRIA HISTÓRICO
-   *
-   * O histórico é salvo somente para o usuário autenticado.
-   * O ID nunca é exibido na interface.
-   * ---------------------------------------------------------
+   * ============================================================
+   * SALVAR CONVERSA
+   * ============================================================
    */
 
   const saveConversationTitle = async (
@@ -440,32 +438,31 @@ function Workspace() {
   };
 
   /*
-   * ---------------------------------------------------------
-   * IA
+   * ============================================================
+   * ESCOLHA DA IA
    *
-   * Mesma lógica do /ai-test:
-   * VIP ativo -> decidly-ai
-   * demais -> decidly-ai-free
-   * ---------------------------------------------------------
+   * Mantida a mesma lógica do ai-test.
+   * ============================================================
    */
 
   const getAiFunction = async (
     currentUserId: string,
   ) => {
-    const {
-      data,
-      error,
-    } = await supabase
-      .from("subscription")
-      .select(
-        "plan,status,expires_at",
-      )
-      .eq("user_id", currentUserId)
-      .order("created_at", {
-        ascending: false,
-      })
-      .limit(1)
-      .maybeSingle();
+    const { data, error } =
+      await supabase
+        .from("subscription")
+        .select(
+          "plan,status,expires_at",
+        )
+        .eq(
+          "user_id",
+          currentUserId,
+        )
+        .order("created_at", {
+          ascending: false,
+        })
+        .limit(1)
+        .maybeSingle();
 
     if (error || !data) {
       return "decidly-ai-free";
@@ -499,6 +496,14 @@ function Workspace() {
     return "decidly-ai-free";
   };
 
+  /*
+   * ============================================================
+   * ERROS
+   *
+   * Nunca mostra detalhes técnicos do backend.
+   * ============================================================
+   */
+
   const getFriendlyAiError = (
     status?: number,
   ) => {
@@ -507,7 +512,7 @@ function Workspace() {
     }
 
     if (status === 429) {
-      return "A IA está recebendo muitas solicitações agora. Tente novamente em alguns segundos.";
+      return "A DecidlyAI está recebendo muitas solicitações agora. Tente novamente em alguns segundos.";
     }
 
     if (
@@ -521,16 +526,16 @@ function Workspace() {
       status &&
       status >= 500
     ) {
-      return "A IA está temporariamente indisponível. Tente novamente em instantes.";
+      return "A DecidlyAI está temporariamente indisponível. Tente novamente em instantes.";
     }
 
     return "Não consegui processar sua mensagem agora. Tente novamente.";
   };
 
   /*
-   * ---------------------------------------------------------
-   * ENVIO
-   * ---------------------------------------------------------
+   * ============================================================
+   * ENVIAR MENSAGEM
+   * ============================================================
    */
 
   const sendMessage = async () => {
@@ -544,7 +549,8 @@ function Workspace() {
     setErrorMessage("");
 
     if (textareaRef.current) {
-      textareaRef.current.style.height = "58px";
+      textareaRef.current.style.height =
+        "58px";
     }
 
     const userMessage: ChatMessage = {
@@ -587,34 +593,28 @@ function Workspace() {
       const {
         data,
         error,
-      } = await supabase.functions.invoke(
-        functionName,
-        {
-          body: {
-            message: text,
-            history,
+      } =
+        await supabase.functions.invoke(
+          functionName,
+          {
+            body: {
+              message: text,
+              history,
+            },
           },
-        },
-      );
+        );
 
       if (error) {
-        const context =
-          (
-            error as {
-              context?: Response;
-            }
-          ).context;
-
-        let status:
-          | number
-          | undefined;
-
-        if (context) {
-          status = context.status;
-        }
+        const context = (
+          error as {
+            context?: Response;
+          }
+        ).context;
 
         setErrorMessage(
-          getFriendlyAiError(status),
+          getFriendlyAiError(
+            context?.status,
+          ),
         );
 
         return;
@@ -637,7 +637,7 @@ function Workspace() {
 
       if (!response.trim()) {
         setErrorMessage(
-          "A IA não retornou uma resposta. Tente novamente.",
+          "A DecidlyAI não retornou uma resposta. Tente novamente.",
         );
 
         return;
@@ -651,17 +651,12 @@ function Workspace() {
         },
       ]);
 
-      /*
-       * O histórico é secundário.
-       * Se o banco estiver indisponível, a resposta da IA
-       * continua funcionando normalmente.
-       */
       if (messages.length === 0) {
         void saveConversationTitle(text);
       }
     } catch {
       setErrorMessage(
-        "Não consegui conectar à IA agora. Tente novamente em instantes.",
+        "Não consegui conectar à DecidlyAI agora. Tente novamente em instantes.",
       );
     } finally {
       setIsLoading(false);
@@ -687,9 +682,9 @@ function Workspace() {
   };
 
   /*
-   * ---------------------------------------------------------
+   * ============================================================
    * TEXTAREA
-   * ---------------------------------------------------------
+   * ============================================================
    */
 
   const resizeTextarea = (
@@ -698,11 +693,15 @@ function Workspace() {
     element.style.height = "0px";
 
     const nextHeight = Math.min(
-      Math.max(element.scrollHeight, 58),
+      Math.max(
+        element.scrollHeight,
+        58,
+      ),
       140,
     );
 
-    element.style.height = `${nextHeight}px`;
+    element.style.height =
+      `${nextHeight}px`;
   };
 
   const handleInput = (
@@ -729,7 +728,6 @@ function Workspace() {
     requestAnimationFrame(() => {
       textareaRef.current?.scrollIntoView({
         block: "nearest",
-        inline: "nearest",
       });
 
       const chat = chatRef.current;
@@ -741,46 +739,51 @@ function Workspace() {
     });
   };
 
-  /*
-   * ---------------------------------------------------------
-   * FILTRO
-   * ---------------------------------------------------------
-   */
-
   const filteredConversations =
-    conversations.filter((conversation) =>
-      conversation.title
-        .toLowerCase()
-        .includes(search.toLowerCase()),
+    conversations.filter(
+      (conversation) =>
+        conversation.title
+          .toLowerCase()
+          .includes(
+            search.toLowerCase(),
+          ),
     );
 
   /*
-   * ---------------------------------------------------------
-   * RENDER
-   * ---------------------------------------------------------
+   * ============================================================
+   * UI
+   * ============================================================
    */
 
   return (
     <AppShell>
       <div className="relative min-h-[100dvh] overflow-hidden bg-[#0d0912] text-white">
-        {/* =================================================
-            SIDEBAR FIXA
-            ================================================= */}
+        {/* ======================================================
+            SIDEBAR
+            FICA FORA DO FLUXO DO CHAT
+            ====================================================== */}
 
         <aside
           ref={sidebarRef}
-          onPointerDown={startSidebarDrag}
-          onPointerMove={moveSidebarDrag}
-          onPointerUp={endSidebarDrag}
-          onPointerCancel={endSidebarDrag}
+          onPointerDown={
+            startSidebarDrag
+          }
+          onPointerMove={
+            moveSidebarDrag
+          }
+          onPointerUp={
+            endSidebarDrag
+          }
+          onPointerCancel={
+            endSidebarDrag
+          }
           className="fixed inset-y-0 left-0 z-[100] flex w-[min(90vw,320px)] touch-pan-y flex-col bg-[#110c17] shadow-[20px_0_60px_rgba(0,0,0,0.35)]"
           style={{
             transform:
-              "translate3d(-100%, 0, 0)",
+              "translate3d(-100%,0,0)",
             willChange: "transform",
           }}
         >
-          {/* Sidebar header */}
           <div
             className="flex shrink-0 items-center justify-between px-4 py-4"
             onPointerDown={(event) =>
@@ -797,10 +800,7 @@ function Workspace() {
 
               <div>
                 <p className="text-sm font-semibold">
-                  Decidly
-                </p>
-                <p className="text-[11px] text-white/35">
-                  Workspace
+                  DecidlyAI
                 </p>
               </div>
             </div>
@@ -817,7 +817,6 @@ function Workspace() {
             </button>
           </div>
 
-          {/* Nova decisão */}
           <div
             className="px-3"
             onPointerDown={(event) =>
@@ -826,15 +825,16 @@ function Workspace() {
           >
             <button
               type="button"
-              onClick={startNewConversation}
-              className="flex w-full items-center gap-3 rounded-xl bg-purple-600/90 px-4 py-3 text-sm font-medium transition hover:bg-purple-600 active:scale-[0.99]"
+              onClick={
+                startNewConversation
+              }
+              className="flex w-full items-center gap-3 rounded-xl bg-purple-600/90 px-4 py-3 text-sm font-medium transition hover:bg-purple-600"
             >
               <Plus size={18} />
               Nova decisão
             </button>
           </div>
 
-          {/* Busca */}
           <div
             className="px-3 pt-4"
             onPointerDown={(event) =>
@@ -850,7 +850,9 @@ function Workspace() {
               <input
                 value={search}
                 onChange={(event) =>
-                  setSearch(event.target.value)
+                  setSearch(
+                    event.target.value,
+                  )
                 }
                 placeholder="Buscar decisões..."
                 className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/25"
@@ -858,7 +860,6 @@ function Workspace() {
             </div>
           </div>
 
-          {/* Histórico */}
           <div
             className="min-h-0 flex-1 overflow-y-auto px-3 py-5"
             onPointerDown={(event) =>
@@ -891,43 +892,28 @@ function Workspace() {
               </div>
             )}
           </div>
-
-          {/* Sidebar footer */}
-          <div
-            className="shrink-0 px-4 py-4"
-            onPointerDown={(event) =>
-              event.stopPropagation()
-            }
-          >
-            <div className="rounded-xl bg-white/[0.025] px-3 py-3 text-[11px] leading-5 text-white/25">
-              Suas decisões ficam vinculadas à sua
-              conta.
-            </div>
-          </div>
         </aside>
 
-        {/* =================================================
+        {/* Backdrop fica atrás do sidebar */}
+        <button
+          type="button"
+          aria-label="Fechar menu"
+          onClick={() =>
+            settleSidebar(false)
+          }
+          className={`fixed inset-0 z-[90] bg-black/45 backdrop-blur-[1px] transition-opacity duration-200 ${
+            sidebarOpen
+              ? "pointer-events-auto opacity-100"
+              : "pointer-events-none opacity-0"
+          }`}
+        />
+
+        {/* ======================================================
             ÁREA PRINCIPAL
-            ================================================= */}
+            ====================================================== */}
 
         <main className="relative min-h-[100dvh]">
-          {/* Backdrop somente atrás do sidebar */}
-          <button
-            type="button"
-            aria-label="Fechar menu"
-            onClick={() =>
-              settleSidebar(false)
-            }
-            className={`fixed inset-0 z-[90] bg-black/45 backdrop-blur-[1px] transition-opacity duration-200 ${
-              sidebarOpen
-                ? "pointer-events-auto opacity-100"
-                : "pointer-events-none opacity-0"
-            }`}
-          />
-
-          {/* =================================================
-              TOPBAR
-              ================================================= */}
+          {/* TOPBAR */}
 
           <header className="fixed inset-x-0 top-0 z-40 h-16 bg-[#0d0912]/90 backdrop-blur-xl">
             <div className="flex h-full items-center px-4">
@@ -945,32 +931,26 @@ function Workspace() {
               <div className="ml-2 flex items-center gap-2">
                 <img
                   src="/appicon.png"
-                  alt="Decidly"
+                  alt="DecidlyAI"
                   className="h-8 w-8 rounded-lg"
                 />
 
-                <div>
-                  <p className="text-sm font-semibold tracking-tight">
-                    Workspace
-                  </p>
-                  <p className="text-[10px] text-white/30">
-                    Seu espaço de decisões
-                  </p>
-                </div>
+                <p className="text-sm font-semibold tracking-tight">
+                  DecidlyAI
+                </p>
               </div>
             </div>
           </header>
 
-          {/* =================================================
+          {/* ====================================================
               CHAT
-              ================================================= */}
+              ==================================================== */}
 
           <section
             ref={chatRef}
             className="h-[100dvh] overflow-y-auto overscroll-contain px-4 pt-24 pb-[180px]"
           >
             <div className="mx-auto w-full max-w-3xl">
-              {/* Welcome */}
               {messages.length === 0 && (
                 <div className="flex min-h-[calc(100dvh-300px)] flex-col items-center justify-center px-4 pb-8 text-center">
                   <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#191020] shadow-[0_0_50px_rgba(139,92,246,0.08)]">
@@ -986,14 +966,13 @@ function Workspace() {
                   </h1>
 
                   <p className="mt-3 max-w-md text-sm leading-6 text-white/35">
-                    Explique a situação, as opções que
-                    você tem e o que está te deixando
-                    em dúvida.
+                    Explique a situação, as
+                    opções que você tem e o que
+                    está te deixando em dúvida.
                   </p>
                 </div>
               )}
 
-              {/* Mensagens */}
               <div className="space-y-4">
                 {messages.map(
                   (message, index) => (
@@ -1029,20 +1008,31 @@ function Workspace() {
                   ),
                 )}
 
-                {/* Loading */}
+                {/* MANTIDO: DecidlyAI está pensando... */}
+
                 {isLoading && (
                   <div className="flex justify-start">
                     <div className="rounded-[20px] bg-white/[0.045] px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/45" />
-                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/45 [animation-delay:150ms]" />
-                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/45 [animation-delay:300ms]" />
+                      <div className="flex items-center gap-2">
+                        <Sparkles
+                          size={14}
+                          className="text-purple-300"
+                        />
+
+                        <span className="text-xs text-white/45">
+                          DecidlyAI está pensando...
+                        </span>
+
+                        <div className="ml-1 flex gap-1">
+                          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/40" />
+                          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/40 [animation-delay:150ms]" />
+                          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/40 [animation-delay:300ms]" />
+                        </div>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Erro amigável */}
                 {errorMessage && (
                   <div className="mx-auto max-w-lg rounded-2xl bg-red-500/[0.07] px-4 py-3 text-center text-xs leading-5 text-red-200/75">
                     {errorMessage}
@@ -1052,14 +1042,13 @@ function Workspace() {
             </div>
           </section>
 
-          {/* =================================================
+          {/* ====================================================
               COMPOSER
-              
+
               SEM BORDA.
-              SEM OUTLINE.
-              SEM RING.
               SEM BORDA AZUL.
-              ================================================= */}
+              SEM OUTLINE.
+              ==================================================== */}
 
           <div
             className="fixed inset-x-0 z-50 px-3 sm:px-4"
@@ -1092,11 +1081,15 @@ function Workspace() {
                     }
                     disabled={isLoading}
                     rows={1}
+                    /*
+                     * MANTIDO: use aqui exatamente o
+                     * placeholder completo que você já tinha.
+                     */
                     placeholder="Escreva sua decisão..."
-                    className="block min-h-[58px] max-h-[140px] flex-1 resize-none overflow-y-auto bg-transparent px-3 py-4 text-[15px] leading-6 text-white caret-purple-300 placeholder:text-white/25 focus:border-transparent focus:outline-none focus:ring-0 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="block min-h-[58px] max-h-[140px] flex-1 resize-none overflow-y-auto bg-transparent px-3 py-4 text-[15px] leading-6 text-white caret-purple-300 placeholder:text-white/25 disabled:cursor-not-allowed disabled:opacity-50"
                     style={{
-                      border: "none",
-                      outline: "none",
+                      border: "0",
+                      outline: "0",
                       boxShadow: "none",
                     }}
                   />
@@ -1118,16 +1111,18 @@ function Workspace() {
                 </div>
               </div>
 
+              {/* MANTIDO: aviso da IA */}
               <p className="mt-2 text-center text-[10px] text-white/20">
-                Ctrl + Enter para enviar
+                A DecidlyAI pode cometer erros.
+                Verifique informações importantes.
               </p>
             </form>
           </div>
         </main>
 
-        {/* =================================================
-            EDGE SWIPE
-            ================================================= */}
+        {/* ======================================================
+            SWIPE EDGE
+            ====================================================== */}
 
         {!sidebarOpen && (
           <div
@@ -1138,7 +1133,9 @@ function Workspace() {
             onPointerMove={
               moveSidebarDrag
             }
-            onPointerUp={endSidebarDrag}
+            onPointerUp={
+              endSidebarDrag
+            }
             onPointerCancel={
               endSidebarDrag
             }
