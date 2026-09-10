@@ -1125,7 +1125,9 @@ function Workspace() {
           );
         } else {
           setError(
-            "Não foi possível obter uma resposta agora. Tente novamente.",
+            import.meta.env.DEV
+              ? `Falha da IA: ${message}`
+              : `Não foi possível obter uma resposta agora. ${message && message !== "AI_ERROR" ? message : "Tente novamente."}`,
           );
         }
       } finally {

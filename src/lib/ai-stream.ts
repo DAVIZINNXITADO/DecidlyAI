@@ -18,6 +18,16 @@ function textFrom(data: unknown): string {
   return "";
 }
 
+function errorFrom(data: unknown): string {
+  if (!data || typeof data !== "object") return "";
+  const value = data as Record<string, unknown>;
+  if (typeof value.error === "string") {
+    const details = typeof value.details === "string" ? ` — ${value.details}` : "";
+    return `${value.error}${details}`;
+  }
+  return "";
+}
+
 function cleanDoneMarker(text: string): string {
   return text.replace(/\s*\[DONE\]\s*$/gi, "").trimEnd();
 }
@@ -52,7 +62,10 @@ export async function streamAi(functionName: string, options: Options): Promise<
   }
 
   if (!response.body || !response.headers.get("content-type")?.includes("text/event-stream")) {
-    const complete = cleanDoneMarker(textFrom(await response.json()));
+    const data = await response.json().catch(() => ({}));
+    const serverError = errorFrom(data);
+    if (serverError) throw new Error(serverError);
+    const complete = cleanDoneMarker(textFrom(data));
     if (!complete) throw new Error("EMPTY_RESPONSE");
     options.onDelta?.(complete, complete);
     return complete;
@@ -73,7 +86,7 @@ export async function streamAi(functionName: string, options: Options): Promise<
     let parsed: unknown;
     try { parsed = JSON.parse(raw); } catch { return; }
     const value = parsed as Record<string, unknown>;
-    if (typeof value.error === "string") throw new Error(value.error);
+    if (typeof value.error === "string") throw new Error(errorFrom(value) || value.error);
     if (value.complete === true) {
       const completeText = typeof value.response === "string" ? value.response : textFrom(parsed);
       if (completeText && !accumulated) {
