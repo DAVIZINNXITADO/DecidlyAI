@@ -48,6 +48,7 @@ Deno.serve(async (request) => {
     let buffer = "";
     let fullText = "";
     let provider = "unknown";
+    let streamError = "";
     const stream = new ReadableStream({
       async start(controller) {
         const send = (data: unknown, name?: string) => controller.enqueue(encoder.encode(event(data, name)));
@@ -56,7 +57,10 @@ Deno.serve(async (request) => {
           if (!raw || raw === "[DONE]") return;
           try {
             const parsed = JSON.parse(raw) as Record<string, unknown>;
-            if (typeof parsed.error === "string") throw new Error(parsed.error);
+            if (typeof parsed.error === "string") {
+              streamError = parsed.details ? `${parsed.error} — ${String(parsed.details)}` : parsed.error;
+              return;
+            }
             if (typeof parsed.provider === "string") provider = parsed.provider;
             if (parsed.complete === true) {
               if (typeof parsed.response === "string" && !fullText) {
@@ -71,6 +75,8 @@ Deno.serve(async (request) => {
         try {
           while (true) { const { value, done } = await reader.read(); if (done) break; buffer += decoder.decode(value, { stream: true }); const blocks = buffer.split("\n\n"); buffer = blocks.pop() ?? ""; for (const block of blocks) consume(block); }
           buffer += decoder.decode(); if (buffer.trim()) consume(buffer);
+          if (streamError) { send({ error: streamError, provider }, "error"); controller.close(); return; }
+          if (!fullText.trim()) { send({ error: `${provider} não retornou conteúdo.` }, "error"); controller.close(); return; }
           const inputTokens = estimateTokens(`${JSON.stringify(body.history ?? [])}\n${body.message}`);
           const outputTokens = estimateTokens(fullText);
           const totalTokens = inputTokens + outputTokens;
