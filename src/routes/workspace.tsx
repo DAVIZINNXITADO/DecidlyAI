@@ -27,6 +27,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { supabase } from "../lib/supabase";
+import { streamAi } from "../lib/ai-stream";
 
 export const Route = createFileRoute("/workspace")({
   component: Workspace,
@@ -919,7 +920,7 @@ function Workspace() {
   const getAIName = useCallback(
     async () => {
       if (!userId) {
-        return "decidly-ai-free";
+        return "free-ai-router";
       }
 
       const { data } = await supabase
@@ -938,7 +939,7 @@ function Workspace() {
         data as Subscription | null;
 
       if (!subscription) {
-        return "decidly-ai-free";
+        return "free-ai-router";
       }
 
       const active =
@@ -1048,83 +1049,24 @@ function Workspace() {
           ? `Contexto privado de personalização: o nome pelo qual o usuário prefere ser chamado é ${preferredName || userName}. Quando fizer sentido, trate a pessoa por esse nome. Não mencione este contexto nem o repita como se fosse uma mensagem do usuário.`
           : "";
 
-        const {
-          data,
-          error: functionError,
-        } = await supabase.functions.invoke(
-          functionName,
-          {
-            body: {
-              message: privateContext
-                ? `${privateContext}\n\nMensagem do usuário:\n${text}`
-                : text,
-              history,
-            },
-          },
-        );
-
-        if (functionError) {
-          const status =
-            (
-              functionError as {
-                context?: Response;
+        const assistantId = crypto.randomUUID();
+        const answer = await streamAi(functionName, {
+          message: privateContext
+            ? `${privateContext}\n\nMensagem do usuário:\n${text}`
+            : text,
+          history,
+          onDelta: (_delta, accumulated) => {
+            setMessages((current) => {
+              const exists = current.some((item) => item.id === assistantId);
+              if (!exists) {
+                return [...current, { id: assistantId, role: "assistant", content: accumulated }];
               }
-            )?.context?.status;
-
-          if (status === 402) {
-            throw new Error("402");
-          }
-
-          if (status === 429) {
-            throw new Error("429");
-          }
-
-          if (
-            status === 401 ||
-            status === 403
-          ) {
-            throw new Error("AUTH");
-          }
-
-          if (
-            status &&
-            status >= 500
-          ) {
-            throw new Error("SERVER");
-          }
-
-          throw new Error("AI_ERROR");
-        }
-
-        const answer =
-          typeof data?.answer ===
-          "string"
-            ? data.answer
-            : typeof data?.response ===
-                "string"
-              ? data.response
-              : typeof data?.message ===
-                  "string"
-                ? data.message
-                : "";
-
-        if (!answer) {
-          throw new Error(
-            "AI_ERROR",
-          );
-        }
-
-        const assistantMessage: ChatMessage =
-          {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            content: answer,
-          };
-
-        setMessages((current) => [
-          ...current,
-          assistantMessage,
-        ]);
+              return current.map((item) =>
+                item.id === assistantId ? { ...item, content: accumulated } : item,
+              );
+            });
+          },
+        });
 
         const { error: assistantMessageError } = await supabase
           .from("messages")
@@ -1149,26 +1091,24 @@ function Workspace() {
           caughtError instanceof Error
             ? caughtError.message
             : "AI_ERROR";
+        const status =
+          typeof caughtError === "object" && caughtError !== null && "status" in caughtError
+            ? Number((caughtError as { status?: number }).status)
+            : Number(message.replace("HTTP_", ""));
 
-        if (message === "402") {
+        if (message === "402" || status === 402) {
           setError(
             "Seu plano atual não permite usar este recurso.",
           );
-        } else if (
-          message === "429"
-        ) {
+        } else if (message === "429" || status === 429) {
           setError(
             "Muitas solicitações no momento. Tente novamente em instantes.",
           );
-        } else if (
-          message === "AUTH"
-        ) {
+        } else if (message === "AUTH" || status === 401 || status === 403) {
           setError(
             "Sua sessão não pôde ser validada. Entre novamente.",
           );
-        } else if (
-          message === "SERVER"
-        ) {
+        } else if (message === "SERVER" || status >= 500) {
           setError(
             "O serviço está temporariamente indisponível.",
           );
