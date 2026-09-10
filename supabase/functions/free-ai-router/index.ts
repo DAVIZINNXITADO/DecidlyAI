@@ -19,6 +19,8 @@ const sseHeaders = {
 const event = (data: unknown, name?: string) =>
   `${name ? `event: ${name}\n` : ""}data: ${JSON.stringify(data)}\n\n`;
 
+const cleanDoneMarker = (text: string) => text.replace(/\s*\[DONE\]\s*$/gi, "").trimEnd();
+
 function responseText(data: unknown): string {
   if (typeof data === "string") return data;
   if (!data || typeof data !== "object") return "";
@@ -40,7 +42,7 @@ async function toSse(providerResponse: Response, provider: string): Promise<Resp
     const raw = await providerResponse.text();
     let parsed: unknown = raw;
     try { parsed = JSON.parse(raw); } catch { /* plain text */ }
-    const complete = responseText(parsed).trim();
+    const complete = cleanDoneMarker(responseText(parsed));
     if (!complete) return new Response(event({ error: `${provider} retornou resposta vazia.` }, "error"), { status: 502, headers: sseHeaders });
     return new Response(
       event({ delta: complete, accumulated: complete, provider }) +
@@ -73,7 +75,7 @@ async function toSse(providerResponse: Response, provider: string): Promise<Resp
                 const parsed = JSON.parse(raw) as Record<string, unknown>;
                 if (parsed.complete === true) continue;
                 const delta = responseText(parsed) || responseText((parsed.choices?.[0] as Record<string, unknown> | undefined)?.delta);
-                if (delta) { fullText += delta; send({ delta, accumulated: fullText, provider }); }
+                if (delta) { fullText = cleanDoneMarker(fullText + delta); send({ delta: cleanDoneMarker(delta), accumulated: fullText, provider }); }
               } catch { /* aguarda o próximo bloco */ }
             }
           }

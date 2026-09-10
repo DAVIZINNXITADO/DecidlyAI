@@ -9,6 +9,7 @@ const sseHeaders = { ...corsHeaders, "Content-Type": "text/event-stream; charset
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
 const event = (data: unknown, name?: string) => `${name ? `event: ${name}\n` : ""}data: ${JSON.stringify(data)}\n\n`;
 const estimateTokens = (text: string) => Math.max(1, Math.ceil(text.length / 4));
+const cleanDoneMarker = (text: string) => text.replace(/\s*\[DONE\]\s*$/gi, "").trimEnd();
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -59,12 +60,12 @@ Deno.serve(async (request) => {
             if (typeof parsed.provider === "string") provider = parsed.provider;
             if (parsed.complete === true) {
               if (typeof parsed.response === "string" && !fullText) {
-                fullText = parsed.response;
+                fullText = cleanDoneMarker(parsed.response);
                 send({ delta: fullText, accumulated: fullText, provider });
               }
               return;
             }
-            if (typeof parsed.delta === "string") { fullText += parsed.delta; send({ delta: parsed.delta, accumulated: fullText, provider }); }
+            if (typeof parsed.delta === "string") { fullText = cleanDoneMarker(fullText + parsed.delta); send({ delta: cleanDoneMarker(parsed.delta), accumulated: fullText, provider }); }
           } catch (error) { if (error instanceof Error && error.message) send({ error: error.message }, "error"); }
         };
         try {

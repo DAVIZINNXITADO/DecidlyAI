@@ -18,6 +18,10 @@ function textFrom(data: unknown): string {
   return "";
 }
 
+function cleanDoneMarker(text: string): string {
+  return text.replace(/\s*\[DONE\]\s*$/gi, "").trimEnd();
+}
+
 export async function streamAi(functionName: string, options: Options): Promise<string> {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
@@ -48,7 +52,7 @@ export async function streamAi(functionName: string, options: Options): Promise<
   }
 
   if (!response.body || !response.headers.get("content-type")?.includes("text/event-stream")) {
-    const complete = textFrom(await response.json()).trim();
+    const complete = cleanDoneMarker(textFrom(await response.json()));
     if (!complete) throw new Error("EMPTY_RESPONSE");
     options.onDelta?.(complete, complete);
     return complete;
@@ -73,7 +77,7 @@ export async function streamAi(functionName: string, options: Options): Promise<
     if (value.complete === true) {
       const completeText = typeof value.response === "string" ? value.response : textFrom(parsed);
       if (completeText && !accumulated) {
-        accumulated = completeText;
+        accumulated = cleanDoneMarker(completeText);
         options.onDelta?.(completeText, accumulated);
       }
       completeReceived = true;
@@ -84,7 +88,9 @@ export async function streamAi(functionName: string, options: Options): Promise<
     const delta = typeof value.accumulated === "string" && value.accumulated.startsWith(accumulated)
       ? value.accumulated.slice(accumulated.length)
       : next;
-    accumulated = typeof value.accumulated === "string" ? value.accumulated : accumulated + delta;
+    accumulated = cleanDoneMarker(
+      typeof value.accumulated === "string" ? value.accumulated : accumulated + delta,
+    );
     if (delta) options.onDelta?.(delta, accumulated);
   };
 
@@ -103,5 +109,5 @@ export async function streamAi(functionName: string, options: Options): Promise<
   buffer += decoder.decode();
   if (buffer.trim()) consume(buffer);
   if (!accumulated.trim()) throw new Error("EMPTY_RESPONSE");
-  return accumulated.trim();
+  return cleanDoneMarker(accumulated);
 }
