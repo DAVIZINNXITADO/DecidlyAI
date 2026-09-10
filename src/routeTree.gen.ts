@@ -18,7 +18,6 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as TecnologiaRouteImport } from './routes/tecnologia'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as WorkspaceRouteImport } from './routes/workspace'
-import { Route as WorkspaceConversationIdRouteImport } from './routes/workspace.$conversationId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -65,11 +64,6 @@ const WorkspaceRoute = WorkspaceRouteImport.update({
   path: '/workspace',
   getParentRoute: () => rootRouteImport,
 } as any)
-const WorkspaceConversationIdRoute = WorkspaceConversationIdRouteImport.update({
-  id: '/$conversationId',
-  path: '/$conversationId',
-  getParentRoute: () => WorkspaceRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -80,8 +74,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/tecnologia': typeof TecnologiaRoute
   '/terms': typeof TermsRoute
-  '/workspace': typeof WorkspaceRouteWithChildren
-  '/workspace/$conversationId': typeof WorkspaceConversationIdRoute
+  '/workspace': typeof WorkspaceRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -92,8 +85,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/tecnologia': typeof TecnologiaRoute
   '/terms': typeof TermsRoute
-  '/workspace': typeof WorkspaceRouteWithChildren
-  '/workspace/$conversationId': typeof WorkspaceConversationIdRoute
+  '/workspace': typeof WorkspaceRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -105,8 +97,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/tecnologia': typeof TecnologiaRoute
   '/terms': typeof TermsRoute
-  '/workspace': typeof WorkspaceRouteWithChildren
-  '/workspace/$conversationId': typeof WorkspaceConversationIdRoute
+  '/workspace': typeof WorkspaceRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -120,7 +111,6 @@ export interface FileRouteTypes {
     | '/tecnologia'
     | '/terms'
     | '/workspace'
-    | '/workspace/$conversationId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -132,7 +122,6 @@ export interface FileRouteTypes {
     | '/tecnologia'
     | '/terms'
     | '/workspace'
-    | '/workspace/$conversationId'
   id:
     | '__root__'
     | '/'
@@ -144,7 +133,6 @@ export interface FileRouteTypes {
     | '/tecnologia'
     | '/terms'
     | '/workspace'
-    | '/workspace/$conversationId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -156,7 +144,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   TecnologiaRoute: typeof TecnologiaRoute
   TermsRoute: typeof TermsRoute
-  WorkspaceRoute: typeof WorkspaceRouteWithChildren
+  WorkspaceRoute: typeof WorkspaceRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -224,27 +212,8 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkspaceRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/workspace/$conversationId': {
-      id: '/workspace/$conversationId'
-      path: '/$conversationId'
-      fullPath: '/workspace/$conversationId'
-      preLoaderRoute: typeof WorkspaceConversationIdRouteImport
-      parentRoute: typeof WorkspaceRoute
-    }
   }
 }
-
-interface WorkspaceRouteChildren {
-  WorkspaceConversationIdRoute: typeof WorkspaceConversationIdRoute
-}
-
-const WorkspaceRouteChildren: WorkspaceRouteChildren = {
-  WorkspaceConversationIdRoute: WorkspaceConversationIdRoute,
-}
-
-const WorkspaceRouteWithChildren = WorkspaceRoute._addFileChildren(
-  WorkspaceRouteChildren,
-)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -255,7 +224,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   TecnologiaRoute: TecnologiaRoute,
   TermsRoute: TermsRoute,
-  WorkspaceRoute: WorkspaceRouteWithChildren,
+  WorkspaceRoute: WorkspaceRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
