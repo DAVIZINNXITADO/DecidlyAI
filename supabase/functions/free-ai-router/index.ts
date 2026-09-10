@@ -73,12 +73,24 @@ async function toSse(providerResponse: Response, provider: string): Promise<Resp
               if (!raw || raw === "[DONE]") continue;
               try {
                 const parsed = JSON.parse(raw) as Record<string, unknown>;
-                if (parsed.complete === true) continue;
+                if (parsed.complete === true) {
+                  const finalText = cleanDoneMarker(responseText(parsed));
+                  if (finalText && !fullText) {
+                    fullText = finalText;
+                    send({ delta: finalText, accumulated: fullText, provider });
+                  }
+                  continue;
+                }
                 const delta = responseText(parsed) || responseText((parsed.choices?.[0] as Record<string, unknown> | undefined)?.delta);
                 if (delta) { fullText = cleanDoneMarker(fullText + delta); send({ delta: cleanDoneMarker(delta), accumulated: fullText, provider }); }
               } catch { /* aguarda o próximo bloco */ }
             }
           }
+        }
+        if (!fullText.trim()) {
+          send({ error: `${provider} não retornou conteúdo.` }, "error");
+          controller.close();
+          return;
         }
         send({ response: fullText, complete: true, provider }, "complete");
         send("[DONE]");
@@ -121,7 +133,12 @@ Deno.serve(async (request) => {
             body: payload,
           }),
         };
-        if (result.response.ok) return await toSse(result.response, provider);
+        if (result.response.ok) {
+          const normalized = await toSse(result.response, provider);
+          if (normalized.ok) return normalized;
+          lastError = `${provider}: resposta vazia`;
+          continue;
+        }
         lastError = `${provider}: HTTP ${result.response.status}`;
       } catch (error) {
         lastError = `${provider}: ${error instanceof Error ? error.message : "falha"}`;
