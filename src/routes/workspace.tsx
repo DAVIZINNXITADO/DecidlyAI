@@ -920,7 +920,7 @@ function Workspace() {
   const getAIName = useCallback(
     async () => {
       if (!userId) {
-        return "free-ai-router";
+        return "decidly-ai-stream";
       }
 
       const { data } = await supabase
@@ -939,7 +939,7 @@ function Workspace() {
         data as Subscription | null;
 
       if (!subscription) {
-        return "free-ai-router";
+        return "decidly-ai-stream";
       }
 
       const active =
@@ -968,7 +968,7 @@ function Workspace() {
         return "decidly-ai";
       }
 
-      return "decidly-ai-free";
+      return "decidly-ai-stream";
     },
     [userId],
   );
