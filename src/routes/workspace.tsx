@@ -586,6 +586,7 @@ function Workspace() {
         setActiveConversationId(
           conversation.id,
         );
+        setMessages([]);
 
         setChatMenuId(null);
         closeSidebar();
@@ -605,6 +606,7 @@ function Workspace() {
             "conversation_id",
             conversation.id,
           )
+          .eq("user_id", userId)
           .order("created_at", {
             ascending: true,
           });
@@ -615,7 +617,7 @@ function Workspace() {
           );
         }
       },
-      [closeSidebar],
+      [closeSidebar, userId],
     );
 
   /*
@@ -822,12 +824,12 @@ function Workspace() {
 
   const saveConversationTitle =
     useCallback(
-      async (title: string) => {
+      async (title: string): Promise<string | null> => {
         if (
           !userId ||
           !title.trim()
         ) {
-          return;
+          return null;
         }
 
         const safeTitle = title
@@ -861,7 +863,11 @@ function Workspace() {
               ),
             ],
           );
+
+          return data.id;
         }
+
+        return null;
       },
       [userId],
     );
@@ -966,6 +972,29 @@ function Workspace() {
       setIsLoading(true);
 
       try {
+        let conversationId = activeConversationId;
+
+        if (!conversationId) {
+          conversationId = await saveConversationTitle(text);
+        }
+
+        if (!conversationId) {
+          throw new Error("CONVERSATION_ERROR");
+        }
+
+        const { error: userMessageError } = await supabase
+          .from("messages")
+          .insert({
+            conversation_id: conversationId,
+            user_id: userId,
+            role: "user",
+            content: text,
+          });
+
+        if (userMessageError) {
+          throw new Error("MESSAGE_SAVE_ERROR");
+        }
+
         const functionName =
           await getAIName();
 
@@ -1059,14 +1088,24 @@ function Workspace() {
           assistantMessage,
         ]);
 
-        if (
-          messages.length === 0 &&
-          !activeConversationId
-        ) {
-          await saveConversationTitle(
-            text,
-          );
+        const { error: assistantMessageError } = await supabase
+          .from("messages")
+          .insert({
+            conversation_id: conversationId,
+            user_id: userId,
+            role: "assistant",
+            content: answer,
+          });
+
+        if (assistantMessageError) {
+          throw new Error("MESSAGE_SAVE_ERROR");
         }
+
+        await supabase
+          .from("conversations")
+          .update({ updated_at: new Date().toISOString() })
+          .eq("id", conversationId)
+          .eq("user_id", userId);
       } catch (caughtError) {
         const message =
           caughtError instanceof Error
@@ -1094,6 +1133,13 @@ function Workspace() {
         ) {
           setError(
             "O serviço está temporariamente indisponível.",
+          );
+        } else if (
+          message === "CONVERSATION_ERROR" ||
+          message === "MESSAGE_SAVE_ERROR"
+        ) {
+          setError(
+            "Não foi possível salvar esta conversa. Verifique sua conexão e tente novamente.",
           );
         } else {
           setError(
