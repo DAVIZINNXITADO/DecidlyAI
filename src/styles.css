@@ -354,3 +354,14 @@ a {
     filter: blur(40px);
   }
 }
+
+
+.audio-wave-bar {
+  height: 0.85rem;
+  animation: audio-wave 720ms ease-in-out infinite alternate;
+}
+
+@keyframes audio-wave {
+  from { transform: scaleY(0.35); opacity: 0.55; }
+  to { transform: scaleY(1.25); opacity: 1; }
+}

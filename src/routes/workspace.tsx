@@ -20,7 +20,6 @@ import {
   Copy,
   Check,
   Volume2,
-  VolumeX,
   Settings,
   MoreHorizontal,
 } from "lucide-react";
@@ -51,6 +50,20 @@ type Subscription = {
   status?: string | null;
   expires_at?: string | null;
 };
+
+function AudioWave({ active }: { active: boolean }) {
+  return (
+    <span className="flex h-4 items-center gap-[2px]" aria-hidden="true">
+      {[0, 1, 2, 3, 4].map((bar) => (
+        <span
+          key={bar}
+          className={`w-[2px] rounded-full bg-current ${active ? "audio-wave-bar" : "h-1"}`}
+          style={active ? { animationDelay: `${bar * 90}ms` } : undefined}
+        />
+      ))}
+    </span>
+  );
+}
 
 type VoiceGender = "male" | "female";
 
@@ -1638,103 +1651,56 @@ function Workspace() {
 
       setReadingCharIndex(-1);
 
-      const utterance =
-        new SpeechSynthesisUtterance(
-          message.content,
-        );
-
-      utterance.rate = 1.15;
-      utterance.pitch = 1;
-      utterance.volume = 1;
-      utterance.lang =
-        speechLanguage;
-
       const voice =
         findBestVoice(
           speechLanguage,
           speechGender,
         );
+      const speakableText = message.content
+        .replace(/```[\s\S]*?```/g, " ")
+        .replace(/[*_#>`~-]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      const chunks = speakableText.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? [speakableText];
+      let chunkIndex = 0;
 
-      if (voice) {
-        utterance.voice = voice;
-        utterance.lang = voice.lang;
-      }
-
-      utterance.onstart = () => {
-        if (
-          speechSessionRef.current !==
-          session
-        ) {
+      const speakNext = () => {
+        if (speechSessionRef.current !== session || chunkIndex >= chunks.length) {
+          speechRef.current = null;
+          setReadingMessageId(null);
+          setReadingCharIndex(-1);
           return;
         }
 
-        setReadingMessageId(
-          message.id,
-        );
+        const utterance = new SpeechSynthesisUtterance(chunks[chunkIndex++].trim());
+        utterance.rate = 1.05;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+        utterance.lang = voice?.lang || speechLanguage;
+        if (voice) utterance.voice = voice;
+        utterance.onstart = () => setReadingMessageId(message.id);
+        utterance.onboundary = (event) => {
+          if (speechSessionRef.current === session && event.name === "word") {
+            setReadingCharIndex(event.charIndex);
+          }
+        };
+        utterance.onend = speakNext;
+        utterance.onerror = () => {
+          if (speechSessionRef.current === session) {
+            setError("Não foi possível reproduzir o áudio. Toque novamente para tentar.");
+            stopReading();
+          }
+        };
+        speechRef.current = utterance;
+        window.speechSynthesis.speak(utterance);
       };
-
-      utterance.onboundary = (
-        event,
-      ) => {
-        if (
-          speechSessionRef.current !==
-          session
-        ) {
-          return;
-        }
-
-        if (
-          event.name === "word"
-        ) {
-          setReadingCharIndex(
-            event.charIndex,
-          );
-        }
-      };
-
-      utterance.onend = () => {
-        if (
-          speechSessionRef.current !==
-          session
-        ) {
-          return;
-        }
-
-        speechRef.current = null;
-
-        setReadingMessageId(null);
-        setReadingCharIndex(-1);
-      };
-
-      utterance.onerror = () => {
-        if (
-          speechSessionRef.current !==
-          session
-        ) {
-          return;
-        }
-
-        speechRef.current = null;
-
-        setReadingMessageId(null);
-        setReadingCharIndex(-1);
-      };
-
-      speechRef.current =
-        utterance;
 
       window.setTimeout(() => {
-        if (
-          speechSessionRef.current !==
-          session
-        ) {
-          return;
+        if (speechSessionRef.current === session) {
+          if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+          speakNext();
         }
-
-        window.speechSynthesis.speak(
-          utterance,
-        );
-      }, 50);
+      }, 120);
     },
     [
       readingMessageId,
@@ -2873,17 +2839,9 @@ function Workspace() {
                                   }
                                 >
                                   {isReading ? (
-                                    <VolumeX
-                                      size={
-                                        16
-                                      }
-                                    />
+                                    <AudioWave active />
                                   ) : (
-                                    <Volume2
-                                      size={
-                                        16
-                                      }
-                                    />
+                                    <Volume2 size={16} />
                                   )}
                                 </button>
                               </div>
