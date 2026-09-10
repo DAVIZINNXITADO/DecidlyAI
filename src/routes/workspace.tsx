@@ -326,6 +326,26 @@ function Workspace() {
       }
 
       setConversations(data ?? []);
+
+      const savedConversationId = window.localStorage.getItem(
+        `decidly-active-conversation:${userId}`,
+      );
+      const savedConversation = data?.find(
+        (conversation) => conversation.id === savedConversationId,
+      );
+
+      if (savedConversation) {
+        setActiveConversationId(savedConversation.id);
+
+        const { data: savedMessages } = await supabase
+          .from("messages")
+          .select("id,role,content")
+          .eq("conversation_id", savedConversation.id)
+          .eq("user_id", userId)
+          .order("created_at", { ascending: true });
+
+        setMessages((savedMessages ?? []) as ChatMessage[]);
+      }
     }, [userId]);
 
   useEffect(() => {
@@ -586,6 +606,10 @@ function Workspace() {
         setActiveConversationId(
           conversation.id,
         );
+        window.localStorage.setItem(
+          `decidly-active-conversation:${userId}`,
+          conversation.id,
+        );
         setMessages([]);
 
         setChatMenuId(null);
@@ -769,6 +793,11 @@ function Workspace() {
         setActiveConversationId(
           null,
         );
+        if (userId) {
+          window.localStorage.removeItem(
+            `decidly-active-conversation:${userId}`,
+          );
+        }
         setMessages([]);
       }
 
@@ -794,6 +823,11 @@ function Workspace() {
       setDislikes({});
       setCopiedMessageId(null);
       setActiveConversationId(null);
+      if (userId) {
+        window.localStorage.removeItem(
+          `decidly-active-conversation:${userId}`,
+        );
+      }
       setChatMenuId(null);
 
       speechSessionRef.current += 1;
@@ -850,6 +884,10 @@ function Workspace() {
 
         if (!insertError && data) {
           setActiveConversationId(
+            data.id,
+          );
+          window.localStorage.setItem(
+            `decidly-active-conversation:${userId}`,
             data.id,
           );
 
