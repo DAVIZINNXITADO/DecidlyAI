@@ -25,16 +25,21 @@ export async function streamAi(functionName: string, options: Options): Promise<
   const anonKey = import.meta.env["VITE_SUPABASE_ANON_KEY"] as string | undefined;
   if (!token || !baseUrl || !anonKey) throw new Error("AUTH");
 
-  const response = await fetch(`${baseUrl}/functions/v1/${functionName}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      apikey: anonKey,
-      "Content-Type": "application/json",
-      Accept: "text/event-stream, application/json",
-    },
-    body: JSON.stringify({ message: options.message, history: options.history, stream: true }),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/functions/v1/${functionName}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        apikey: anonKey,
+        "Content-Type": "application/json",
+        Accept: "text/event-stream, application/json",
+      },
+      body: JSON.stringify({ message: options.message, history: options.history, stream: true }),
+    });
+  } catch {
+    throw new Error("NETWORK");
+  }
 
   if (!response.ok) {
     const error = new Error(`HTTP_${response.status}`);
@@ -53,29 +58,41 @@ export async function streamAi(functionName: string, options: Options): Promise<
   const decoder = new TextDecoder();
   let buffer = "";
   let accumulated = "";
-  let done = false;
+  let completeReceived = false;
+  let doneReceived = false;
 
   const consume = (block: string) => {
-    const raw = block.split("\n").filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).join("\n");
-    if (!raw || raw === "[DONE]") { done = true; return; }
+    const normalized = block.replaceAll("\r\n", "\n");
+    const raw = normalized.split("\n").filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).join("\n");
+    if (!raw) return;
+    if (raw === "[DONE]") { doneReceived = true; return; }
     let parsed: unknown;
     try { parsed = JSON.parse(raw); } catch { return; }
     const value = parsed as Record<string, unknown>;
     if (typeof value.error === "string") throw new Error(value.error);
+    if (value.complete === true) {
+      const completeText = typeof value.response === "string" ? value.response : textFrom(parsed);
+      if (completeText && !accumulated) {
+        accumulated = completeText;
+        options.onDelta?.(completeText, accumulated);
+      }
+      completeReceived = true;
+      return;
+    }
     const next = textFrom(parsed);
     if (!next) return;
     const delta = typeof value.accumulated === "string" && value.accumulated.startsWith(accumulated)
       ? value.accumulated.slice(accumulated.length)
       : next;
     accumulated = typeof value.accumulated === "string" ? value.accumulated : accumulated + delta;
-    options.onDelta?.(delta, accumulated);
-    if (value.complete === true) done = true;
+    if (delta) options.onDelta?.(delta, accumulated);
   };
 
-  while (!done) {
+  while (!completeReceived && !doneReceived) {
     const { value, done: readerDone } = await reader.read();
     if (readerDone) break;
     buffer += decoder.decode(value, { stream: true });
+    buffer = buffer.replaceAll("\r\n", "\n");
     let split = buffer.indexOf("\n\n");
     while (split >= 0) {
       consume(buffer.slice(0, split));

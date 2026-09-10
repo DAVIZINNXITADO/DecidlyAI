@@ -51,14 +51,20 @@ Deno.serve(async (request) => {
       async start(controller) {
         const send = (data: unknown, name?: string) => controller.enqueue(encoder.encode(event(data, name)));
         const consume = (block: string) => {
-          const raw = block.split("\n").filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).join("\n");
+          const raw = block.replaceAll("\r\n", "\n").split("\n").filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).join("\n");
           if (!raw || raw === "[DONE]") return;
           try {
             const parsed = JSON.parse(raw) as Record<string, unknown>;
             if (typeof parsed.error === "string") throw new Error(parsed.error);
             if (typeof parsed.provider === "string") provider = parsed.provider;
+            if (parsed.complete === true) {
+              if (typeof parsed.response === "string" && !fullText) {
+                fullText = parsed.response;
+                send({ delta: fullText, accumulated: fullText, provider });
+              }
+              return;
+            }
             if (typeof parsed.delta === "string") { fullText += parsed.delta; send({ delta: parsed.delta, accumulated: fullText, provider }); }
-            if (typeof parsed.response === "string" && parsed.complete === true && !fullText) fullText = parsed.response;
           } catch (error) { if (error instanceof Error && error.message) send({ error: error.message }, "error"); }
         };
         try {

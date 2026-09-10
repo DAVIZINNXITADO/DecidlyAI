@@ -65,12 +65,13 @@ async function toSse(providerResponse: Response, provider: string): Promise<Resp
           const blocks = buffer.split("\n\n");
           buffer = blocks.pop() ?? "";
           for (const block of blocks) {
-            for (const line of block.split("\n")) {
+            for (const line of block.replaceAll("\r\n", "\n").split("\n")) {
               if (!line.startsWith("data:")) continue;
               const raw = line.slice(5).trim();
               if (!raw || raw === "[DONE]") continue;
               try {
                 const parsed = JSON.parse(raw) as Record<string, unknown>;
+                if (parsed.complete === true) continue;
                 const delta = responseText(parsed) || responseText((parsed.choices?.[0] as Record<string, unknown> | undefined)?.delta);
                 if (delta) { fullText += delta; send({ delta, accumulated: fullText, provider }); }
               } catch { /* aguarda o próximo bloco */ }

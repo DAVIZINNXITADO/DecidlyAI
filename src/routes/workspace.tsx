@@ -1108,6 +1108,10 @@ function Workspace() {
           setError(
             "Sua sessão não pôde ser validada. Entre novamente.",
           );
+        } else if (message === "NETWORK") {
+          setError(
+            "Não foi possível conectar ao DecidlyAI. Verifique sua internet e tente novamente.",
+          );
         } else if (message === "SERVER" || status >= 500) {
           setError(
             "O serviço está temporariamente indisponível.",
