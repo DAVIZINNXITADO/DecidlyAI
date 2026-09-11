@@ -3063,12 +3063,7 @@ function Workspace() {
                   <Plus size={30} strokeWidth={1.7} />
                 </button>
 
-                <div className={`flex min-w-0 flex-1 flex-col justify-center ${listening ? "py-1" : "min-h-[48px]"}`}>
-                  {listening && (
-                    <div className="flex h-5 w-full items-center px-2">
-                      <RealAudioWave levels={waveformLevels} />
-                    </div>
-                  )}
+                <div className="relative flex min-h-[48px] min-w-0 flex-1 items-center">
                   <textarea
                     ref={textareaRef}
                     value={input}
@@ -3077,9 +3072,14 @@ function Workspace() {
                     onFocus={handleTextareaFocus}
                     placeholder="Escreva sua decisão..."
                     rows={1}
-                    className="min-h-[48px] max-h-[140px] w-full resize-none overflow-y-auto bg-transparent px-2 py-1 text-[16px] leading-6 text-white placeholder:text-white/45 focus:outline-none focus:ring-0"
+                    className="min-h-[48px] max-h-[140px] w-full resize-none overflow-y-auto bg-transparent px-2 py-2 text-[16px] leading-6 text-white placeholder:text-white/45 focus:outline-none focus:ring-0"
                     style={{ border: "none", outline: "none", boxShadow: "none", appearance: "none", WebkitAppearance: "none" }}
                   />
+                  {listening && (
+                    <div className="pointer-events-none absolute inset-0 z-10 flex items-center bg-transparent px-2 opacity-90">
+                      <RealAudioWave levels={waveformLevels} />
+                    </div>
+                  )}
                 </div>
 
                 <button
