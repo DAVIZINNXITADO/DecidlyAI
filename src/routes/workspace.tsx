@@ -1459,17 +1459,6 @@ function Workspace() {
         return;
       }
 
-      void startAudioCapture().catch((error: unknown) => {
-          if (error instanceof DOMException && error.name === "NotAllowedError") {
-            setError("Permita o acesso ao microfone para usar a voz.");
-          } else if (error instanceof Error && error.message === "MIC_UNSUPPORTED") {
-            setError("Este navegador não oferece captura de áudio para o microfone.");
-          } else {
-            setError("Não foi possível iniciar o microfone. Verifique a permissão do navegador.");
-          }
-          stopAudioCapture();
-          if (recognitionRef.current) recognitionRef.current.abort();
-        });
     }, [
       listening,
       speechLanguage,

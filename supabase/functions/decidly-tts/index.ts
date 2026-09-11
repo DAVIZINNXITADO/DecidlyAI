@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { EdgeTTS } from "jsr:@edge-tts/universal";
+import { EdgeTTS } from "npm:edge-tts-universal@1.4.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
