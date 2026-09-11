@@ -6,6 +6,7 @@ type Options = {
   message: string;
   history: ChatMessage[];
   onDelta?: (text: string, accumulated: string) => void;
+  signal?: AbortSignal;
 };
 
 function textFrom(data: unknown): string {
@@ -49,9 +50,11 @@ export async function streamAi(functionName: string, options: Options): Promise<
         "Content-Type": "application/json",
         Accept: "text/event-stream, application/json",
       },
+      signal: options.signal,
       body: JSON.stringify({ message: options.message, history: options.history, stream: true }),
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
     throw new Error("NETWORK");
   }
 
@@ -108,6 +111,7 @@ export async function streamAi(functionName: string, options: Options): Promise<
   };
 
   while (!completeReceived && !doneReceived) {
+    if (options.signal?.aborted) throw new DOMException("Stream aborted", "AbortError");
     const { value, done: readerDone } = await reader.read();
     if (readerDone) break;
     buffer += decoder.decode(value, { stream: true });

@@ -186,6 +186,8 @@ function Workspace() {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const waveformFrameRef = useRef<number | null>(null);
+  const streamAbortRef = useRef<AbortController | null>(null);
+  const autoScrollRef = useRef(true);
 
   const lastTranscriptRef = useRef("");
 
@@ -1049,6 +1051,8 @@ function Workspace() {
       ]);
 
       setIsLoading(true);
+      const abortController = new AbortController();
+      streamAbortRef.current = abortController;
 
       try {
         let conversationId = activeConversationId;
@@ -1090,23 +1094,37 @@ function Workspace() {
           : "";
 
         const assistantId = crypto.randomUUID();
+        let pendingFrame: number | null = null;
+        let latestAccumulated = "";
+        const flushAssistant = () => {
+          pendingFrame = null;
+          const content = latestAccumulated;
+          if (!content) return;
+          setMessages((current) => {
+            const exists = current.some((item) => item.id === assistantId);
+            if (!exists) return [...current, { id: assistantId, role: "assistant", content }];
+            return current.map((item) => item.id === assistantId ? { ...item, content } : item);
+          });
+        };
         const answer = await streamAi(functionName, {
           message: privateContext
             ? `${privateContext}\n\nMensagem do usuário:\n${text}`
             : text,
           history,
+          signal: abortController.signal,
           onDelta: (_delta, accumulated) => {
-            setMessages((current) => {
-              const exists = current.some((item) => item.id === assistantId);
-              if (!exists) {
-                return [...current, { id: assistantId, role: "assistant", content: accumulated }];
-              }
-              return current.map((item) =>
-                item.id === assistantId ? { ...item, content: accumulated } : item,
-              );
-            });
+            latestAccumulated = accumulated;
+            if (chatRef.current) {
+              const distanceFromBottom = chatRef.current.scrollHeight - chatRef.current.scrollTop - chatRef.current.clientHeight;
+              autoScrollRef.current = distanceFromBottom < 120;
+            }
+            if (pendingFrame === null) pendingFrame = window.requestAnimationFrame(flushAssistant);
           },
         });
+
+        if (pendingFrame !== null) window.cancelAnimationFrame(pendingFrame);
+        latestAccumulated = answer;
+        flushAssistant();
 
         const { error: assistantMessageError } = await supabase
           .from("messages")
@@ -1127,6 +1145,9 @@ function Workspace() {
           .eq("id", conversationId)
           .eq("user_id", userId);
       } catch (caughtError) {
+        if (caughtError instanceof DOMException && caughtError.name === "AbortError") {
+          return;
+        }
         const message =
           caughtError instanceof Error
             ? caughtError.message
@@ -1176,6 +1197,7 @@ function Workspace() {
          * Mantém o comportamento instantâneo atual.
          */
         setIsLoading(false);
+        streamAbortRef.current = null;
       }
     },
     [
@@ -1190,6 +1212,12 @@ function Workspace() {
       preferredName,
     ],
   );
+
+  const stopGeneration = useCallback(() => {
+    streamAbortRef.current?.abort();
+    streamAbortRef.current = null;
+    setIsLoading(false);
+  }, []);
 
   /*
    * ============================================================
@@ -1943,7 +1971,7 @@ function Workspace() {
 
   useEffect(() => {
     requestAnimationFrame(() => {
-      if (chatRef.current) {
+      if (chatRef.current && autoScrollRef.current) {
         chatRef.current.scrollTop =
           chatRef.current.scrollHeight;
       }
@@ -2698,6 +2726,11 @@ function Workspace() {
       <main className="relative z-10 h-[100dvh] min-h-0 overflow-hidden">
         <div
           ref={chatRef}
+          onScroll={() => {
+            if (!chatRef.current) return;
+            const distanceFromBottom = chatRef.current.scrollHeight - chatRef.current.scrollTop - chatRef.current.clientHeight;
+            autoScrollRef.current = distanceFromBottom < 120;
+          }}
           className="h-full overflow-y-auto px-4 pb-40 pt-4 sm:px-6"
         >
           <div className="mx-auto w-full max-w-3xl">
@@ -3030,7 +3063,12 @@ function Workspace() {
                   <Plus size={30} strokeWidth={1.7} />
                 </button>
 
-                <div className="relative flex min-h-[48px] flex-1 items-center">
+                <div className={`flex min-w-0 flex-1 flex-col justify-center ${listening ? "py-1" : "min-h-[48px]"}`}>
+                  {listening && (
+                    <div className="flex h-5 w-full items-center px-2">
+                      <RealAudioWave levels={waveformLevels} />
+                    </div>
+                  )}
                   <textarea
                     ref={textareaRef}
                     value={input}
@@ -3039,14 +3077,9 @@ function Workspace() {
                     onFocus={handleTextareaFocus}
                     placeholder="Escreva sua decisão..."
                     rows={1}
-                    className="min-h-[48px] max-h-[140px] w-full resize-none overflow-y-auto bg-transparent px-2 py-2 text-[16px] leading-6 text-white placeholder:text-white/45 focus:outline-none focus:ring-0"
+                    className="min-h-[48px] max-h-[140px] w-full resize-none overflow-y-auto bg-transparent px-2 py-1 text-[16px] leading-6 text-white placeholder:text-white/45 focus:outline-none focus:ring-0"
                     style={{ border: "none", outline: "none", boxShadow: "none", appearance: "none", WebkitAppearance: "none" }}
                   />
-                  {listening && (
-                    <div className="pointer-events-none absolute inset-0 flex items-center bg-[#242424] px-2">
-                      <RealAudioWave levels={waveformLevels} />
-                    </div>
-                  )}
                 </div>
 
                 <button
@@ -3070,12 +3103,19 @@ function Workspace() {
 
                 <button
                   type="button"
-                  onClick={() => (input.trim() ? void sendMessage() : toggleListening())}
-                  disabled={isLoading}
+                  onClick={() => {
+                    if (isLoading) {
+                      stopGeneration();
+                    } else if (input.trim()) {
+                      void sendMessage();
+                    } else {
+                      toggleListening();
+                    }
+                  }}
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#8B5CF6] text-white transition hover:bg-[#9B6AF7] disabled:cursor-not-allowed disabled:opacity-45"
-                  aria-label={input.trim() ? "Enviar" : "Ativar voz"}
+                  aria-label={isLoading ? "Parar resposta" : input.trim() ? "Enviar" : "Ativar voz"}
                 >
-                  {input.trim() ? <ArrowUp size={22} /> : <AudioLines size={24} strokeWidth={2.2} />}
+                  {isLoading ? <span className="block h-4 w-4 rounded-[3px] bg-white" /> : input.trim() ? <ArrowUp size={22} /> : <AudioLines size={24} strokeWidth={2.2} />}
                 </button>
               </div>
             </div>
