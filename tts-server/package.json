@@ -1,0 +1,12 @@
+{
+  "name": "decidlyai-tts-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "edge-tts-node": "latest",
+    "express": "^5.1.0"
+  }
+}

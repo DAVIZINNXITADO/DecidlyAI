@@ -27,6 +27,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { supabase } from "../lib/supabase";
 import { streamAi } from "../lib/ai-stream";
+import { requestTtsAudio } from "../lib/tts";
 
 export const Route = createFileRoute("/workspace")({
   component: Workspace,
@@ -59,23 +60,6 @@ function AudioWave({ active }: { active: boolean }) {
           key={bar}
           className={`w-[2px] rounded-full bg-current ${active ? "audio-wave-bar" : "h-1"}`}
           style={active ? { animationDelay: `${bar * 90}ms` } : undefined}
-        />
-      ))}
-    </span>
-  );
-}
-
-function RealAudioWave({ levels }: { levels: number[] }) {
-  return (
-    <span
-      className="flex h-8 flex-1 items-center justify-center gap-[2px] overflow-hidden"
-      aria-hidden="true"
-    >
-      {levels.map((level, index) => (
-        <span
-          key={index}
-          className="w-[3px] shrink-0 rounded-full bg-white/65 transition-[height] duration-75"
-          style={{ height: `${Math.max(4, Math.round(level * 30))}px` }}
         />
       ))}
     </span>
@@ -144,10 +128,6 @@ function Workspace() {
   const [keyboardOffset, setKeyboardOffset] = useState(0);
 
   const [listening, setListening] = useState(false);
-  const [waveformLevels, setWaveformLevels] = useState<number[]>(() =>
-    Array.from({ length: 44 }, () => 0.12),
-  );
-
   const [likes, setLikes] = useState<Record<string, boolean>>({});
   const [dislikes, setDislikes] =
     useState<Record<string, boolean>>({});
@@ -182,10 +162,7 @@ function Workspace() {
   const recognitionRef =
     useRef<SpeechRecognition | null>(null);
 
-  const audioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const waveformFrameRef = useRef<number | null>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
   const autoScrollRef = useRef(true);
 
@@ -193,6 +170,7 @@ function Workspace() {
 
   const speechRef =
     useRef<SpeechSynthesisUtterance | null>(null);
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const speechSessionRef = useRef(0);
 
@@ -1279,18 +1257,8 @@ function Workspace() {
    */
 
   const stopAudioCapture = useCallback(() => {
-    if (waveformFrameRef.current !== null) {
-      window.cancelAnimationFrame(waveformFrameRef.current);
-      waveformFrameRef.current = null;
-    }
     mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
     mediaStreamRef.current = null;
-    analyserRef.current = null;
-    if (audioContextRef.current && audioContextRef.current.state !== "closed") {
-      void audioContextRef.current.close();
-    }
-    audioContextRef.current = null;
-    setWaveformLevels(Array.from({ length: 44 }, () => 0.12));
   }, []);
 
   const startAudioCapture = useCallback(async () => {
@@ -1298,32 +1266,7 @@ function Workspace() {
       throw new Error("MIC_UNSUPPORTED");
     }
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const AudioContextConstructor = window.AudioContext ?? window.webkitAudioContext;
-    if (!AudioContextConstructor) {
-      stream.getTracks().forEach((track) => track.stop());
-      throw new Error("AUDIO_UNSUPPORTED");
-    }
-    const context = new AudioContextConstructor();
-    await context.resume();
-    const analyser = context.createAnalyser();
-    analyser.fftSize = 128;
-    analyser.smoothingTimeConstant = 0.72;
-    context.createMediaStreamSource(stream).connect(analyser);
     mediaStreamRef.current = stream;
-    audioContextRef.current = context;
-    analyserRef.current = analyser;
-
-    const data = new Uint8Array(analyser.frequencyBinCount);
-    const draw = () => {
-      analyser.getByteFrequencyData(data);
-      const levels = Array.from({ length: 44 }, (_, index) => {
-        const sourceIndex = Math.floor((index / 44) * data.length);
-        return Math.max(0.1, Math.min(1, (data[sourceIndex] ?? 0) / 110));
-      });
-      setWaveformLevels(levels);
-      waveformFrameRef.current = window.requestAnimationFrame(draw);
-    };
-    draw();
   }, []);
 
   const toggleListening =
@@ -1699,6 +1642,9 @@ function Workspace() {
     useCallback(() => {
       speechSessionRef.current += 1;
 
+      ttsAudioRef.current?.pause();
+      ttsAudioRef.current = null;
+
       if (
         typeof window !==
           "undefined" &&
@@ -1721,21 +1667,7 @@ function Workspace() {
    */
 
   const readMessage = useCallback(
-    (message: ChatMessage) => {
-      if (
-        typeof window ===
-          "undefined" ||
-        !(
-          "speechSynthesis" in
-          window
-        )
-      ) {
-        setError(
-          "A leitura em voz alta não é compatível com este navegador.",
-        );
-        return;
-      }
-
+    async (message: ChatMessage) => {
       if (
         readingMessageId ===
         message.id
@@ -1743,8 +1675,6 @@ function Workspace() {
         stopReading();
         return;
       }
-
-      window.speechSynthesis.cancel();
 
       speechSessionRef.current += 1;
 
@@ -1757,59 +1687,29 @@ function Workspace() {
 
       setReadingCharIndex(-1);
 
-      const voice =
-        findBestVoice(
-          speechLanguage,
-          speechGender,
-        );
       const speakableText = message.content
         .replace(/```[\s\S]*?```/g, " ")
         .replace(/[*_#>`~-]/g, "")
         .replace(/\s+/g, " ")
         .trim();
-      const chunks = speakableText.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? [speakableText];
-      let chunkIndex = 0;
-
-      const speakNext = () => {
-        if (speechSessionRef.current !== session || chunkIndex >= chunks.length) {
-          speechRef.current = null;
-          setReadingMessageId(null);
-          setReadingCharIndex(-1);
-          return;
-        }
-
-        const utterance = new SpeechSynthesisUtterance(chunks[chunkIndex++].trim());
-        utterance.rate = 1.05;
-        utterance.pitch = 1;
-        utterance.volume = 1;
-        utterance.lang = voice?.lang || speechLanguage;
-        if (voice) utterance.voice = voice;
-        utterance.onstart = () => setReadingMessageId(message.id);
-        utterance.onboundary = (event) => {
-          if (speechSessionRef.current === session && event.name === "word") {
-            setReadingCharIndex(event.charIndex);
-          }
+      try {
+        const audio = await requestTtsAudio(speakableText);
+        if (speechSessionRef.current !== session) return;
+        ttsAudioRef.current = audio;
+        audio.onended = () => {
+          if (speechSessionRef.current === session) stopReading();
         };
-        utterance.onend = speakNext;
-        utterance.onerror = () => {
-          if (speechSessionRef.current === session) {
-            setError("Não foi possível reproduzir o áudio. Toque novamente para tentar.");
-            stopReading();
-          }
-        };
-        speechRef.current = utterance;
-        window.speechSynthesis.speak(utterance);
-      };
-
-      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-      speakNext();
+        await audio.play();
+      } catch (error) {
+        if (speechSessionRef.current !== session) return;
+        const reason = error instanceof Error ? error.message : "TTS_ERROR";
+        setError(reason === "TTS_NOT_CONFIGURED"
+          ? "Configure o servidor TTS para usar a nova voz.": "Não foi possível reproduzir a nova voz. Tente novamente.");
+        stopReading();
+      }
     },
     [
       readingMessageId,
-      speechLanguage,
-      speechGender,
-      selectedVoiceName,
-      findBestVoice,
       stopReading,
     ],
   );
