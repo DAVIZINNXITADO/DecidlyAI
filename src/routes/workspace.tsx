@@ -20,7 +20,6 @@ import {
   Copy,
   Check,
   Volume2,
-  Settings,
   MoreHorizontal,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -66,24 +65,9 @@ function AudioWave({ active }: { active: boolean }) {
   );
 }
 
-type VoiceGender = "male" | "female";
-
 const SIDEBAR_MAX_WIDTH = 320;
 const INITIAL_CHAT_LIMIT = 15;
 const LOAD_MORE_CHAT_LIMIT = 25;
-
-const SPEECH_LANGUAGES = [
-  { value: "pt-BR", label: "Português (Brasil)" },
-  { value: "en-US", label: "English (US)" },
-  { value: "es-ES", label: "Español" },
-  { value: "fr-FR", label: "Français" },
-  { value: "de-DE", label: "Deutsch" },
-  { value: "it-IT", label: "Italiano" },
-  { value: "ja-JP", label: "日本語" },
-  { value: "ko-KR", label: "한국어" },
-  { value: "zh-CN", label: "中文" },
-  { value: "ru-RU", label: "Русский" },
-];
 
 function Workspace() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -140,20 +124,6 @@ function Workspace() {
   const [readingCharIndex, setReadingCharIndex] =
     useState(-1);
 
-  const [speechLanguage, setSpeechLanguage] =
-    useState("pt-BR");
-
-  const [speechGender, setSpeechGender] =
-    useState<VoiceGender>("male");
-
-  const [selectedVoiceName, setSelectedVoiceName] = useState("");
-
-  const [speechSettingsOpen, setSpeechSettingsOpen] =
-    useState(false);
-
-  const [availableVoices, setAvailableVoices] =
-    useState<SpeechSynthesisVoice[]>([]);
-
   const chatRef = useRef<HTMLDivElement | null>(null);
 
   const textareaRef =
@@ -162,14 +132,11 @@ function Workspace() {
   const recognitionRef =
     useRef<SpeechRecognition | null>(null);
 
-  const mediaStreamRef = useRef<MediaStream | null>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
   const autoScrollRef = useRef(true);
 
   const lastTranscriptRef = useRef("");
 
-  const speechRef =
-    useRef<SpeechSynthesisUtterance | null>(null);
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const speechSessionRef = useRef(0);
@@ -851,16 +818,6 @@ function Workspace() {
       }
       setChatMenuId(null);
 
-      speechSessionRef.current += 1;
-
-      if (
-        typeof window !== "undefined" &&
-        "speechSynthesis" in window
-      ) {
-        window.speechSynthesis.cancel();
-      }
-
-      speechRef.current = null;
       setReadingMessageId(null);
       setReadingCharIndex(-1);
 
@@ -1256,26 +1213,12 @@ function Workspace() {
    * ============================================================
    */
 
-  const stopAudioCapture = useCallback(() => {
-    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-    mediaStreamRef.current = null;
-  }, []);
-
-  const startAudioCapture = useCallback(async () => {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      throw new Error("MIC_UNSUPPORTED");
-    }
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaStreamRef.current = stream;
-  }, []);
-
   const toggleListening =
   useCallback(() => {
       if (listening) {
         recognitionRef.current?.stop();
         recognitionRef.current =
           null;
-        stopAudioCapture();
         setListening(false);
         return;
       }
@@ -1285,19 +1228,13 @@ function Workspace() {
         window.webkitSpeechRecognition;
 
       if (!SpeechRecognitionConstructor) {
-        void startAudioCapture()
-          .then(() => {
-            setListening(true);
-            setError("O microfone está ativo, mas este navegador não oferece transcrição automática.");
-          })
-          .catch(() => setError("Permita o acesso ao microfone para usar a voz."));
+        setError("Este navegador não oferece transcrição por voz. Use o Chrome ou Edge no Android.");
         return;
       }
 
       const recognition = new SpeechRecognitionConstructor();
 
-      recognition.lang =
-        speechLanguage;
+      recognition.lang = "pt-BR";
 
       recognition.continuous = true;
       recognition.interimResults = true;
@@ -1445,7 +1382,6 @@ function Workspace() {
         setListening(false);
         recognitionRef.current =
           null;
-        stopAudioCapture();
       };
 
       recognitionRef.current = recognition;
@@ -1461,9 +1397,6 @@ function Workspace() {
 
     }, [
       listening,
-      speechLanguage,
-      startAudioCapture,
-      stopAudioCapture,
     ]);
 
   useEffect(() => {
@@ -1471,155 +1404,6 @@ function Workspace() {
       recognitionRef.current?.stop();
     };
   }, []);
-
-  /*
-   * ============================================================
-   * VOICES
-   * ============================================================
-   */
-
-  useEffect(() => {
-    if (
-      typeof window ===
-        "undefined" ||
-      !(
-        "speechSynthesis" in
-        window
-      )
-    ) {
-      return;
-    }
-
-    const loadVoices = () => {
-      setAvailableVoices(
-        window.speechSynthesis.getVoices(),
-      );
-    };
-
-    loadVoices();
-
-    window.speechSynthesis.addEventListener(
-      "voiceschanged",
-      loadVoices,
-    );
-
-    return () => {
-      window.speechSynthesis.removeEventListener(
-        "voiceschanged",
-        loadVoices,
-      );
-
-      window.speechSynthesis.cancel();
-    };
-  }, []);
-
-  /*
-   * ============================================================
-   * FIND VOICE
-   * ============================================================
-   */
-
-  const findBestVoice =
-    useCallback(
-      (
-        language: string,
-        gender: VoiceGender,
-      ) => {
-        if (
-          availableVoices.length === 0
-        ) {
-          return null;
-        }
-
-        const normalizedLanguage =
-          language.toLowerCase();
-
-        const languageCode =
-          normalizedLanguage.split(
-            "-",
-          )[0];
-
-        const languageVoices =
-          availableVoices.filter(
-            (voice) => {
-              const voiceLanguage =
-                voice.lang.toLowerCase();
-
-              return (
-                voiceLanguage ===
-                  normalizedLanguage ||
-                voiceLanguage.startsWith(
-                  `${languageCode}-`,
-                )
-              );
-            },
-          );
-
-        const candidates =
-          languageVoices.length > 0
-            ? languageVoices
-            : availableVoices;
-
-        const selectedVoice = candidates.find(
-          (voice) => voice.name === selectedVoiceName,
-        );
-        if (selectedVoice) return selectedVoice;
-
-        const maleKeywords = [
-          "male",
-          "man",
-          "mascul",
-          "homem",
-          "maschio",
-          "hombre",
-          "männ",
-          "男",
-        ];
-
-        const femaleKeywords = [
-          "female",
-          "woman",
-          "fem",
-          "mulher",
-          "femin",
-          "donna",
-          "mujer",
-          "weib",
-          "女",
-        ];
-
-        const keywords =
-          gender === "male"
-            ? maleKeywords
-            : femaleKeywords;
-
-        const genderVoice =
-          candidates.find(
-            (voice) => {
-              const name =
-                voice.name.toLowerCase();
-
-              return keywords.some(
-                (keyword) =>
-                  name.includes(
-                    keyword,
-                  ),
-              );
-            },
-          );
-
-        return (
-          genderVoice ??
-          candidates.find(
-            (voice) =>
-              voice.default,
-          ) ??
-          candidates[0] ??
-          null
-        );
-      },
-      [availableVoices, selectedVoiceName],
-    );
 
   /*
    * ============================================================
@@ -1633,17 +1417,6 @@ function Workspace() {
 
       ttsAudioRef.current?.pause();
       ttsAudioRef.current = null;
-
-      if (
-        typeof window !==
-          "undefined" &&
-        "speechSynthesis" in
-          window
-      ) {
-        window.speechSynthesis.cancel();
-      }
-
-      speechRef.current = null;
 
       setReadingMessageId(null);
       setReadingCharIndex(-1);
@@ -1713,18 +1486,8 @@ function Workspace() {
     return () => {
       speechSessionRef.current += 1;
 
-      if (
-        typeof window !==
-          "undefined" &&
-        "speechSynthesis" in
-          window
-      ) {
-        window.speechSynthesis.cancel();
-      }
-
-      stopAudioCapture();
     };
-  }, [stopAudioCapture]);
+  }, []);
 
   /*
    * ============================================================
@@ -1950,73 +1713,6 @@ function Workspace() {
     <Menu size={21} />
   </button>
 )}
-
-      {/* ======================================================
-          CONFIGURAÇÕES FIXAS
-          ====================================================== */}
-
-      <button
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-
-          setSpeechSettingsOpen(
-            (current) => !current,
-          );
-        }}
-        className="fixed right-4 top-4 z-[130] flex h-11 w-11 items-center justify-center rounded-full bg-[#17101f]/95 text-white/70 shadow-lg backdrop-blur-xl transition hover:bg-[#21152d] hover:text-white"
-        aria-label="Configurações de voz"
-        aria-expanded={
-          speechSettingsOpen
-        }
-      >
-        <Settings size={20} />
-      </button>
-
-      {/* ======================================================
-          PAINEL DE CONFIGURAÇÕES
-          ====================================================== */}
-
-      {speechSettingsOpen && (
-        <div
-          onPointerDown={(event) =>
-            event.stopPropagation()
-          }
-          className="fixed right-4 top-[64px] z-[125] w-[260px] rounded-2xl bg-[#18101f] p-4 shadow-2xl ring-1 ring-white/10"
-        >
-          <div className="mb-4 flex items-start justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold">
-                Configurações de voz
-              </div>
-
-              <div className="mt-1 text-xs text-white/40">
-                Escolha o idioma e a voz.
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                setSpeechSettingsOpen(
-                  false,
-                )
-              }
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white/40 hover:bg-white/5 hover:text-white"
-              aria-label="Fechar configurações"
-            >
-              <X size={15} />
-            </button>
-          </div>
-
-          <div className="rounded-2xl border border-violet-300/10 bg-violet-400/[0.06] p-4">
-            <p className="text-sm font-medium text-white">DecidlyAI Neural</p>
-            <p className="mt-1 text-xs leading-5 text-white/45">
-              Voz masculina brasileira de alta qualidade, processada pela Edge Function do Supabase. Não depende das vozes instaladas no navegador.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* ======================================================
           SWIPE DA BORDA
