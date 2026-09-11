@@ -1495,9 +1495,16 @@ function Workspace() {
 
       recognitionRef.current = recognition;
 
-      void startAudioCapture()
-        .then(() => recognition.start())
-        .catch((error: unknown) => {
+      try {
+        recognition.start();
+        setListening(true);
+      } catch {
+        setError("Não foi possível iniciar o reconhecimento. Toque novamente no microfone.");
+        recognitionRef.current = null;
+        return;
+      }
+
+      void startAudioCapture().catch((error: unknown) => {
           if (error instanceof DOMException && error.name === "NotAllowedError") {
             setError("Permita o acesso ao microfone para usar a voz.");
           } else if (error instanceof Error && error.message === "MIC_UNSUPPORTED") {
@@ -1505,19 +1512,9 @@ function Workspace() {
           } else {
             setError("Não foi possível iniciar o microfone. Verifique a permissão do navegador.");
           }
-          recognition.abort();
           stopAudioCapture();
-          setListening(false);
-          recognitionRef.current = null;
+          if (recognitionRef.current) recognitionRef.current.abort();
         });
-      /* O reconhecimento só começa depois da permissão e da captura de áudio. */
-      try {
-        // A chamada real ocorre no then acima.
-      } catch {
-        setListening(false);
-        recognitionRef.current =
-          null;
-      }
     }, [
       listening,
       speechLanguage,
@@ -1792,12 +1789,8 @@ function Workspace() {
         window.speechSynthesis.speak(utterance);
       };
 
-      window.setTimeout(() => {
-        if (speechSessionRef.current === session) {
-          if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-          speakNext();
-        }
-      }, 120);
+      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+      speakNext();
     },
     [
       readingMessageId,
