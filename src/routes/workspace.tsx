@@ -14,6 +14,7 @@ import {
   X,
   Mic,
   ArrowUp,
+  AudioLines,
   ThumbsUp,
   ThumbsDown,
   Copy,
@@ -1299,24 +1300,6 @@ function Workspace() {
 
   const toggleListening =
   useCallback(() => {
-      if (
-        typeof window ===
-          "undefined" ||
-        (!(
-          "webkitSpeechRecognition" in
-          window
-        ) &&
-          !(
-            "SpeechRecognition" in
-            window
-          ))
-      ) {
-        setError(
-          "O reconhecimento de voz não é compatível com este navegador.",
-        );
-        return;
-      }
-
       if (listening) {
         recognitionRef.current?.stop();
         recognitionRef.current =
@@ -1330,12 +1313,13 @@ function Workspace() {
         window.SpeechRecognition ??
         window.webkitSpeechRecognition;
 
-      if (
-        !SpeechRecognitionConstructor
-      ) {
-        setError(
-          "O reconhecimento de voz não é compatível com este navegador.",
-        );
+      if (!SpeechRecognitionConstructor) {
+        void startAudioCapture()
+          .then(() => {
+            setListening(true);
+            setError("O microfone está ativo, mas este navegador não oferece transcrição automática.");
+          })
+          .catch(() => setError("Permita o acesso ao microfone para usar a voz."));
         return;
       }
 
@@ -3028,7 +3012,7 @@ function Workspace() {
         >
           <div className="relative mx-auto w-full max-w-[1024px]">
             <div
-              className="rounded-[32px] bg-[#17101f] px-3 py-2 shadow-2xl"
+              className="h-[68px] rounded-[34px] bg-[#242424] px-3 py-2 shadow-2xl"
               style={{
                 border: "none",
                 outline: "none",
@@ -3039,11 +3023,11 @@ function Workspace() {
               <div className="flex items-end gap-2">
                 <button
                   type="button"
-                  className="mb-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-2xl font-light text-white/70 transition hover:bg-white/10 hover:text-white"
+                  className="mb-0 flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/10"
                   aria-label="Adicionar anexo ou ação"
                   title="Mais opções em breve"
                 >
-                  +
+                  <Plus size={34} strokeWidth={1.7} />
                 </button>
 
                 {listening ? (
@@ -3057,7 +3041,7 @@ function Workspace() {
                     onFocus={handleTextareaFocus}
                     placeholder="Escreva sua decisão..."
                     rows={1}
-                    className="min-h-[58px] max-h-[140px] flex-1 resize-none overflow-y-auto bg-transparent px-2 py-3 text-[15px] leading-6 text-white placeholder:text-white/35 focus:outline-none focus:ring-0"
+                    className="min-h-[48px] max-h-[140px] flex-1 resize-none overflow-y-auto bg-transparent px-2 py-2 text-[17px] leading-6 text-white placeholder:text-white/45 focus:outline-none focus:ring-0"
                     style={{ border: "none", outline: "none", boxShadow: "none", appearance: "none", WebkitAppearance: "none" }}
                   />
                 )}
@@ -3067,7 +3051,7 @@ function Workspace() {
                   onClick={
                     toggleListening
                   }
-                  className={`mb-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${
+                  className={`mb-0 flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition ${
                     listening
                       ? "bg-white/[0.08] text-white"
                       : "text-white/45 hover:bg-white/5 hover:text-white"
@@ -3078,24 +3062,17 @@ function Workspace() {
                       : "Usar microfone"
                   }
                 >
-                  {listening ? <span className="block h-3.5 w-3.5 rounded-[3px] bg-white" /> : <Mic size={19} />}
+                  {listening ? <span className="block h-4 w-4 rounded-[3px] bg-white" /> : <Mic size={28} strokeWidth={1.8} />}
                 </button>
 
                 <button
                   type="button"
-                  onClick={() =>
-                    void sendMessage()
-                  }
-                  disabled={
-                    !input.trim() ||
-                    isLoading
-                  }
-                  className="mb-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#8B5CF6] text-white transition hover:bg-[#9B6AF7] disabled:cursor-not-allowed disabled:opacity-30"
-                  aria-label="Enviar"
+                  onClick={() => (input.trim() ? void sendMessage() : toggleListening())}
+                  disabled={isLoading}
+                  className="mb-0 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#8B5CF6] text-white transition hover:bg-[#9B6AF7] disabled:cursor-not-allowed disabled:opacity-45"
+                  aria-label={input.trim() ? "Enviar" : "Ativar voz"}
                 >
-                  <ArrowUp
-                    size={20}
-                  />
+                  {input.trim() ? <ArrowUp size={22} /> : <AudioLines size={24} strokeWidth={2.2} />}
                 </button>
               </div>
             </div>
