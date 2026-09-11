@@ -13,7 +13,6 @@ import {
   Sparkles,
   X,
   Mic,
-  MicOff,
   ArrowUp,
   ThumbsUp,
   ThumbsDown,
@@ -59,6 +58,23 @@ function AudioWave({ active }: { active: boolean }) {
           key={bar}
           className={`w-[2px] rounded-full bg-current ${active ? "audio-wave-bar" : "h-1"}`}
           style={active ? { animationDelay: `${bar * 90}ms` } : undefined}
+        />
+      ))}
+    </span>
+  );
+}
+
+function RealAudioWave({ levels }: { levels: number[] }) {
+  return (
+    <span
+      className="flex h-8 flex-1 items-center justify-center gap-[2px] overflow-hidden"
+      aria-hidden="true"
+    >
+      {levels.map((level, index) => (
+        <span
+          key={index}
+          className="w-[3px] shrink-0 rounded-full bg-white/65 transition-[height] duration-75"
+          style={{ height: `${Math.max(4, Math.round(level * 30))}px` }}
         />
       ))}
     </span>
@@ -127,6 +143,9 @@ function Workspace() {
   const [keyboardOffset, setKeyboardOffset] = useState(0);
 
   const [listening, setListening] = useState(false);
+  const [waveformLevels, setWaveformLevels] = useState<number[]>(() =>
+    Array.from({ length: 44 }, () => 0.12),
+  );
 
   const [likes, setLikes] = useState<Record<string, boolean>>({});
   const [dislikes, setDislikes] =
@@ -146,6 +165,8 @@ function Workspace() {
   const [speechGender, setSpeechGender] =
     useState<VoiceGender>("male");
 
+  const [selectedVoiceName, setSelectedVoiceName] = useState("");
+
   const [speechSettingsOpen, setSpeechSettingsOpen] =
     useState(false);
 
@@ -159,6 +180,11 @@ function Workspace() {
 
   const recognitionRef =
     useRef<SpeechRecognition | null>(null);
+
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const waveformFrameRef = useRef<number | null>(null);
 
   const lastTranscriptRef = useRef("");
 
@@ -1223,8 +1249,56 @@ function Workspace() {
    * ============================================================
    */
 
+  const stopAudioCapture = useCallback(() => {
+    if (waveformFrameRef.current !== null) {
+      window.cancelAnimationFrame(waveformFrameRef.current);
+      waveformFrameRef.current = null;
+    }
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    mediaStreamRef.current = null;
+    analyserRef.current = null;
+    if (audioContextRef.current && audioContextRef.current.state !== "closed") {
+      void audioContextRef.current.close();
+    }
+    audioContextRef.current = null;
+    setWaveformLevels(Array.from({ length: 44 }, () => 0.12));
+  }, []);
+
+  const startAudioCapture = useCallback(async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("MIC_UNSUPPORTED");
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const AudioContextConstructor = window.AudioContext ?? window.webkitAudioContext;
+    if (!AudioContextConstructor) {
+      stream.getTracks().forEach((track) => track.stop());
+      throw new Error("AUDIO_UNSUPPORTED");
+    }
+    const context = new AudioContextConstructor();
+    await context.resume();
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 128;
+    analyser.smoothingTimeConstant = 0.72;
+    context.createMediaStreamSource(stream).connect(analyser);
+    mediaStreamRef.current = stream;
+    audioContextRef.current = context;
+    analyserRef.current = analyser;
+
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    const draw = () => {
+      analyser.getByteFrequencyData(data);
+      const levels = Array.from({ length: 44 }, (_, index) => {
+        const sourceIndex = Math.floor((index / 44) * data.length);
+        return Math.max(0.1, Math.min(1, (data[sourceIndex] ?? 0) / 110));
+      });
+      setWaveformLevels(levels);
+      waveformFrameRef.current = window.requestAnimationFrame(draw);
+    };
+    draw();
+  }, []);
+
   const toggleListening =
-    useCallback(() => {
+  useCallback(() => {
       if (
         typeof window ===
           "undefined" ||
@@ -1247,6 +1321,7 @@ function Workspace() {
         recognitionRef.current?.stop();
         recognitionRef.current =
           null;
+        stopAudioCapture();
         setListening(false);
         return;
       }
@@ -1264,8 +1339,7 @@ function Workspace() {
         return;
       }
 
-      const recognition =
-        new SpeechRecognitionConstructor();
+      const recognition = new SpeechRecognitionConstructor();
 
       recognition.lang =
         speechLanguage;
@@ -1416,13 +1490,29 @@ function Workspace() {
         setListening(false);
         recognitionRef.current =
           null;
+        stopAudioCapture();
       };
 
-      recognitionRef.current =
-        recognition;
+      recognitionRef.current = recognition;
 
+      void startAudioCapture()
+        .then(() => recognition.start())
+        .catch((error: unknown) => {
+          if (error instanceof DOMException && error.name === "NotAllowedError") {
+            setError("Permita o acesso ao microfone para usar a voz.");
+          } else if (error instanceof Error && error.message === "MIC_UNSUPPORTED") {
+            setError("Este navegador não oferece captura de áudio para o microfone.");
+          } else {
+            setError("Não foi possível iniciar o microfone. Verifique a permissão do navegador.");
+          }
+          recognition.abort();
+          stopAudioCapture();
+          setListening(false);
+          recognitionRef.current = null;
+        });
+      /* O reconhecimento só começa depois da permissão e da captura de áudio. */
       try {
-        recognition.start();
+        // A chamada real ocorre no then acima.
       } catch {
         setListening(false);
         recognitionRef.current =
@@ -1431,6 +1521,8 @@ function Workspace() {
     }, [
       listening,
       speechLanguage,
+      startAudioCapture,
+      stopAudioCapture,
     ]);
 
   useEffect(() => {
@@ -1527,6 +1619,11 @@ function Workspace() {
             ? languageVoices
             : availableVoices;
 
+        const selectedVoice = candidates.find(
+          (voice) => voice.name === selectedVoiceName,
+        );
+        if (selectedVoice) return selectedVoice;
+
         const maleKeywords = [
           "male",
           "man",
@@ -1580,7 +1677,7 @@ function Workspace() {
           null
         );
       },
-      [availableVoices],
+      [availableVoices, selectedVoiceName],
     );
 
   /*
@@ -1706,6 +1803,7 @@ function Workspace() {
       readingMessageId,
       speechLanguage,
       speechGender,
+      selectedVoiceName,
       findBestVoice,
       stopReading,
     ],
@@ -1729,8 +1827,10 @@ function Workspace() {
       ) {
         window.speechSynthesis.cancel();
       }
+
+      stopAudioCapture();
     };
-  }, []);
+  }, [stopAudioCapture]);
 
   /*
    * ============================================================
@@ -2107,6 +2207,20 @@ function Workspace() {
               )}
             </div>
           </div>
+
+          <select
+            value={selectedVoiceName}
+            onChange={(event) => setSelectedVoiceName(event.target.value)}
+            className="mt-2 w-full rounded-xl bg-white/[0.06] px-3 py-2.5 text-xs text-white outline-none"
+            aria-label="Selecionar voz do navegador"
+          >
+            <option value="" className="bg-[#18101f]">Automática</option>
+            {availableVoices.map((voice) => (
+              <option key={`${voice.name}-option-${voice.lang}`} value={voice.name} className="bg-[#18101f]">
+                {voice.name} · {voice.lang}
+              </option>
+            ))}
+          </select>
 
           <div className="mt-3 text-[10px] leading-4 text-white/25">
             A disponibilidade das vozes depende do navegador e do dispositivo.
@@ -2929,39 +3043,31 @@ function Workspace() {
                   "0 20px 45px rgba(0,0,0,.25)",
               }}
             >
-              {listening && (
-                <div className="pointer-events-none absolute inset-x-5 top-1/2 z-10 flex -translate-y-1/2 items-center gap-3 rounded-2xl bg-[#17101f] py-2 text-xs text-white/55">
-                  <AudioWave active />
-                  <span>Ouvindo você… fale agora</span>
-                </div>
-              )}
               <div className="flex items-end gap-2">
-                <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(event) =>
-                    setInput(
-                      event.target.value,
-                    )
-                  }
-                  onKeyDown={
-                    handleTextareaKeyDown
-                  }
-                  onFocus={
-                    handleTextareaFocus
-                  }
-                  placeholder="Escreva sua decisão..."
-                  rows={1}
-                  className="min-h-[58px] max-h-[140px] flex-1 resize-none overflow-y-auto bg-transparent px-2 py-3 text-[15px] leading-6 text-white placeholder:text-white/35 focus:outline-none focus:ring-0"
-                  style={{
-                    border: "none",
-                    outline: "none",
-                    boxShadow: "none",
-                    appearance: "none",
-                    WebkitAppearance:
-                      "none",
-                  }}
-                />
+                <button
+                  type="button"
+                  className="mb-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-2xl font-light text-white/70 transition hover:bg-white/10 hover:text-white"
+                  aria-label="Adicionar anexo ou ação"
+                  title="Mais opções em breve"
+                >
+                  +
+                </button>
+
+                {listening ? (
+                  <RealAudioWave levels={waveformLevels} />
+                ) : (
+                  <textarea
+                    ref={textareaRef}
+                    value={input}
+                    onChange={(event) => setInput(event.target.value)}
+                    onKeyDown={handleTextareaKeyDown}
+                    onFocus={handleTextareaFocus}
+                    placeholder="Escreva sua decisão..."
+                    rows={1}
+                    className="min-h-[58px] max-h-[140px] flex-1 resize-none overflow-y-auto bg-transparent px-2 py-3 text-[15px] leading-6 text-white placeholder:text-white/35 focus:outline-none focus:ring-0"
+                    style={{ border: "none", outline: "none", boxShadow: "none", appearance: "none", WebkitAppearance: "none" }}
+                  />
+                )}
 
                 <button
                   type="button"
@@ -2970,7 +3076,7 @@ function Workspace() {
                   }
                   className={`mb-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${
                     listening
-                      ? "bg-[#8B5CF6]/20 text-[#A78BFA]"
+                      ? "bg-white/[0.08] text-white"
                       : "text-white/45 hover:bg-white/5 hover:text-white"
                   }`}
                   aria-label={
@@ -2979,15 +3085,7 @@ function Workspace() {
                       : "Usar microfone"
                   }
                 >
-                  {listening ? (
-                    <MicOff
-                      size={19}
-                    />
-                  ) : (
-                    <Mic
-                      size={19}
-                    />
-                  )}
+                  {listening ? <span className="block h-3.5 w-3.5 rounded-[3px] bg-white" /> : <Mic size={19} />}
                 </button>
 
                 <button
