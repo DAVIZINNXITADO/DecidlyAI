@@ -3010,9 +3010,9 @@ function Workspace() {
               "bottom 100ms ease-out",
           }}
         >
-          <div className="relative mx-auto w-full max-w-[1024px]">
+          <div className="relative mx-auto w-full max-w-[760px]">
             <div
-              className="h-[68px] rounded-[34px] bg-[#242424] px-3 py-2 shadow-2xl"
+              className="min-h-[64px] rounded-[32px] bg-[#242424] px-3 py-2 shadow-2xl"
               style={{
                 border: "none",
                 outline: "none",
@@ -3020,19 +3020,17 @@ function Workspace() {
                   "0 20px 45px rgba(0,0,0,.25)",
               }}
             >
-              <div className="flex items-end gap-2">
+              <div className="flex min-h-[48px] items-center gap-1">
                 <button
                   type="button"
-                  className="mb-0 flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/10"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/10"
                   aria-label="Adicionar anexo ou ação"
                   title="Mais opções em breve"
                 >
-                  <Plus size={34} strokeWidth={1.7} />
+                  <Plus size={30} strokeWidth={1.7} />
                 </button>
 
-                {listening ? (
-                  <RealAudioWave levels={waveformLevels} />
-                ) : (
+                <div className="relative flex min-h-[48px] flex-1 items-center">
                   <textarea
                     ref={textareaRef}
                     value={input}
@@ -3041,17 +3039,22 @@ function Workspace() {
                     onFocus={handleTextareaFocus}
                     placeholder="Escreva sua decisão..."
                     rows={1}
-                    className="min-h-[48px] max-h-[140px] flex-1 resize-none overflow-y-auto bg-transparent px-2 py-2 text-[17px] leading-6 text-white placeholder:text-white/45 focus:outline-none focus:ring-0"
+                    className="min-h-[48px] max-h-[140px] w-full resize-none overflow-y-auto bg-transparent px-2 py-2 text-[16px] leading-6 text-white placeholder:text-white/45 focus:outline-none focus:ring-0"
                     style={{ border: "none", outline: "none", boxShadow: "none", appearance: "none", WebkitAppearance: "none" }}
                   />
-                )}
+                  {listening && (
+                    <div className="pointer-events-none absolute inset-0 flex items-center bg-[#242424] px-2">
+                      <RealAudioWave levels={waveformLevels} />
+                    </div>
+                  )}
+                </div>
 
                 <button
                   type="button"
                   onClick={
                     toggleListening
                   }
-                  className={`mb-0 flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition ${
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition ${
                     listening
                       ? "bg-white/[0.08] text-white"
                       : "text-white/45 hover:bg-white/5 hover:text-white"
@@ -3069,7 +3072,7 @@ function Workspace() {
                   type="button"
                   onClick={() => (input.trim() ? void sendMessage() : toggleListening())}
                   disabled={isLoading}
-                  className="mb-0 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#8B5CF6] text-white transition hover:bg-[#9B6AF7] disabled:cursor-not-allowed disabled:opacity-45"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#8B5CF6] text-white transition hover:bg-[#9B6AF7] disabled:cursor-not-allowed disabled:opacity-45"
                   aria-label={input.trim() ? "Enviar" : "Ativar voz"}
                 >
                   {input.trim() ? <ArrowUp size={22} /> : <AudioLines size={24} strokeWidth={2.2} />}
