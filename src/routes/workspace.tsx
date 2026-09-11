@@ -3026,9 +3026,9 @@ function Workspace() {
               "bottom 100ms ease-out",
           }}
         >
-          <div className="relative mx-auto max-w-3xl">
+          <div className="relative mx-auto w-full max-w-[1024px]">
             <div
-              className="rounded-[30px] bg-[#17101f] px-3 py-2 shadow-2xl"
+              className="rounded-[32px] bg-[#17101f] px-3 py-2 shadow-2xl"
               style={{
                 border: "none",
                 outline: "none",
