@@ -1270,9 +1270,8 @@ function Workspace() {
       recognition.lang =
         speechLanguage;
 
-      recognition.continuous = false;
-      recognition.interimResults =
-        false;
+      recognition.continuous = true;
+      recognition.interimResults = true;
       recognition.maxAlternatives = 1;
 
       lastTranscriptRef.current = "";
@@ -1291,10 +1290,7 @@ function Workspace() {
         const result =
           event.results[index];
 
-        if (
-          !result ||
-          !result.isFinal
-        ) {
+        if (!result) {
           return;
         }
 
@@ -1302,7 +1298,7 @@ function Workspace() {
           result[0]?.transcript?.trim() ??
           "";
 
-        if (!transcript) {
+        if (!transcript || !result.isFinal) {
           return;
         }
 
@@ -1399,9 +1395,13 @@ function Workspace() {
           setError(
             "Permita o acesso ao microfone para usar a voz.",
           );
-        } else if (
-          event.error !== "aborted"
-        ) {
+        } else if (event.error === "audio-capture") {
+          setError("O microfone não foi encontrado ou está sendo usado por outro aplicativo.");
+        } else if (event.error === "no-speech") {
+          setError("Nenhuma fala foi detectada. Toque no microfone e fale novamente.");
+        } else if (event.error === "network") {
+          setError("O reconhecimento de voz precisa de conexão com a internet neste navegador.");
+        } else if (event.error !== "aborted") {
           setError(
             "Não foi possível reconhecer sua voz. Tente novamente.",
           );
@@ -2087,6 +2087,25 @@ function Workspace() {
             >
               Feminina
             </button>
+          </div>
+
+          <div className="mt-4">
+            <div className="mb-1.5 flex items-center justify-between">
+              <label className="text-xs text-white/45">Vozes disponíveis</label>
+              <span className="text-[10px] text-white/30">{availableVoices.length}</span>
+            </div>
+            <div className="max-h-28 space-y-1 overflow-y-auto rounded-xl bg-white/[0.04] p-2">
+              {availableVoices.length > 0 ? (
+                availableVoices.map((voice) => (
+                  <div key={`${voice.name}-${voice.lang}`} className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-[11px] text-white/60">
+                    <span className="truncate">{voice.name}</span>
+                    <span className="shrink-0 text-white/30">{voice.lang}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="px-2 py-1 text-[11px] leading-4 text-white/35">O navegador ainda não disponibilizou vozes.</p>
+              )}
+            </div>
           </div>
 
           <div className="mt-3 text-[10px] leading-4 text-white/25">
@@ -2910,6 +2929,12 @@ function Workspace() {
                   "0 20px 45px rgba(0,0,0,.25)",
               }}
             >
+              {listening && (
+                <div className="pointer-events-none absolute inset-x-5 top-1/2 z-10 flex -translate-y-1/2 items-center gap-3 rounded-2xl bg-[#17101f] py-2 text-xs text-white/55">
+                  <AudioWave active />
+                  <span>Ouvindo você… fale agora</span>
+                </div>
+              )}
               <div className="flex items-end gap-2">
                 <textarea
                   ref={textareaRef}
