@@ -1994,18 +1994,6 @@ function Workspace() {
               <span className="min-w-0 truncate">{userName || "Conta"}</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() =>
-                setSpeechSettingsOpen(
-                  true,
-                )
-              }
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-white/60 transition hover:bg-white/[0.05] hover:text-white"
-            >
-              <Settings size={18} />
-              <span>Configurações</span>
-            </button>
           </div>
 
           {/* Handle independente */}
