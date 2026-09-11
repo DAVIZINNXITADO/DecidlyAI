@@ -30,9 +30,11 @@ Deno.serve(async (request) => {
     const body = await request.json() as { message?: unknown; history?: unknown };
     if (typeof body.message !== "string" || !body.message.trim()) return new Response(JSON.stringify({ error: "Envie uma mensagem válida." }), { status: 400, headers: jsonHeaders });
 
-    const { data: creditRow, error: creditError } = await admin.from("ai_credits").select("credits,total_tokens_used,total_input_tokens,total_output_tokens,total_cost_usd").eq("user_id", userData.user.id).maybeSingle();
+    const { data: creditRow, error: creditError } = await admin.from("ai_credits").select("free_credits,purchased_credits,total_credits,total_tokens_used,total_input_tokens,total_output_tokens,total_cost_usd").eq("user_id", userData.user.id).maybeSingle();
     if (creditError) throw new Error("Não foi possível verificar seus créditos.");
-    const credits = Number(creditRow?.credits ?? 0);
+    const freeCredits = Number(creditRow?.free_credits ?? creditRow?.total_credits ?? 0);
+    const purchasedCredits = Number(creditRow?.purchased_credits ?? 0);
+    const credits = freeCredits + purchasedCredits;
     if (credits <= 0) return new Response(JSON.stringify({ error: "Você não possui créditos suficientes para usar o DecidlyAI." }), { status: 402, headers: jsonHeaders });
 
     const upstream = await fetch(`${supabaseUrl}/functions/v1/free-ai-router`, {
@@ -81,9 +83,14 @@ Deno.serve(async (request) => {
           const outputTokens = estimateTokens(fullText);
           const totalTokens = inputTokens + outputTokens;
           const used = totalTokens / 3000;
-          const remaining = Math.max(0, credits - used);
-          await admin.from("ai_credits").update({ credits: remaining, total_tokens_used: Number(creditRow?.total_tokens_used ?? 0) + totalTokens, total_input_tokens: Number(creditRow?.total_input_tokens ?? 0) + inputTokens, total_output_tokens: Number(creditRow?.total_output_tokens ?? 0) + outputTokens }).eq("user_id", userData.user.id);
+          const freeUsed = Math.min(freeCredits, used);
+          const purchasedUsed = Math.max(0, used - freeUsed);
+          const nextFree = Math.max(0, freeCredits - freeUsed);
+          const nextPurchased = Math.max(0, purchasedCredits - purchasedUsed);
+          const remaining = nextFree + nextPurchased;
+          await admin.from("ai_credits").update({ free_credits: nextFree, purchased_credits: nextPurchased, total_credits: remaining, total_tokens_used: Number(creditRow?.total_tokens_used ?? 0) + totalTokens, total_input_tokens: Number(creditRow?.total_input_tokens ?? 0) + inputTokens, total_output_tokens: Number(creditRow?.total_output_tokens ?? 0) + outputTokens }).eq("user_id", userData.user.id);
           await admin.from("ai_usage").insert({ user_id: userData.user.id, model: provider, input_tokens: inputTokens, output_tokens: outputTokens, total_tokens: totalTokens, credits_used: used });
+          await admin.from("credit_events").insert({ user_id: userData.user.id, event_type: "usage", amount: -used, balance_type: freeUsed > 0 ? "free" : "purchased", description: `Uso da IA via ${provider}` });
           send({ response: fullText, complete: true, provider, credits: { remaining } }, "complete");
           send("[DONE]");
           controller.close();

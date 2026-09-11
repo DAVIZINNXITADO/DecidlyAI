@@ -19,6 +19,7 @@ import {
   ThumbsDown,
   Copy,
   Check,
+  Coins,
   Volume2,
   MoreHorizontal,
 } from "lucide-react";
@@ -49,6 +50,12 @@ type Subscription = {
   plan?: string | null;
   status?: string | null;
   expires_at?: string | null;
+};
+
+type CreditWallet = {
+  free_credits: number;
+  purchased_credits: number;
+  total_credits: number;
 };
 
 function AudioWave({ active }: { active: boolean }) {
@@ -107,6 +114,13 @@ function Workspace() {
   const [userEmail, setUserEmail] = useState("");
   const [preferredName, setPreferredName] = useState("");
   const [accountOpen, setAccountOpen] = useState(false);
+  const [creditsOpen, setCreditsOpen] = useState(false);
+  const [creditWallet, setCreditWallet] = useState<CreditWallet>({
+    free_credits: 0,
+    purchased_credits: 0,
+    total_credits: 0,
+  });
+  const [creditsLoading, setCreditsLoading] = useState(false);
   const [thinkingLabel, setThinkingLabel] = useState("Organizando sua decisão...");
   const navigate = useNavigate();
   const [keyboardOffset, setKeyboardOffset] = useState(0);
@@ -140,6 +154,28 @@ function Workspace() {
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const speechSessionRef = useRef(0);
+
+  const loadCreditWallet = useCallback(async () => {
+    if (!userId) return;
+    setCreditsLoading(true);
+    const { data } = await supabase
+      .from("ai_credits")
+      .select("free_credits,purchased_credits,total_credits")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (data) {
+      setCreditWallet({
+        free_credits: Number(data.free_credits ?? 0),
+        purchased_credits: Number(data.purchased_credits ?? 0),
+        total_credits: Number(data.total_credits ?? 0),
+      });
+    }
+    setCreditsLoading(false);
+  }, [userId]);
+
+  useEffect(() => {
+    void loadCreditWallet();
+  }, [loadCreditWallet]);
 
   const sidebarDragRef = useRef<{
     active: boolean;
@@ -1714,6 +1750,22 @@ function Workspace() {
   </button>
 )}
 
+      {!sidebarOpen && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            setCreditsOpen(true);
+            void loadCreditWallet();
+          }}
+          className="fixed right-4 top-4 z-[130] flex items-center gap-2 rounded-full bg-[#17101f]/95 px-3.5 py-2.5 text-sm font-semibold text-white/85 shadow-lg backdrop-blur-xl transition hover:bg-[#21152d] hover:text-white"
+          aria-label="Abrir créditos"
+        >
+          <Coins size={17} className="text-violet-300" />
+          <span>{creditWallet.total_credits.toFixed(2)}</span>
+        </button>
+      )}
+
       {/* ======================================================
           SWIPE DA BORDA
           ====================================================== */}
@@ -2028,6 +2080,49 @@ function Workspace() {
             closeSidebar
           }
         />
+      )}
+
+      {creditsOpen && (
+        <div
+          className="fixed inset-0 z-[160] flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm sm:items-center"
+          onPointerDown={() => setCreditsOpen(false)}
+        >
+          <section
+            className="w-full max-w-md rounded-3xl border border-white/10 bg-[#18101f] p-5 shadow-2xl"
+            onPointerDown={(event) => event.stopPropagation()}
+            aria-labelledby="credits-title"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300/80">Carteira</p>
+                <h2 id="credits-title" className="mt-1 text-2xl font-semibold text-white">Seus créditos</h2>
+                <p className="mt-1 text-sm text-white/45">Convites e anúncios entram nos créditos grátis.</p>
+              </div>
+              <button type="button" onClick={() => setCreditsOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-xl text-white/45 hover:bg-white/[0.06] hover:text-white" aria-label="Fechar créditos"><X size={18} /></button>
+            </div>
+
+            <div className="mt-5 grid grid-cols-3 gap-2">
+              <div className="rounded-2xl bg-white/[0.06] p-3"><p className="text-[11px] text-white/45">Total</p><p className="mt-1 text-lg font-semibold text-white">{creditWallet.total_credits.toFixed(2)}</p></div>
+              <div className="rounded-2xl bg-violet-400/[0.10] p-3"><p className="text-[11px] text-white/55">Grátis</p><p className="mt-1 text-lg font-semibold text-violet-200">{creditWallet.free_credits.toFixed(2)}</p></div>
+              <div className="rounded-2xl bg-emerald-400/[0.10] p-3"><p className="text-[11px] text-white/55">Comprados</p><p className="mt-1 text-lg font-semibold text-emerald-200">{creditWallet.purchased_credits.toFixed(2)}</p></div>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                <p className="font-semibold text-white">Conseguir créditos grátis</p>
+                <p className="mt-1 text-sm leading-5 text-white/50">Receba a renovação diária e, quando os eventos forem ativados, ganhe créditos ao convidar amigos ou assistir anúncios recompensados.</p>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs text-white/45"><span className="rounded-full bg-white/[0.06] px-2.5 py-1">Renovação diária</span><span className="rounded-full bg-white/[0.06] px-2.5 py-1">Convites</span><span className="rounded-full bg-white/[0.06] px-2.5 py-1">Anúncios</span></div>
+              </div>
+              <div className="rounded-2xl border border-violet-300/15 bg-violet-400/[0.07] p-4">
+                <p className="font-semibold text-white">Comprar créditos</p>
+                <p className="mt-1 text-sm leading-5 text-white/50">Os créditos comprados ficam separados do saldo grátis e não entram no limite de acúmulo.</p>
+                <button type="button" disabled className="mt-3 w-full rounded-xl bg-violet-500/40 px-4 py-3 text-sm font-semibold text-white/60">Compras em breve</button>
+              </div>
+            </div>
+
+            {creditsLoading && <p className="mt-4 text-center text-xs text-white/35">Atualizando saldo…</p>}
+          </section>
+        </div>
       )}
 
       {/* ======================================================
