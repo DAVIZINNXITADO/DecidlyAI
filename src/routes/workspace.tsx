@@ -14,7 +14,7 @@ import {
   X,
   Mic,
   ArrowUp,
-  AudioLines,
+  MicOff,
   ThumbsUp,
   ThumbsDown,
   Copy,
@@ -3043,9 +3043,9 @@ function Workspace() {
               "bottom 100ms ease-out",
           }}
         >
-          <div className="relative mx-auto w-full max-w-[760px]">
+          <div className="relative mx-auto max-w-3xl">
             <div
-              className="min-h-[64px] rounded-[32px] bg-[#242424] px-3 py-2 shadow-2xl"
+              className="rounded-[30px] bg-[#17101f] px-3 py-2 shadow-2xl"
               style={{
                 border: "none",
                 outline: "none",
@@ -3053,17 +3053,7 @@ function Workspace() {
                   "0 20px 45px rgba(0,0,0,.25)",
               }}
             >
-              <div className="flex min-h-[48px] items-center gap-1">
-                <button
-                  type="button"
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/10"
-                  aria-label="Adicionar anexo ou ação"
-                  title="Mais opções em breve"
-                >
-                  <Plus size={30} strokeWidth={1.7} />
-                </button>
-
-                <div className="relative flex min-h-[48px] min-w-0 flex-1 items-center">
+              <div className="flex items-end gap-2">
                   <textarea
                     ref={textareaRef}
                     value={input}
@@ -3072,24 +3062,18 @@ function Workspace() {
                     onFocus={handleTextareaFocus}
                     placeholder="Escreva sua decisão..."
                     rows={1}
-                    className="min-h-[48px] max-h-[140px] w-full resize-none overflow-y-auto bg-transparent px-2 py-2 text-[16px] leading-6 text-white placeholder:text-white/45 focus:outline-none focus:ring-0"
+                    className="min-h-[58px] max-h-[140px] flex-1 resize-none overflow-y-auto bg-transparent px-2 py-3 text-[15px] leading-6 text-white placeholder:text-white/35 focus:outline-none focus:ring-0"
                     style={{ border: "none", outline: "none", boxShadow: "none", appearance: "none", WebkitAppearance: "none" }}
                   />
-                  {listening && (
-                    <div className="pointer-events-none absolute inset-0 z-10 flex items-center bg-transparent px-2 opacity-90">
-                      <RealAudioWave levels={waveformLevels} />
-                    </div>
-                  )}
-                </div>
 
                 <button
                   type="button"
                   onClick={
                     toggleListening
                   }
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition ${
+                  className={`mb-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${
                     listening
-                      ? "bg-white/[0.08] text-white"
+                      ? "bg-[#8B5CF6]/20 text-[#A78BFA]"
                       : "text-white/45 hover:bg-white/5 hover:text-white"
                   }`}
                   aria-label={
@@ -3098,24 +3082,17 @@ function Workspace() {
                       : "Usar microfone"
                   }
                 >
-                  {listening ? <span className="block h-4 w-4 rounded-[3px] bg-white" /> : <Mic size={28} strokeWidth={1.8} />}
+                  {listening ? <MicOff size={19} /> : <Mic size={19} />}
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => {
-                    if (isLoading) {
-                      stopGeneration();
-                    } else if (input.trim()) {
-                      void sendMessage();
-                    } else {
-                      toggleListening();
-                    }
-                  }}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#8B5CF6] text-white transition hover:bg-[#9B6AF7] disabled:cursor-not-allowed disabled:opacity-45"
-                  aria-label={isLoading ? "Parar resposta" : input.trim() ? "Enviar" : "Ativar voz"}
+                  onClick={() => void sendMessage()}
+                  disabled={!input.trim() || isLoading}
+                  className="mb-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#8B5CF6] text-white transition hover:bg-[#9B6AF7] disabled:cursor-not-allowed disabled:opacity-30"
+                  aria-label="Enviar"
                 >
-                  {isLoading ? <span className="block h-4 w-4 rounded-[3px] bg-white" /> : input.trim() ? <ArrowUp size={22} /> : <AudioLines size={24} strokeWidth={2.2} />}
+                  <ArrowUp size={20} />
                 </button>
               </div>
             </div>
