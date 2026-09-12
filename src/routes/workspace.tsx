@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   useCallback,
   useEffect,
@@ -21,6 +21,7 @@ import {
   Check,
   Coins,
   Volume2,
+  Square,
   MoreHorizontal,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -57,20 +58,6 @@ type CreditWallet = {
   purchased_credits: number;
   total_credits: number;
 };
-
-function AudioWave({ active }: { active: boolean }) {
-  return (
-    <span className="flex h-4 items-center gap-[2px]" aria-hidden="true">
-      {[0, 1, 2, 3, 4].map((bar) => (
-        <span
-          key={bar}
-          className={`w-[2px] rounded-full bg-current ${active ? "audio-wave-bar" : "h-1"}`}
-          style={active ? { animationDelay: `${bar * 90}ms` } : undefined}
-        />
-      ))}
-    </span>
-  );
-}
 
 const SIDEBAR_MAX_WIDTH = 320;
 const INITIAL_CHAT_LIMIT = 15;
@@ -2032,6 +2019,11 @@ function Workspace() {
               ================================================== */}
 
           <div className="border-t border-white/[0.06] px-3 py-3">
+            <Link to="/credits" onClick={closeSidebar} className="mb-2 flex w-full items-center gap-3 rounded-xl bg-violet-400/[0.08] px-3 py-3 text-left text-sm text-violet-100 transition hover:bg-violet-400/[0.14]">
+              <Coins size={18} />
+              <span className="flex-1">Credits</span>
+              <span className="text-xs text-violet-200/70">{creditWallet.total_credits.toFixed(2)}</span>
+            </Link>
             <button
               type="button"
               onClick={() => setAccountOpen(true)}
@@ -2278,6 +2270,7 @@ function Workspace() {
               <button type="button" onClick={() => setAccountOpen(false)} className="rounded-xl px-4 py-3 text-sm text-white/55 hover:bg-white/[0.06] hover:text-white">Cancelar</button>
               <button type="button" onClick={() => { window.localStorage.setItem("decidly-preferred-name", preferredName.trim()); setAccountOpen(false); }} className="rounded-xl bg-violet-500 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-400">Salvar preferência</button>
             </div>
+            <Link to="/settings" onClick={() => setAccountOpen(false)} className="mt-3 flex w-full items-center justify-center rounded-xl bg-white/[0.06] px-4 py-3 text-sm font-semibold text-white/80 hover:bg-white/[0.1] hover:text-white">Account &amp; Settings</Link>
             <button type="button" onClick={() => { void supabase.auth.signOut(); navigate({ to: "/login" }); }} className="mt-5 w-full rounded-xl border border-red-400/20 px-4 py-3 text-sm text-red-300 hover:bg-red-400/[0.08]">Sair da conta</button>
           </div>
         </div>
@@ -2545,11 +2538,7 @@ function Workspace() {
                                       : "Ouvir mensagem"
                                   }
                                 >
-                                  {isReading ? (
-                                    <AudioWave active />
-                                  ) : (
-                                    <Volume2 size={16} />
-                                  )}
+                                  {isReading ? <Square size={15} fill="currentColor" /> : <Volume2 size={16} />}
                                 </button>
                               </div>
                             </>

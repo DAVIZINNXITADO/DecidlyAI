@@ -12,9 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AiTestRouteImport } from './routes/ai-test'
 import { Route as CookiesRouteImport } from './routes/cookies'
+import { Route as CreditsRouteImport } from './routes/credits'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TecnologiaRouteImport } from './routes/tecnologia'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as WorkspaceRouteImport } from './routes/workspace'
@@ -34,6 +36,11 @@ const CookiesRoute = CookiesRouteImport.update({
   path: '/cookies',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CreditsRoute = CreditsRouteImport.update({
+  id: '/credits',
+  path: '/credits',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -47,6 +54,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TecnologiaRoute = TecnologiaRouteImport.update({
@@ -69,9 +81,11 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai-test': typeof AiTestRoute
   '/cookies': typeof CookiesRoute
+  '/credits': typeof CreditsRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/settings': typeof SettingsRoute
   '/tecnologia': typeof TecnologiaRoute
   '/terms': typeof TermsRoute
   '/workspace': typeof WorkspaceRoute
@@ -80,9 +94,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai-test': typeof AiTestRoute
   '/cookies': typeof CookiesRoute
+  '/credits': typeof CreditsRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/settings': typeof SettingsRoute
   '/tecnologia': typeof TecnologiaRoute
   '/terms': typeof TermsRoute
   '/workspace': typeof WorkspaceRoute
@@ -92,9 +108,11 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/ai-test': typeof AiTestRoute
   '/cookies': typeof CookiesRoute
+  '/credits': typeof CreditsRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/settings': typeof SettingsRoute
   '/tecnologia': typeof TecnologiaRoute
   '/terms': typeof TermsRoute
   '/workspace': typeof WorkspaceRoute
@@ -105,9 +123,11 @@ export interface FileRouteTypes {
     | '/'
     | '/ai-test'
     | '/cookies'
+    | '/credits'
     | '/login'
     | '/privacy'
     | '/reset-password'
+    | '/settings'
     | '/tecnologia'
     | '/terms'
     | '/workspace'
@@ -116,9 +136,11 @@ export interface FileRouteTypes {
     | '/'
     | '/ai-test'
     | '/cookies'
+    | '/credits'
     | '/login'
     | '/privacy'
     | '/reset-password'
+    | '/settings'
     | '/tecnologia'
     | '/terms'
     | '/workspace'
@@ -127,9 +149,11 @@ export interface FileRouteTypes {
     | '/'
     | '/ai-test'
     | '/cookies'
+    | '/credits'
     | '/login'
     | '/privacy'
     | '/reset-password'
+    | '/settings'
     | '/tecnologia'
     | '/terms'
     | '/workspace'
@@ -139,9 +163,11 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiTestRoute: typeof AiTestRoute
   CookiesRoute: typeof CookiesRoute
+  CreditsRoute: typeof CreditsRoute
   LoginRoute: typeof LoginRoute
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  SettingsRoute: typeof SettingsRoute
   TecnologiaRoute: typeof TecnologiaRoute
   TermsRoute: typeof TermsRoute
   WorkspaceRoute: typeof WorkspaceRoute
@@ -170,6 +196,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CookiesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/credits': {
+      id: '/credits'
+      path: '/credits'
+      fullPath: '/credits'
+      preLoaderRoute: typeof CreditsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -189,6 +222,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tecnologia': {
@@ -219,9 +259,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AiTestRoute: AiTestRoute,
   CookiesRoute: CookiesRoute,
+  CreditsRoute: CreditsRoute,
   LoginRoute: LoginRoute,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  SettingsRoute: SettingsRoute,
   TecnologiaRoute: TecnologiaRoute,
   TermsRoute: TermsRoute,
   WorkspaceRoute: WorkspaceRoute,
