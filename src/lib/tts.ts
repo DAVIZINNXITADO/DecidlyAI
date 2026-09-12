@@ -24,17 +24,24 @@ export async function requestTtsAudio(text: string): Promise<HTMLAudioElement> {
   });
 
   if (!response.ok) {
-    throw new Error(`TTS_HTTP_${response.status}`);
+    const details = await response.text().catch(() => "");
+    throw new Error(`TTS_HTTP_${response.status}${details ? `_${details.slice(0, 80)}` : ""}`);
   }
 
+  const contentType = response.headers.get("content-type") || "";
   const blob = await response.blob();
   if (!blob.size) {
     throw new Error("TTS_EMPTY_AUDIO");
+  }
+  if (!contentType.includes("audio/")) {
+    throw new Error("TTS_INVALID_CONTENT_TYPE");
   }
 
   const url = URL.createObjectURL(blob);
   const audio = new Audio(url);
   audio.preload = "auto";
+  audio.volume = 1;
+  audio.load();
   audio.addEventListener("ended", () => URL.revokeObjectURL(url), { once: true });
   audio.addEventListener("error", () => URL.revokeObjectURL(url), { once: true });
   return audio;

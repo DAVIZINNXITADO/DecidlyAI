@@ -30,11 +30,16 @@ Deno.serve(async (request) => {
     const body = await request.json() as { message?: unknown; history?: unknown };
     if (typeof body.message !== "string" || !body.message.trim()) return new Response(JSON.stringify({ error: "Envie uma mensagem válida." }), { status: 400, headers: jsonHeaders });
 
-    const { data: creditRow, error: creditError } = await admin.from("ai_credits").select("free_credits,purchased_credits,total_credits,total_tokens_used,total_input_tokens,total_output_tokens,total_cost_usd").eq("user_id", userData.user.id).maybeSingle();
+    const { data: creditRow, error: creditError } = await admin.from("ai_credits").select("free_credits,purchased_credits,total_credits,daily_credits_used,daily_credits_limit,daily_credits_reset_at,total_tokens_used,total_input_tokens,total_output_tokens,total_cost_usd").eq("user_id", userData.user.id).maybeSingle();
     if (creditError) throw new Error("Não foi possível verificar seus créditos.");
+    const plan = String((await admin.from("profiles").select("plan").eq("id", userData.user.id).maybeSingle()).data?.plan ?? "free").toLowerCase();
+    const planLimit = plan === "premium" ? 999999999 : plan === "vip" ? 100 : 10;
+    const resetNeeded = !creditRow?.daily_credits_reset_at || String(creditRow.daily_credits_reset_at) < new Date().toISOString().slice(0, 10);
+    const dailyUsed = resetNeeded ? 0 : Number(creditRow?.daily_credits_used ?? 0);
+    const dailyLimit = planLimit;
     const freeCredits = Number(creditRow?.free_credits ?? creditRow?.total_credits ?? 0);
     const purchasedCredits = Number(creditRow?.purchased_credits ?? 0);
-    const credits = freeCredits + purchasedCredits;
+    const credits = Math.max(0, dailyLimit - dailyUsed) + freeCredits + purchasedCredits;
     if (credits <= 0) return new Response(JSON.stringify({ error: "Você não possui créditos suficientes para usar o DecidlyAI." }), { status: 402, headers: jsonHeaders });
 
     const upstream = await fetch(`${supabaseUrl}/functions/v1/free-ai-router`, {
@@ -83,15 +88,18 @@ Deno.serve(async (request) => {
           const outputTokens = estimateTokens(fullText);
           const totalTokens = inputTokens + outputTokens;
           const used = totalTokens / 3000;
-          const freeUsed = Math.min(freeCredits, used);
-          const purchasedUsed = Math.max(0, used - freeUsed);
+          const dailyRemaining = Math.max(0, dailyLimit - dailyUsed);
+          const dailyUsedNow = Math.min(dailyRemaining, used);
+          const freeUsed = Math.min(freeCredits, Math.max(0, used - dailyUsedNow));
+          const purchasedUsed = Math.max(0, used - dailyUsedNow - freeUsed);
           const nextFree = Math.max(0, freeCredits - freeUsed);
           const nextPurchased = Math.max(0, purchasedCredits - purchasedUsed);
           const remaining = nextFree + nextPurchased;
-          await admin.from("ai_credits").update({ free_credits: nextFree, purchased_credits: nextPurchased, total_credits: remaining, total_tokens_used: Number(creditRow?.total_tokens_used ?? 0) + totalTokens, total_input_tokens: Number(creditRow?.total_input_tokens ?? 0) + inputTokens, total_output_tokens: Number(creditRow?.total_output_tokens ?? 0) + outputTokens }).eq("user_id", userData.user.id);
+          await admin.from("ai_credits").update({ free_credits: nextFree, purchased_credits: nextPurchased, total_credits: remaining, daily_credits_used: dailyUsed + dailyUsedNow, daily_credits_limit: dailyLimit, daily_credits_reset_at: new Date().toISOString().slice(0, 10), total_tokens_used: Number(creditRow?.total_tokens_used ?? 0) + totalTokens, total_input_tokens: Number(creditRow?.total_input_tokens ?? 0) + inputTokens, total_output_tokens: Number(creditRow?.total_output_tokens ?? 0) + outputTokens }).eq("user_id", userData.user.id);
           await admin.from("ai_usage").insert({ user_id: userData.user.id, model: provider, input_tokens: inputTokens, output_tokens: outputTokens, total_tokens: totalTokens, credits_used: used });
-          await admin.from("credit_events").insert({ user_id: userData.user.id, event_type: "usage", amount: -used, balance_type: freeUsed > 0 ? "free" : "purchased", description: `Uso da IA via ${provider}` });
-          send({ response: fullText, complete: true, provider, credits: { remaining } }, "complete");
+          await admin.from("credit_events").insert({ user_id: userData.user.id, event_type: "usage", amount: -used, balance_type: dailyUsedNow > 0 || freeUsed > 0 ? "free" : "purchased", description: `Uso da IA via ${provider}` });
+          await admin.rpc("qualify_referral_for_user", { target_user: userData.user.id });
+          send({ response: fullText, complete: true, provider, credits: { daily_used: dailyUsed + dailyUsedNow, daily_limit: dailyLimit, free_credits: nextFree, purchased_credits: nextPurchased, total_credits: remaining } }, "complete");
           send("[DONE]");
           controller.close();
         } catch (error) { send({ error: error instanceof Error ? error.message : "Erro no streaming." }, "error"); controller.close(); }

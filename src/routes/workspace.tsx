@@ -57,6 +57,8 @@ type CreditWallet = {
   free_credits: number;
   purchased_credits: number;
   total_credits: number;
+  daily_credits_used: number;
+  daily_credits_limit: number;
 };
 
 const SIDEBAR_MAX_WIDTH = 320;
@@ -106,6 +108,8 @@ function Workspace() {
     free_credits: 0,
     purchased_credits: 0,
     total_credits: 0,
+    daily_credits_used: 0,
+    daily_credits_limit: 10,
   });
   const [creditsLoading, setCreditsLoading] = useState(false);
   const [thinkingLabel, setThinkingLabel] = useState("Organizando sua decisão...");
@@ -147,7 +151,7 @@ function Workspace() {
     setCreditsLoading(true);
     const { data } = await supabase
       .from("ai_credits")
-      .select("free_credits,purchased_credits,total_credits")
+      .select("free_credits,purchased_credits,total_credits,daily_credits_used,daily_credits_limit")
       .eq("user_id", userId)
       .maybeSingle();
     if (data) {
@@ -155,6 +159,8 @@ function Workspace() {
         free_credits: Number(data.free_credits ?? 0),
         purchased_credits: Number(data.purchased_credits ?? 0),
         total_credits: Number(data.total_credits ?? 0),
+        daily_credits_used: Number(data.daily_credits_used ?? 0),
+        daily_credits_limit: Number(data.daily_credits_limit ?? 10),
       });
     }
     setCreditsLoading(false);
@@ -162,6 +168,8 @@ function Workspace() {
 
   useEffect(() => {
     void loadCreditWallet();
+    const timer = window.setInterval(() => void loadCreditWallet(), 1000);
+    return () => window.clearInterval(timer);
   }, [loadCreditWallet]);
 
   const sidebarDragRef = useRef<{
@@ -1439,6 +1447,10 @@ function Workspace() {
       speechSessionRef.current += 1;
 
       ttsAudioRef.current?.pause();
+      if (ttsAudioRef.current) {
+        ttsAudioRef.current.currentTime = 0;
+        ttsAudioRef.current.src = "";
+      }
       ttsAudioRef.current = null;
 
       setReadingMessageId(null);
@@ -1489,7 +1501,8 @@ function Workspace() {
         if (speechSessionRef.current !== session) return;
         const reason = error instanceof Error ? error.message : "TTS_ERROR";
         setError(reason === "TTS_NOT_CONFIGURED"
-          ? "A voz interna ainda não está configurada nesta versão.": "Não foi possível reproduzir a nova voz. Tente novamente.");
+          ? "A voz interna ainda não está configurada nesta versão."
+          : `Não foi possível reproduzir a voz interna (${reason}).`);
         stopReading();
       }
     },
@@ -2093,8 +2106,9 @@ function Workspace() {
               <button type="button" onClick={() => setCreditsOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-xl text-white/45 hover:bg-white/[0.06] hover:text-white" aria-label="Fechar créditos"><X size={18} /></button>
             </div>
 
-            <div className="mt-5 grid grid-cols-3 gap-2">
+            <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
               <div className="rounded-2xl bg-white/[0.06] p-3"><p className="text-[11px] text-white/45">Total</p><p className="mt-1 text-lg font-semibold text-white">{creditWallet.total_credits.toFixed(2)}</p></div>
+              <div className="rounded-2xl bg-amber-400/[0.10] p-3"><p className="text-[11px] text-white/55">Daily</p><p className="mt-1 text-lg font-semibold text-amber-200">{creditWallet.daily_credits_used.toFixed(0)}/{creditWallet.daily_credits_limit >= 999999 ? "∞" : creditWallet.daily_credits_limit.toFixed(0)}</p></div>
               <div className="rounded-2xl bg-violet-400/[0.10] p-3"><p className="text-[11px] text-white/55">Grátis</p><p className="mt-1 text-lg font-semibold text-violet-200">{creditWallet.free_credits.toFixed(2)}</p></div>
               <div className="rounded-2xl bg-emerald-400/[0.10] p-3"><p className="text-[11px] text-white/55">Comprados</p><p className="mt-1 text-lg font-semibold text-emerald-200">{creditWallet.purchased_credits.toFixed(2)}</p></div>
             </div>

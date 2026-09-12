@@ -898,6 +898,7 @@ function LoginPage() {
     setLoading(true);
 
     try {
+      const referralCode = new URLSearchParams(window.location.search).get("ref")?.trim() || undefined;
       const {
         data,
         error,
@@ -913,11 +914,12 @@ function LoginPage() {
             captchaToken:
               captchaToken,
 
-            data: {
-              name:
-                cleanName,
+              data: {
+                name:
+                  cleanName,
+                ...(referralCode ? { referral_code: referralCode } : {}),
 
-            },
+              },
           },
         });
 
