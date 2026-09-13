@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { supabase } from "../lib/supabase";
 
 const SITE_URL = "https://decidlyai.lovable.app/";
 
@@ -296,12 +297,19 @@ function RootComponent() {
     Route.useRouteContext();
 
   useEffect(() => {
-    const theme = window.localStorage.getItem("decidly-theme") || "dark";
-    const language = window.localStorage.getItem("decidly-language") || "pt-BR";
-    document.documentElement.dataset.theme = theme;
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    document.documentElement.lang = language;
-    document.body.dataset.theme = theme;
+    const applyPreferences = async () => {
+      const { data } = await supabase.auth.getUser();
+      const metadata = data.user?.user_metadata as { theme?: string; language?: string } | undefined;
+      const theme = metadata?.theme || window.localStorage.getItem("decidly-theme") || "dark";
+      const language = metadata?.language || window.localStorage.getItem("decidly-language") || "pt-BR";
+      window.localStorage.setItem("decidly-theme", theme);
+      window.localStorage.setItem("decidly-language", language);
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.classList.toggle("dark", theme === "dark");
+      document.documentElement.lang = language;
+      document.body.dataset.theme = theme;
+    };
+    void applyPreferences();
   }, []);
 
   return (
