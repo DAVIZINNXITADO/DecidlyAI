@@ -20,6 +20,16 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TecnologiaRouteImport } from './routes/tecnologia'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as WorkspaceRouteImport } from './routes/workspace'
+import { Route as CreditsBuyRouteImport } from './routes/credits/buy'
+import { Route as CreditsFreeRouteImport } from './routes/credits/free'
+import { Route as CreditsHistoryRouteImport } from './routes/credits/history'
+import { Route as PtBrCreditsRouteImport } from './routes/pt-br.credits'
+import { Route as PtBrLoginRouteImport } from './routes/pt-br.login'
+import { Route as PtBrSettingsRouteImport } from './routes/pt-br.settings'
+import { Route as PtBrWorkspaceRouteImport } from './routes/pt-br.workspace'
+import { Route as SettingsAccountRouteImport } from './routes/settings/account'
+import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
+import { Route as SettingsLanguageRouteImport } from './routes/settings/language'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -76,46 +86,126 @@ const WorkspaceRoute = WorkspaceRouteImport.update({
   path: '/workspace',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CreditsBuyRoute = CreditsBuyRouteImport.update({
+  id: '/buy',
+  path: '/buy',
+  getParentRoute: () => CreditsRoute,
+} as any)
+const CreditsFreeRoute = CreditsFreeRouteImport.update({
+  id: '/free',
+  path: '/free',
+  getParentRoute: () => CreditsRoute,
+} as any)
+const CreditsHistoryRoute = CreditsHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => CreditsRoute,
+} as any)
+const PtBrCreditsRoute = PtBrCreditsRouteImport.update({
+  id: '/pt-br/credits',
+  path: '/pt-br/credits',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PtBrLoginRoute = PtBrLoginRouteImport.update({
+  id: '/pt-br/login',
+  path: '/pt-br/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PtBrSettingsRoute = PtBrSettingsRouteImport.update({
+  id: '/pt-br/settings',
+  path: '/pt-br/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PtBrWorkspaceRoute = PtBrWorkspaceRouteImport.update({
+  id: '/pt-br/workspace',
+  path: '/pt-br/workspace',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsAccountRoute = SettingsAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
+  id: '/appearance',
+  path: '/appearance',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsLanguageRoute = SettingsLanguageRouteImport.update({
+  id: '/language',
+  path: '/language',
+  getParentRoute: () => SettingsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai-test': typeof AiTestRoute
   '/cookies': typeof CookiesRoute
-  '/credits': typeof CreditsRoute
+  '/credits': typeof CreditsRouteWithChildren
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
   '/tecnologia': typeof TecnologiaRoute
   '/terms': typeof TermsRoute
   '/workspace': typeof WorkspaceRoute
+  '/credits/buy': typeof CreditsBuyRoute
+  '/credits/free': typeof CreditsFreeRoute
+  '/credits/history': typeof CreditsHistoryRoute
+  '/pt-br/credits': typeof PtBrCreditsRoute
+  '/pt-br/login': typeof PtBrLoginRoute
+  '/pt-br/settings': typeof PtBrSettingsRoute
+  '/pt-br/workspace': typeof PtBrWorkspaceRoute
+  '/settings/account': typeof SettingsAccountRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/language': typeof SettingsLanguageRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai-test': typeof AiTestRoute
   '/cookies': typeof CookiesRoute
-  '/credits': typeof CreditsRoute
+  '/credits': typeof CreditsRouteWithChildren
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
   '/tecnologia': typeof TecnologiaRoute
   '/terms': typeof TermsRoute
   '/workspace': typeof WorkspaceRoute
+  '/credits/buy': typeof CreditsBuyRoute
+  '/credits/free': typeof CreditsFreeRoute
+  '/credits/history': typeof CreditsHistoryRoute
+  '/pt-br/credits': typeof PtBrCreditsRoute
+  '/pt-br/login': typeof PtBrLoginRoute
+  '/pt-br/settings': typeof PtBrSettingsRoute
+  '/pt-br/workspace': typeof PtBrWorkspaceRoute
+  '/settings/account': typeof SettingsAccountRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/language': typeof SettingsLanguageRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/ai-test': typeof AiTestRoute
   '/cookies': typeof CookiesRoute
-  '/credits': typeof CreditsRoute
+  '/credits': typeof CreditsRouteWithChildren
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
   '/tecnologia': typeof TecnologiaRoute
   '/terms': typeof TermsRoute
   '/workspace': typeof WorkspaceRoute
+  '/credits/buy': typeof CreditsBuyRoute
+  '/credits/free': typeof CreditsFreeRoute
+  '/credits/history': typeof CreditsHistoryRoute
+  '/pt-br/credits': typeof PtBrCreditsRoute
+  '/pt-br/login': typeof PtBrLoginRoute
+  '/pt-br/settings': typeof PtBrSettingsRoute
+  '/pt-br/workspace': typeof PtBrWorkspaceRoute
+  '/settings/account': typeof SettingsAccountRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/language': typeof SettingsLanguageRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +221,16 @@ export interface FileRouteTypes {
     | '/tecnologia'
     | '/terms'
     | '/workspace'
+    | '/credits/buy'
+    | '/credits/free'
+    | '/credits/history'
+    | '/pt-br/credits'
+    | '/pt-br/login'
+    | '/pt-br/settings'
+    | '/pt-br/workspace'
+    | '/settings/account'
+    | '/settings/appearance'
+    | '/settings/language'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +244,16 @@ export interface FileRouteTypes {
     | '/tecnologia'
     | '/terms'
     | '/workspace'
+    | '/credits/buy'
+    | '/credits/free'
+    | '/credits/history'
+    | '/pt-br/credits'
+    | '/pt-br/login'
+    | '/pt-br/settings'
+    | '/pt-br/workspace'
+    | '/settings/account'
+    | '/settings/appearance'
+    | '/settings/language'
   id:
     | '__root__'
     | '/'
@@ -157,20 +267,34 @@ export interface FileRouteTypes {
     | '/tecnologia'
     | '/terms'
     | '/workspace'
+    | '/credits/buy'
+    | '/credits/free'
+    | '/credits/history'
+    | '/pt-br/credits'
+    | '/pt-br/login'
+    | '/pt-br/settings'
+    | '/pt-br/workspace'
+    | '/settings/account'
+    | '/settings/appearance'
+    | '/settings/language'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiTestRoute: typeof AiTestRoute
   CookiesRoute: typeof CookiesRoute
-  CreditsRoute: typeof CreditsRoute
+  CreditsRoute: typeof CreditsRouteWithChildren
   LoginRoute: typeof LoginRoute
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
-  SettingsRoute: typeof SettingsRoute
+  SettingsRoute: typeof SettingsRouteWithChildren
   TecnologiaRoute: typeof TecnologiaRoute
   TermsRoute: typeof TermsRoute
   WorkspaceRoute: typeof WorkspaceRoute
+  PtBrCreditsRoute: typeof PtBrCreditsRoute
+  PtBrLoginRoute: typeof PtBrLoginRoute
+  PtBrSettingsRoute: typeof PtBrSettingsRoute
+  PtBrWorkspaceRoute: typeof PtBrWorkspaceRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -252,21 +376,126 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkspaceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/credits/buy': {
+      id: '/credits/buy'
+      path: '/buy'
+      fullPath: '/credits/buy'
+      preLoaderRoute: typeof CreditsBuyRouteImport
+      parentRoute: typeof CreditsRoute
+    }
+    '/credits/free': {
+      id: '/credits/free'
+      path: '/free'
+      fullPath: '/credits/free'
+      preLoaderRoute: typeof CreditsFreeRouteImport
+      parentRoute: typeof CreditsRoute
+    }
+    '/credits/history': {
+      id: '/credits/history'
+      path: '/history'
+      fullPath: '/credits/history'
+      preLoaderRoute: typeof CreditsHistoryRouteImport
+      parentRoute: typeof CreditsRoute
+    }
+    '/pt-br/credits': {
+      id: '/pt-br/credits'
+      path: '/pt-br/credits'
+      fullPath: '/pt-br/credits'
+      preLoaderRoute: typeof PtBrCreditsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pt-br/login': {
+      id: '/pt-br/login'
+      path: '/pt-br/login'
+      fullPath: '/pt-br/login'
+      preLoaderRoute: typeof PtBrLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pt-br/settings': {
+      id: '/pt-br/settings'
+      path: '/pt-br/settings'
+      fullPath: '/pt-br/settings'
+      preLoaderRoute: typeof PtBrSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pt-br/workspace': {
+      id: '/pt-br/workspace'
+      path: '/pt-br/workspace'
+      fullPath: '/pt-br/workspace'
+      preLoaderRoute: typeof PtBrWorkspaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/account': {
+      id: '/settings/account'
+      path: '/account'
+      fullPath: '/settings/account'
+      preLoaderRoute: typeof SettingsAccountRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/appearance': {
+      id: '/settings/appearance'
+      path: '/appearance'
+      fullPath: '/settings/appearance'
+      preLoaderRoute: typeof SettingsAppearanceRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/language': {
+      id: '/settings/language'
+      path: '/language'
+      fullPath: '/settings/language'
+      preLoaderRoute: typeof SettingsLanguageRouteImport
+      parentRoute: typeof SettingsRoute
+    }
   }
 }
+
+interface CreditsRouteChildren {
+  CreditsBuyRoute: typeof CreditsBuyRoute
+  CreditsFreeRoute: typeof CreditsFreeRoute
+  CreditsHistoryRoute: typeof CreditsHistoryRoute
+}
+
+const CreditsRouteChildren: CreditsRouteChildren = {
+  CreditsBuyRoute: CreditsBuyRoute,
+  CreditsFreeRoute: CreditsFreeRoute,
+  CreditsHistoryRoute: CreditsHistoryRoute,
+}
+
+const CreditsRouteWithChildren =
+  CreditsRoute._addFileChildren(CreditsRouteChildren)
+
+interface SettingsRouteChildren {
+  SettingsAccountRoute: typeof SettingsAccountRoute
+  SettingsAppearanceRoute: typeof SettingsAppearanceRoute
+  SettingsLanguageRoute: typeof SettingsLanguageRoute
+}
+
+const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsAccountRoute: SettingsAccountRoute,
+  SettingsAppearanceRoute: SettingsAppearanceRoute,
+  SettingsLanguageRoute: SettingsLanguageRoute,
+}
+
+const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
+  SettingsRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AiTestRoute: AiTestRoute,
   CookiesRoute: CookiesRoute,
-  CreditsRoute: CreditsRoute,
+  CreditsRoute: CreditsRouteWithChildren,
   LoginRoute: LoginRoute,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
-  SettingsRoute: SettingsRoute,
+  SettingsRoute: SettingsRouteWithChildren,
   TecnologiaRoute: TecnologiaRoute,
   TermsRoute: TermsRoute,
   WorkspaceRoute: WorkspaceRoute,
+  PtBrCreditsRoute: PtBrCreditsRoute,
+  PtBrLoginRoute: PtBrLoginRoute,
+  PtBrSettingsRoute: PtBrSettingsRoute,
+  PtBrWorkspaceRoute: PtBrWorkspaceRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

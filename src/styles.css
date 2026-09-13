@@ -365,3 +365,20 @@ a {
   from { transform: scaleY(0.35); opacity: 0.55; }
   to { transform: scaleY(1.25); opacity: 1; }
 }
+
+/* Persistent user theme: legacy product surfaces use explicit dark utility classes,
+   so these small overrides keep the light theme coherent across every route. */
+html[data-theme="light"] body { background: #f7f5fb !important; color: #211a2d !important; }
+html[data-theme="light"] main[class*="bg-[#0d0912]"],
+html[data-theme="light"] div[class*="bg-[#0d0912]"] { background: #f7f5fb !important; color: #211a2d !important; }
+html[data-theme="light"] [class*="text-white"] { color: #332b42 !important; }
+html[data-theme="light"] [class*="text-white\/3"],
+html[data-theme="light"] [class*="text-white\/4"],
+html[data-theme="light"] [class*="text-white\/5"],
+html[data-theme="light"] [class*="text-white\/6"] { color: #6d637b !important; }
+html[data-theme="light"] [class*="bg-white\/"] { background-color: rgb(70 52 100 / 0.07) !important; }
+html[data-theme="light"] [class*="border-white\/"] { border-color: rgb(70 52 100 / 0.16) !important; }
+html[data-theme="light"] input,
+html[data-theme="light"] textarea,
+html[data-theme="light"] select { color: #211a2d !important; background-color: #ffffff !important; }
+html[data-theme="light"] option { color: #211a2d; background: #ffffff; }

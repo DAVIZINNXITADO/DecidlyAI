@@ -208,6 +208,15 @@ function LoginPage() {
   const [feedback, setFeedback] =
     useState<Feedback>(null);
 
+  const [referralCode, setReferralCode] = useState("");
+  const [referralBlocked, setReferralBlocked] = useState(false);
+
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("ref")?.trim() || "";
+    setReferralCode(code);
+    setReferralBlocked(Boolean(window.localStorage.getItem("decidly-account-created")));
+  }, []);
+
   const isSignUp =
     mode === "signup";
 
@@ -898,7 +907,7 @@ function LoginPage() {
     setLoading(true);
 
     try {
-      const referralCode = new URLSearchParams(window.location.search).get("ref")?.trim() || undefined;
+      const eligibleReferralCode = referralBlocked ? undefined : referralCode || undefined;
       const {
         data,
         error,
@@ -917,7 +926,7 @@ function LoginPage() {
               data: {
                 name:
                   cleanName,
-                ...(referralCode ? { referral_code: referralCode } : {}),
+                ...(eligibleReferralCode ? { referral_code: eligibleReferralCode } : {}),
 
               },
           },
@@ -972,6 +981,8 @@ function LoginPage() {
 
         return;
       }
+
+      window.localStorage.setItem("decidly-account-created", "1");
 
       if (!data.session) {
         showSuccess(
@@ -1266,6 +1277,13 @@ function LoginPage() {
                     ? "Crie sua conta e transforme sua próxima dúvida em um caminho mais claro."
                     : "Continue organizando suas decisões com mais clareza."}
                 </p>
+                {isSignUp && referralCode && (
+                  <div className={`mt-5 rounded-2xl border px-4 py-3 text-sm leading-6 ${referralBlocked ? "border-amber-300/20 bg-amber-300/[0.08] text-amber-100" : "border-violet-300/20 bg-violet-300/[0.08] text-violet-100"}`}>
+                    {referralBlocked
+                      ? "Este dispositivo já possui uma conta registrada. O bônus de convite só vale para pessoas novas ou inativas; não é possível autoindicar ou repetir a recompensa."
+                      : "Você recebeu um convite: crie uma conta nova por este link e, depois da primeira mensagem enviada, você e quem convidou recebem 25 créditos grátis."}
+                  </div>
+                )}
               </div>
 
               <div className="mt-9">

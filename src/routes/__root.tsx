@@ -295,6 +295,15 @@ function RootComponent() {
   const { queryClient } =
     Route.useRouteContext();
 
+  useEffect(() => {
+    const theme = window.localStorage.getItem("decidly-theme") || "dark";
+    const language = window.localStorage.getItem("decidly-language") || "pt-BR";
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    document.documentElement.lang = language;
+    document.body.dataset.theme = theme;
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
