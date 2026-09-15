@@ -1,7 +1,6 @@
 export type Language =
   | "pt-BR"
-  | "en-US"
-  | "ru-RU";
+  | "en-US";
 
 export const LANGUAGES: Record<Language, string> = {
   "pt-BR": "Português (Brasil)",
