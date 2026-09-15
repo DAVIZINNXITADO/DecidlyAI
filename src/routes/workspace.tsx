@@ -31,7 +31,7 @@ import { streamAi } from "../lib/ai-stream";
 import { requestTtsAudio } from "../lib/tts";
 import {
   availableCredits,
-  effectiveDailyUsed,
+  dailyCreditsBalance,
   normalizeCreditWallet,
   type CreditWallet,
 } from "../lib/credits";
@@ -1771,7 +1771,7 @@ function Workspace() {
    * ============================================================
    */
 
-  const dailyCreditsUsed = effectiveDailyUsed(creditWallet);
+  const dailyBalance = dailyCreditsBalance(creditWallet);
   const usableCredits = availableCredits(creditWallet);
 
   return (
@@ -2159,7 +2159,7 @@ function Workspace() {
 
             <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
               <div className="rounded-2xl bg-white/[0.06] p-3"><p className="text-[11px] text-white/45">Disponível</p><p className="mt-1 text-lg font-semibold text-white">{usableCredits.toFixed(2)}</p></div>
-              <div className="rounded-2xl bg-amber-400/[0.10] p-3"><p className="text-[11px] text-white/55">Usado hoje</p><p className="mt-1 text-lg font-semibold text-amber-200">{dailyCreditsUsed.toFixed(0)}/{creditWallet.daily_credits_limit >= 999999 ? "∞" : creditWallet.daily_credits_limit.toFixed(0)}</p></div>
+              <div className="rounded-2xl bg-amber-400/[0.10] p-3"><p className="text-[11px] text-white/55">Créditos diários</p><p className="mt-1 text-lg font-semibold text-amber-200">{dailyBalance.toFixed(0)}/{creditWallet.daily_credits_limit >= 999999 ? "∞" : creditWallet.daily_credits_limit.toFixed(0)}</p></div>
               <div className="rounded-2xl bg-violet-400/[0.10] p-3"><p className="text-[11px] text-white/55">Grátis</p><p className="mt-1 text-lg font-semibold text-violet-200">{creditWallet.free_credits.toFixed(2)}</p></div>
               <div className="rounded-2xl bg-emerald-400/[0.10] p-3"><p className="text-[11px] text-white/55">Comprados</p><p className="mt-1 text-lg font-semibold text-emerald-200">{creditWallet.purchased_credits.toFixed(2)}</p></div>
             </div>

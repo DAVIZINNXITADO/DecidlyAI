@@ -16,13 +16,21 @@ export function todayInSaoPaulo(date = new Date()): string {
   }).format(date);
 }
 
-export function effectiveDailyUsed(wallet: Pick<CreditWallet, "daily_credits_used" | "daily_credits_reset_at">): number {
-  return wallet.daily_credits_reset_at === todayInSaoPaulo() ? wallet.daily_credits_used : 0;
+export function dailyCreditsBalance(wallet: Pick<CreditWallet, "daily_credits_used" | "daily_credits_limit" | "daily_credits_reset_at">): number {
+  const today = todayInSaoPaulo();
+  if (!wallet.daily_credits_reset_at) return Math.min(wallet.daily_credits_limit, 5);
+  if (wallet.daily_credits_reset_at >= today) return Math.min(wallet.daily_credits_limit, wallet.daily_credits_used);
+
+  const previous = Date.parse(`${wallet.daily_credits_reset_at.slice(0, 10)}T00:00:00Z`);
+  const current = Date.parse(`${today}T00:00:00Z`);
+  const elapsedDays = Math.max(1, Math.floor((current - previous) / 86_400_000));
+  return Math.min(wallet.daily_credits_limit, wallet.daily_credits_used + elapsedDays * 5);
 }
 
+export const effectiveDailyUsed = dailyCreditsBalance;
+
 export function availableCredits(wallet: CreditWallet): number {
-  const dailyUsed = effectiveDailyUsed(wallet);
-  return Math.max(0, wallet.daily_credits_limit - dailyUsed) + wallet.free_credits + wallet.purchased_credits;
+  return dailyCreditsBalance(wallet) + wallet.free_credits + wallet.purchased_credits;
 }
 
 export function normalizeCreditWallet(data: Partial<CreditWallet> | null | undefined): CreditWallet {
