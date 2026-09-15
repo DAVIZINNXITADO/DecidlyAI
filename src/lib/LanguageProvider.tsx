@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { Language, useLanguage, setLanguage as setLanguageLib } from "./i18n";
-import { watchRenderedInterface } from "./uiTranslate";
 
 interface LanguageContextType {
   language: Language;
@@ -19,11 +18,6 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     setLanguageState(detectedLang);
     setMounted(true);
   }, []);
-
-  useEffect(() => {
-    if (!mounted || typeof document === "undefined") return;
-    return watchRenderedInterface(language);
-  }, [language, mounted]);
 
   const handleSetLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);
