@@ -3,6 +3,7 @@ import type { Language } from "./i18n";
 
 const pairs = new Map(UI_DICTIONARY.map(({ pt, en }) => [pt, en]));
 const originals = new WeakMap<Text, string>();
+const translatedAttributes = new WeakMap<Element, Map<string, string>>();
 const attributeNames = ["placeholder", "aria-label", "title", "alt"];
 
 function translateTextNode(node: Text, language: Language) {
@@ -10,11 +11,8 @@ function translateTextNode(node: Text, language: Language) {
   const original = originals.get(node) || "";
   const trimmed = original.trim();
   const translated = language === "en-US" ? pairs.get(trimmed) : undefined;
-  if (translated && translated !== trimmed) {
-    node.nodeValue = original.replace(trimmed, translated);
-  } else if (language === "pt-BR") {
-    node.nodeValue = original;
-  }
+  const next = translated ? original.replace(trimmed, translated) : original;
+  if (node.nodeValue !== next) node.nodeValue = next;
 }
 
 export function translateRenderedInterface(language: Language, root: ParentNode = document.body) {
@@ -30,19 +28,36 @@ export function translateRenderedInterface(language: Language, root: ParentNode 
   if (root instanceof Element) {
     const elements = [root, ...Array.from(root.querySelectorAll("*"))];
     for (const element of elements) {
+      let previous = translatedAttributes.get(element);
+      if (!previous) { previous = new Map(); translatedAttributes.set(element, previous); }
       for (const name of attributeNames) {
         const value = element.getAttribute(name);
-        if (!value) continue;
-        const translated = language === "en-US" ? pairs.get(value.trim()) : undefined;
-        if (translated && translated !== value) element.setAttribute(name, value.replace(value.trim(), translated));
+        if (value === null) continue;
+        const source = previous.get(name) || value;
+        if (!previous.has(name)) previous.set(name, source);
+        const translated = language === "en-US" ? pairs.get(source.trim()) : undefined;
+        const next = translated ? source.replace(source.trim(), translated) : source;
+        if (value !== next) element.setAttribute(name, next);
       }
     }
   }
 }
 
 export function watchRenderedInterface(language: Language) {
-  translateRenderedInterface(language);
-  const observer = new MutationObserver(() => translateRenderedInterface(language));
-  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  let scheduled = false;
+  let active = false;
+  const run = () => {
+    scheduled = false;
+    if (active || !document.body) return;
+    active = true;
+    try { translateRenderedInterface(language); } finally { active = false; }
+  };
+  run();
+  const observer = new MutationObserver(() => {
+    if (scheduled) return;
+    scheduled = true;
+    window.requestAnimationFrame(run);
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
   return () => observer.disconnect();
 }
