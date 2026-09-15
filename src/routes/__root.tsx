@@ -13,7 +13,6 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "../lib/supabase";
 import { LanguageProvider } from "../lib/LanguageProvider";
-import { I18nProvider } from "../lib/i18n";
 import { LanguageSelector } from "../components/LanguageSelector";
 
 const SITE_URL = "https://decidlyai.lovable.app/";
@@ -315,7 +314,7 @@ function RootComponent() {
     };
 
     const localTheme = window.localStorage.getItem("decidly-theme") || "dark";
-    const localLanguage = window.localStorage.getItem("decidly-language") || "en-US";
+    const localLanguage = window.localStorage.getItem("decidly-language") || "pt-BR";
     applyDocumentPreferences(localTheme, localLanguage);
 
     const syncAccountPreferences = async () => {
@@ -330,12 +329,10 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
-        <I18nProvider>
-          <Outlet />
-          <div className="fixed right-4 top-4 z-[60] sm:right-6 sm:top-6">
-            <LanguageSelector />
-          </div>
-        </I18nProvider>
+        <Outlet />
+        <div className="fixed right-4 top-4 z-[60] sm:right-6 sm:top-6">
+          <LanguageSelector />
+        </div>
       </LanguageProvider>
     </QueryClientProvider>
   );
