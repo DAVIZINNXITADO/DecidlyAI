@@ -13,7 +13,6 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "../lib/supabase";
 import { LanguageProvider } from "../lib/LanguageProvider";
-import { LanguageSelector } from "../components/LanguageSelector";
 
 const SITE_URL = "https://decidlyai.lovable.app/";
 
@@ -330,9 +329,6 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <Outlet />
-        <div className="fixed right-4 top-4 z-[60] sm:right-6 sm:top-6">
-          <LanguageSelector />
-        </div>
       </LanguageProvider>
     </QueryClientProvider>
   );
