@@ -1,0 +1,1012 @@
+[
+  {
+    "file": "src/components/Navbar.tsx",
+    "line": 78,
+    "text": "DecidlyAI"
+  },
+  {
+    "file": "src/lib/error-page.ts",
+    "line": 6,
+    "text": "This page didn't load"
+  },
+  {
+    "file": "src/lib/error-page.ts",
+    "line": 21,
+    "text": "This page didn't load"
+  },
+  {
+    "file": "src/lib/error-page.ts",
+    "line": 22,
+    "text": "Something went wrong on our end. You can try refreshing or head back home."
+  },
+  {
+    "file": "src/lib/error-page.ts",
+    "line": 24,
+    "text": "Try again"
+  },
+  {
+    "file": "src/lib/error-page.ts",
+    "line": 25,
+    "text": "Go home"
+  },
+  {
+    "file": "src/routes/ai-test.tsx",
+    "line": 114,
+    "text": "Usuário não autenticado"
+  },
+  {
+    "file": "src/routes/ai-test.tsx",
+    "line": 531,
+    "text": "Digite uma mensagem para o DecidlyAI..."
+  },
+  {
+    "file": "src/routes/cookies.tsx",
+    "line": 41,
+    "text": "Data de criação: 06/09/2026"
+  },
+  {
+    "file": "src/routes/cookies.tsx",
+    "line": 42,
+    "text": "Última alteração: 06/09/2026"
+  },
+  {
+    "file": "src/routes/cookies.tsx",
+    "line": 51,
+    "text": "O que são cookies?"
+  },
+  {
+    "file": "src/routes/cookies.tsx",
+    "line": 69,
+    "text": "Como o DecidlyAI utiliza cookies"
+  },
+  {
+    "file": "src/routes/cookies.tsx",
+    "line": 86,
+    "text": "Cookies essenciais"
+  },
+  {
+    "file": "src/routes/cookies.tsx",
+    "line": 109,
+    "text": "Cookies de autenticação"
+  },
+  {
+    "file": "src/routes/cookies.tsx",
+    "line": 131,
+    "text": "Serviços de terceiros"
+  },
+  {
+    "file": "src/routes/cookies.tsx",
+    "line": 158,
+    "text": "Consentimento"
+  },
+  {
+    "file": "src/routes/cookies.tsx",
+    "line": 179,
+    "text": "Como armazenamos sua escolha"
+  },
+  {
+    "file": "src/routes/cookies.tsx",
+    "line": 196,
+    "text": "Gerenciamento de cookies"
+  },
+  {
+    "file": "src/routes/cookies.tsx",
+    "line": 212,
+    "text": "Alterações nesta Política de Cookies"
+  },
+  {
+    "file": "src/routes/cookies.tsx",
+    "line": 226,
+    "text": "Contato"
+  },
+  {
+    "file": "src/routes/credit-pages.tsx",
+    "line": 22,
+    "text": "Nenhuma movimentação ainda."
+  },
+  {
+    "file": "src/routes/credit-pages.tsx",
+    "line": 22,
+    "text": "History"
+  },
+  {
+    "file": "src/routes/credit-pages.tsx",
+    "line": 33,
+    "text": "Seu saldo gratuito"
+  },
+  {
+    "file": "src/routes/credit-pages.tsx",
+    "line": 33,
+    "text": "Referral program"
+  },
+  {
+    "file": "src/routes/credit-pages.tsx",
+    "line": 33,
+    "text": "Crie uma conta pelo seu link. Quando uma pessoa nova ou inativa criar a conta e enviar a primeira mensagem, vocês dois recebem"
+  },
+  {
+    "file": "src/routes/credit-pages.tsx",
+    "line": 33,
+    "text": "25 free credits"
+  },
+  {
+    "file": "src/routes/credit-pages.tsx",
+    "line": 33,
+    "text": "Você não pode convidar a si mesmo. Contas já ativas não participam; apenas contas novas ou inativas pode se qualificar."
+  },
+  {
+    "file": "src/routes/credit-pages.tsx",
+    "line": 33,
+    "text": "AdShield Rewards"
+  },
+  {
+    "file": "src/routes/credit-pages.tsx",
+    "line": 33,
+    "text": "Assista a um anúncio verificado e receba +5 free credits. O programa será ativado com um provedor anti-fraude."
+  },
+  {
+    "file": "src/routes/credit-pages.tsx",
+    "line": 33,
+    "text": "AdShield Rewards coming soon"
+  },
+  {
+    "file": "src/routes/credit-pages.tsx",
+    "line": 33,
+    "text": "Free Credits"
+  },
+  {
+    "file": "src/routes/credit-pages.tsx",
+    "line": 38,
+    "text": "credits"
+  },
+  {
+    "file": "src/routes/credit-pages.tsx",
+    "line": 38,
+    "text": "Buy Credits"
+  },
+  {
+    "file": "src/routes/credits.tsx",
+    "line": 12,
+    "text": "; const dailyUsed = effectiveDailyUsed(wallet); const usable = availableCredits(wallet); return"
+  },
+  {
+    "file": "src/routes/credits.tsx",
+    "line": 12,
+    "text": "Free"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 68,
+    "text": "Comece a decidir."
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 108,
+    "text": "Uma conversa que coloca ordem no que você sente."
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 110,
+    "text": "Conte o contexto"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 111,
+    "text": "Explore os caminhos"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 112,
+    "text": "Decida com clareza"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 118,
+    "text": "Menos ruído. Mais perspectiva."
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 120,
+    "text": "Análise com contexto"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 121,
+    "text": "Modelos em fallback"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 122,
+    "text": "Créditos transparentes"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 123,
+    "text": "Histórico de decisões"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 129,
+    "text": "Comece sem pagar. Entenda antes de avançar."
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 132,
+    "text": "Disponível agora"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 134,
+    "text": "Free"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 134,
+    "text": "R$ 0"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 137,
+    "text": "Um espaço para começar a organizar suas decisões e descobrir se pensar com mais clareza pode mudar o seu próximo passo."
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 140,
+    "text": "10 créditos gratuitos por dia"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 141,
+    "text": "Acúmulo máximo de 10 créditos gratuitos"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 142,
+    "text": "Créditos calculados pelo uso de tokens"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 143,
+    "text": "Modelos em fallback automático"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 144,
+    "text": "Sem escolha manual de modelo"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 145,
+    "text": "Fila de processamento normal"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 146,
+    "text": "Sem exportação para PDF"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 147,
+    "text": "Créditos comprados não expiram pelo limite de acúmulo"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 149,
+    "text": "Criar minha conta grátis"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 153,
+    "text": "VIP"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 153,
+    "text": "Em breve"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 153,
+    "text": "Mais espaço para pensar."
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 153,
+    "text": "Quando o plano pago chegar, você terá mais liberdade para usar o produto sem perder a clareza sobre seus créditos."
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 153,
+    "text": "100 créditos gratuitos por dia"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 153,
+    "text": "Acúmulo de até 100 créditos gratuitos"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 153,
+    "text": "Créditos comprados separados da regra de acúmulo"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 154,
+    "text": "Os detalhes finais, preço e recursos extras do VIP serão anunciados em breve."
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 161,
+    "text": "A próxima decisão começa aqui"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 161,
+    "text": "Você não precisa ter todas as respostas para começar."
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 161,
+    "text": "Dê forma à sua dúvida. O DecidlyAI ajuda você a encontrar clareza no caminho."
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 161,
+    "text": "Começar gratuitamente"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 169,
+    "text": "Nova decisão"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 169,
+    "text": "Análise em andamento"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 169,
+    "text": "Pronto para explorar"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 169,
+    "text": "Sua pergunta"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 169,
+    "text": "Devo aceitar esta nova oportunidade?"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 169,
+    "text": "Primeira perspectiva"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 169,
+    "text": "Considere o impacto no seu crescimento, rotina e prioridades atuais."
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 169,
+    "text": "Para refletir"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 169,
+    "text": "Quais condições tornariam essa escolha sustentável para você?"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 169,
+    "text": "Uso estimado de tokens"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 169,
+    "text": "Calculado por análise"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 184,
+    "text": "DÚVIDAS FREQUENTES"
+  },
+  {
+    "file": "src/routes/index.tsx",
+    "line": 184,
+    "text": "Transparência antes de começar."
+  },
+  {
+    "file": "src/routes/login.tsx",
+    "line": 624,
+    "text": "continue_with"
+  },
+  {
+    "file": "src/routes/login.tsx",
+    "line": 1173,
+    "text": "DecidlyAI"
+  },
+  {
+    "file": "src/routes/login.tsx",
+    "line": 1191,
+    "text": "Seu espaço para decidir melhor"
+  },
+  {
+    "file": "src/routes/login.tsx",
+    "line": 1193,
+    "text": "Organize o contexto"
+  },
+  {
+    "file": "src/routes/login.tsx",
+    "line": 1194,
+    "text": "Compare caminhos"
+  },
+  {
+    "file": "src/routes/login.tsx",
+    "line": 1195,
+    "text": "Encontre clareza"
+  },
+  {
+    "file": "src/routes/login.tsx",
+    "line": 1231,
+    "text": "seuemail@exemplo.com"
+  },
+  {
+    "file": "src/routes/login.tsx",
+    "line": 1320,
+    "text": "Continuar com o Google"
+  },
+  {
+    "file": "src/routes/login.tsx",
+    "line": 1365,
+    "text": "Como podemos te chamar?"
+  },
+  {
+    "file": "src/routes/login.tsx",
+    "line": 1378,
+    "text": "seuemail@exemplo.com"
+  },
+  {
+    "file": "src/routes/login.tsx",
+    "line": 1755,
+    "text": "Digite sua senha"
+  },
+  {
+    "file": "src/routes/login.tsx",
+    "line": 1805,
+    "text": "Use pelo menos 6 caracteres, com letras e números."
+  },
+  {
+    "file": "src/routes/privacy.tsx",
+    "line": 62,
+    "text": "Informações que coletamos"
+  },
+  {
+    "file": "src/routes/privacy.tsx",
+    "line": 70,
+    "text": "Essas informações podem incluir:"
+  },
+  {
+    "file": "src/routes/privacy.tsx",
+    "line": 96,
+    "text": "Login com Google"
+  },
+  {
+    "file": "src/routes/privacy.tsx",
+    "line": 119,
+    "text": "Autenticação e infraestrutura com Supabase"
+  },
+  {
+    "file": "src/routes/privacy.tsx",
+    "line": 142,
+    "text": "Como utilizamos suas informações"
+  },
+  {
+    "file": "src/routes/privacy.tsx",
+    "line": 144,
+    "text": "Podemos utilizar as informações coletadas para:"
+  },
+  {
+    "file": "src/routes/privacy.tsx",
+    "line": 147,
+    "text": "Criar e manter sua conta;"
+  },
+  {
+    "file": "src/routes/privacy.tsx",
+    "line": 148,
+    "text": "Autenticar seu acesso ao DecidlyAI;"
+  },
+  {
+    "file": "src/routes/privacy.tsx",
+    "line": 149,
+    "text": "Fornecer os recursos e funcionalidades da plataforma;"
+  },
+  {
+    "file": "src/routes/privacy.tsx",
+    "line": 169,
+    "text": "Suas decisões e conteúdos"
+  },
+  {
+    "file": "src/routes/privacy.tsx",
+    "line": 186,
+    "text": "Compartilhamento de informações"
+  },
+  {
+    "file": "src/routes/privacy.tsx",
+    "line": 214,
+    "text": "Segurança"
+  },
+  {
+    "file": "src/routes/privacy.tsx",
+    "line": 232,
+    "text": "Retenção de informações"
+  },
+  {
+    "file": "src/routes/privacy.tsx",
+    "line": 249,
+    "text": "Exclusão de conta e informações"
+  },
+  {
+    "file": "src/routes/privacy.tsx",
+    "line": 266,
+    "text": "Cookies e tecnologias semelhantes"
+  },
+  {
+    "file": "src/routes/privacy.tsx",
+    "line": 283,
+    "text": "Serviços de terceiros"
+  },
+  {
+    "file": "src/routes/privacy.tsx",
+    "line": 305,
+    "text": "Alterações nesta Política de Privacidade"
+  },
+  {
+    "file": "src/routes/privacy.tsx",
+    "line": 321,
+    "text": "Contato"
+  },
+  {
+    "file": "src/routes/reset-password.tsx",
+    "line": 89,
+    "text": "DecidlyAI"
+  },
+  {
+    "file": "src/routes/reset-password.tsx",
+    "line": 1075,
+    "text": "Digite sua nova senha"
+  },
+  {
+    "file": "src/routes/reset-password.tsx",
+    "line": 1134,
+    "text": "Digite sua nova senha novamente"
+  },
+  {
+    "file": "src/routes/settings-pages.tsx",
+    "line": 8,
+    "text": "Preferred name"
+  },
+  {
+    "file": "src/routes/settings-pages.tsx",
+    "line": 8,
+    "text": "Email"
+  },
+  {
+    "file": "src/routes/settings-pages.tsx",
+    "line": 8,
+    "text": "E-mail e senha não podem ser alterados nesta área."
+  },
+  {
+    "file": "src/routes/settings-pages.tsx",
+    "line": 8,
+    "text": "Account"
+  },
+  {
+    "file": "src/routes/settings-pages.tsx",
+    "line": 10,
+    "text": "Dark"
+  },
+  {
+    "file": "src/routes/settings-pages.tsx",
+    "line": 10,
+    "text": "Tema escuro do DecidlyAI"
+  },
+  {
+    "file": "src/routes/settings-pages.tsx",
+    "line": 10,
+    "text": "Light"
+  },
+  {
+    "file": "src/routes/settings-pages.tsx",
+    "line": 10,
+    "text": "Tema claro para todas as páginas"
+  },
+  {
+    "file": "src/routes/settings-pages.tsx",
+    "line": 10,
+    "text": "Appearance"
+  },
+  {
+    "file": "src/routes/settings-pages.tsx",
+    "line": 12,
+    "text": "Interface language"
+  },
+  {
+    "file": "src/routes/settings-pages.tsx",
+    "line": 12,
+    "text": "A preferência é persistente neste dispositivo e na sua sessão. Os textos ainda não catalogados usam inglês como fallback."
+  },
+  {
+    "file": "src/routes/settings-pages.tsx",
+    "line": 12,
+    "text": "Language"
+  },
+  {
+    "file": "src/routes/settings.tsx",
+    "line": 7,
+    "text": "; return"
+  },
+  {
+    "file": "src/routes/tecnologia.tsx",
+    "line": 21,
+    "text": "Por trás do DecidlyAI"
+  },
+  {
+    "file": "src/routes/tecnologia.tsx",
+    "line": 22,
+    "text": "Inteligência para acompanhar o seu contexto."
+  },
+  {
+    "file": "src/routes/tecnologia.tsx",
+    "line": 27,
+    "text": "Uma única experiência"
+  },
+  {
+    "file": "src/routes/tecnologia.tsx",
+    "line": 28,
+    "text": "Rotas de disponibilidade"
+  },
+  {
+    "file": "src/routes/tecnologia.tsx",
+    "line": 29,
+    "text": "Uso responsável"
+  },
+  {
+    "file": "src/routes/tecnologia.tsx",
+    "line": 33,
+    "text": "ROTA DO PLANO FREE"
+  },
+  {
+    "file": "src/routes/tecnologia.tsx",
+    "line": 34,
+    "text": "A mesma inteligência, com diferentes rotas de disponibilidade."
+  },
+  {
+    "file": "src/routes/tecnologia.tsx",
+    "line": 39,
+    "text": "A tecnologia apoia. Você decide."
+  },
+  {
+    "file": "src/routes/tecnologia.tsx",
+    "line": 43,
+    "text": "O que você encontra no plano Free"
+  },
+  {
+    "file": "src/routes/tecnologia.tsx",
+    "line": 45,
+    "text": "Rota automática de inteligência"
+  },
+  {
+    "file": "src/routes/tecnologia.tsx",
+    "line": 46,
+    "text": "Créditos calculados pelo uso real"
+  },
+  {
+    "file": "src/routes/tecnologia.tsx",
+    "line": 47,
+    "text": "Experiência simples, sem configuração técnica"
+  },
+  {
+    "file": "src/routes/tecnologia.tsx",
+    "line": 48,
+    "text": "Fallback para reduzir indisponibilidades"
+  },
+  {
+    "file": "src/routes/tecnologia.tsx",
+    "line": 50,
+    "text": "Começar gratuitamente"
+  },
+  {
+    "file": "src/routes/terms.tsx",
+    "line": 63,
+    "text": "Aceitação dos Termos"
+  },
+  {
+    "file": "src/routes/terms.tsx",
+    "line": 77,
+    "text": "Sobre o DecidlyAI"
+  },
+  {
+    "file": "src/routes/terms.tsx",
+    "line": 93,
+    "text": "Responsabilidade pelas decisões"
+  },
+  {
+    "file": "src/routes/terms.tsx",
+    "line": 115,
+    "text": "Conta do usuário"
+  },
+  {
+    "file": "src/routes/terms.tsx",
+    "line": 137,
+    "text": "Login com serviços de terceiros"
+  },
+  {
+    "file": "src/routes/terms.tsx",
+    "line": 157,
+    "text": "Uso adequado da plataforma"
+  },
+  {
+    "file": "src/routes/terms.tsx",
+    "line": 178,
+    "text": "Conteúdo fornecido pelo usuário"
+  },
+  {
+    "file": "src/routes/terms.tsx",
+    "line": 198,
+    "text": "Disponibilidade do serviço"
+  },
+  {
+    "file": "src/routes/terms.tsx",
+    "line": 215,
+    "text": "Alterações na plataforma"
+  },
+  {
+    "file": "src/routes/terms.tsx",
+    "line": 231,
+    "text": "Propriedade intelectual"
+  },
+  {
+    "file": "src/routes/terms.tsx",
+    "line": 248,
+    "text": "Limitação de responsabilidade"
+  },
+  {
+    "file": "src/routes/terms.tsx",
+    "line": 270,
+    "text": "Suspensão ou encerramento de acesso"
+  },
+  {
+    "file": "src/routes/terms.tsx",
+    "line": 286,
+    "text": "Privacidade e cookies"
+  },
+  {
+    "file": "src/routes/terms.tsx",
+    "line": 301,
+    "text": "Alterações nestes Termos"
+  },
+  {
+    "file": "src/routes/terms.tsx",
+    "line": 315,
+    "text": "Contato"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 1205,
+    "text": "Tente novamente."
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 1550,
+    "text": "TTS_ERROR"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 1798,
+    "text": "Abrir menu"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 1813,
+    "text": "Abrir créditos"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 1866,
+    "text": "DecidlyAI"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 1890,
+    "text": "Fechar menu"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 1926,
+    "text": "Pesquisar"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2088,
+    "text": "Credits"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2133,
+    "text": "Fechar menu"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2153,
+    "text": "Carteira"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2154,
+    "text": "Seus créditos"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2155,
+    "text": "Convites e anúncios entram nos créditos grátis."
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2157,
+    "text": "Fechar créditos"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2161,
+    "text": "Disponível"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2162,
+    "text": "Créditos diários"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2163,
+    "text": "Grátis"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2164,
+    "text": "Comprados"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2169,
+    "text": "Conseguir créditos grátis"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2170,
+    "text": "Receba a renovação diária e, quando os eventos forem ativados, ganhe créditos ao convidar amigos ou assistir anúncios recompensados."
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2171,
+    "text": "Renovação diária"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2171,
+    "text": "Convites"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2171,
+    "text": "Anúncios"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2174,
+    "text": "Comprar créditos"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2175,
+    "text": "Os créditos comprados ficam separados do saldo grátis e não entram no limite de acúmulo."
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2176,
+    "text": "Ver pacotes de créditos"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2180,
+    "text": "Atualizando saldo…"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2319,
+    "text": "Sua conta"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2320,
+    "text": "Como prefere ser chamado?"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2322,
+    "text": "Esse nome personaliza suas conversas. Ele não aparece como uma mensagem no chat."
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2324,
+    "text": "Fechar conta"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2326,
+    "text": "Nome de preferência"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2335,
+    "text": "Cancelar"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2336,
+    "text": "Salvar preferência"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2338,
+    "text": "Account &amp; Settings"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2339,
+    "text": "Sair da conta"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2364,
+    "text": "DecidlyAI"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2534,
+    "text": "Curtir"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2555,
+    "text": "Não gostei"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2570,
+    "text": "Copiar"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2636,
+    "text": "Fechar"
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2681,
+    "text": "Escreva sua decisão..."
+  },
+  {
+    "file": "src/routes/workspace.tsx",
+    "line": 2711,
+    "text": "Enviar"
+  },
+  {
+    "file": "src/server.ts",
+    "line": 7,
+    "text": "Promise"
+  }
+]
