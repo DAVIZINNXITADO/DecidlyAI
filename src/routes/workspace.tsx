@@ -29,6 +29,12 @@ import remarkGfm from "remark-gfm";
 import { supabase } from "../lib/supabase";
 import { streamAi } from "../lib/ai-stream";
 import { requestTtsAudio } from "../lib/tts";
+import {
+  availableCredits,
+  effectiveDailyUsed,
+  normalizeCreditWallet,
+  type CreditWallet,
+} from "../lib/credits";
 
 export const Route = createFileRoute("/workspace")({
   component: Workspace,
@@ -51,14 +57,6 @@ type Subscription = {
   plan?: string | null;
   status?: string | null;
   expires_at?: string | null;
-};
-
-type CreditWallet = {
-  free_credits: number;
-  purchased_credits: number;
-  total_credits: number;
-  daily_credits_used: number;
-  daily_credits_limit: number;
 };
 
 const SIDEBAR_MAX_WIDTH = 320;
@@ -110,6 +108,7 @@ function Workspace() {
     total_credits: 0,
     daily_credits_used: 0,
     daily_credits_limit: 10,
+    daily_credits_reset_at: null,
   });
   const [creditsLoading, setCreditsLoading] = useState(false);
   const [thinkingLabel, setThinkingLabel] = useState("Organizando sua decisão...");
@@ -151,17 +150,11 @@ function Workspace() {
     setCreditsLoading(true);
     const { data } = await supabase
       .from("ai_credits")
-      .select("free_credits,purchased_credits,total_credits,daily_credits_used,daily_credits_limit")
+      .select("free_credits,purchased_credits,total_credits,daily_credits_used,daily_credits_limit,daily_credits_reset_at")
       .eq("user_id", userId)
       .maybeSingle();
     if (data) {
-      setCreditWallet({
-        free_credits: Number(data.free_credits ?? 0),
-        purchased_credits: Number(data.purchased_credits ?? 0),
-        total_credits: Number(data.total_credits ?? 0),
-        daily_credits_used: Number(data.daily_credits_used ?? 0),
-        daily_credits_limit: Number(data.daily_credits_limit ?? 10),
-      });
+      setCreditWallet(normalizeCreditWallet(data));
     }
     setCreditsLoading(false);
   }, [userId]);
@@ -1778,6 +1771,9 @@ function Workspace() {
    * ============================================================
    */
 
+  const dailyCreditsUsed = effectiveDailyUsed(creditWallet);
+  const usableCredits = availableCredits(creditWallet);
+
   return (
     <div
       className="workspace-shell relative min-h-[100dvh] overflow-hidden bg-[#0d0912] text-white"
@@ -1817,7 +1813,7 @@ function Workspace() {
           aria-label="Abrir créditos"
         >
           <Coins size={17} className="text-violet-300" />
-          <span>{creditWallet.total_credits.toFixed(2)}</span>
+          <span>{usableCredits.toFixed(2)}</span>
         </button>
       )}
 
@@ -2090,7 +2086,7 @@ function Workspace() {
             <Link to="/credits" onClick={closeSidebar} className="mb-2 flex w-full items-center gap-3 rounded-xl bg-violet-400/[0.08] px-3 py-3 text-left text-sm text-violet-100 transition hover:bg-violet-400/[0.14]">
               <Coins size={18} />
               <span className="flex-1">Credits</span>
-              <span className="text-xs text-violet-200/70">{creditWallet.total_credits.toFixed(2)}</span>
+              <span className="text-xs text-violet-200/70">{usableCredits.toFixed(2)}</span>
             </Link>
             <button
               type="button"
@@ -2162,8 +2158,8 @@ function Workspace() {
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <div className="rounded-2xl bg-white/[0.06] p-3"><p className="text-[11px] text-white/45">Total</p><p className="mt-1 text-lg font-semibold text-white">{creditWallet.total_credits.toFixed(2)}</p></div>
-              <div className="rounded-2xl bg-amber-400/[0.10] p-3"><p className="text-[11px] text-white/55">Daily</p><p className="mt-1 text-lg font-semibold text-amber-200">{creditWallet.daily_credits_used.toFixed(0)}/{creditWallet.daily_credits_limit >= 999999 ? "∞" : creditWallet.daily_credits_limit.toFixed(0)}</p></div>
+              <div className="rounded-2xl bg-white/[0.06] p-3"><p className="text-[11px] text-white/45">Disponível</p><p className="mt-1 text-lg font-semibold text-white">{usableCredits.toFixed(2)}</p></div>
+              <div className="rounded-2xl bg-amber-400/[0.10] p-3"><p className="text-[11px] text-white/55">Usado hoje</p><p className="mt-1 text-lg font-semibold text-amber-200">{dailyCreditsUsed.toFixed(0)}/{creditWallet.daily_credits_limit >= 999999 ? "∞" : creditWallet.daily_credits_limit.toFixed(0)}</p></div>
               <div className="rounded-2xl bg-violet-400/[0.10] p-3"><p className="text-[11px] text-white/55">Grátis</p><p className="mt-1 text-lg font-semibold text-violet-200">{creditWallet.free_credits.toFixed(2)}</p></div>
               <div className="rounded-2xl bg-emerald-400/[0.10] p-3"><p className="text-[11px] text-white/55">Comprados</p><p className="mt-1 text-lg font-semibold text-emerald-200">{creditWallet.purchased_credits.toFixed(2)}</p></div>
             </div>
