@@ -61,6 +61,7 @@ export function Navbar() {
 
         <Link
           to="/"
+          data-no-translate
           onClick={(event) => {
             if (window.location.pathname === "/") {
               event.preventDefault();

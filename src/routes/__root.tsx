@@ -13,6 +13,8 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "../lib/supabase";
 import { LanguageProvider } from "../lib/LanguageProvider";
+import { I18nProvider } from "../lib/i18n";
+import { LanguageSelector } from "../components/LanguageSelector";
 
 const SITE_URL = "https://decidlyai.lovable.app/";
 
@@ -305,10 +307,10 @@ function RootComponent() {
   useEffect(() => {
     const applyDocumentPreferences = (theme: string, language: string) => {
       window.localStorage.setItem("decidly-theme", theme);
-      window.localStorage.setItem("decidly-language", language);
+      window.localStorage.setItem("decidly-language", language === "en-US" ? "en" : language);
       document.documentElement.dataset.theme = theme;
       document.documentElement.classList.toggle("dark", theme === "dark");
-      document.documentElement.lang = language;
+      document.documentElement.lang = language === "en" ? "en-US" : language;
       document.body.dataset.theme = theme;
     };
 
@@ -328,7 +330,12 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
-        <Outlet />
+        <I18nProvider>
+          <Outlet />
+          <div className="fixed right-4 top-4 z-[60] sm:right-6 sm:top-6">
+            <LanguageSelector />
+          </div>
+        </I18nProvider>
       </LanguageProvider>
     </QueryClientProvider>
   );
