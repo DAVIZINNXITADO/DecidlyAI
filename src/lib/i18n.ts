@@ -1,30 +1,11 @@
 export type Language =
   | "pt-BR"
   | "en-US"
-  | "es-ES"
-  | "fr-FR"
-  | "de-DE"
-  | "it-IT"
-  | "ja-JP"
-  | "ko-KR"
-  | "zh-CN"
-  | "hi-IN"
-  | "ar-SA"
   | "ru-RU";
 
 export const LANGUAGES: Record<Language, string> = {
   "pt-BR": "Português (Brasil)",
   "en-US": "English (US)",
-  "es-ES": "Español (España)",
-  "fr-FR": "Français",
-  "de-DE": "Deutsch",
-  "it-IT": "Italiano",
-  "ja-JP": "日本語",
-  "ko-KR": "한국어",
-  "zh-CN": "简体中文",
-  "hi-IN": "हिन्दी",
-  "ar-SA": "العربية",
-  "ru-RU": "Русский",
 };
 
 const coreTranslations = {
@@ -39,12 +20,6 @@ const coreTranslations = {
     legal: { links: "Legal links", terms: "Terms of Use", privacy: "Privacy Policy", cookies: "Cookie Policy" },
     cookies: { title: "Cookies", subtitle: "Your privacy matters.", description: "We use cookies and similar technologies to keep DecidlyAI working, maintain your session, and improve your experience.", optional: "You can accept or refuse non-essential cookies.", readPolicy: "Read Cookie Policy", reject: "Reject", accept: "Accept", close: "Close cookie notice" },
     settings: { title: "Settings", language: "Language", languageLabel: "Interface language", saved: "Your preference is saved on this device and in your session.", progressive: "Interface text is translated progressively." },
-  },
-  "es-ES": {
-    nav: { workspace: "Espacio de trabajo", settings: "Configuración", credits: "Créditos", logout: "Cerrar sesión", howItWorks: "Cómo funciona", resources: "Recursos", plans: "Planes", signIn: "Iniciar sesión", start: "Comenzar", openMenu: "Abrir menú", closeMenu: "Cerrar menú" },
-    legal: { links: "Enlaces legales", terms: "Términos de uso", privacy: "Política de privacidad", cookies: "Política de cookies" },
-    cookies: { title: "Cookies", subtitle: "Tu privacidad importa.", description: "Usamos cookies y tecnologías similares para mantener DecidlyAI funcionando, mantener tu sesión y mejorar tu experiencia.", optional: "Puedes aceptar o rechazar las cookies no esenciales.", readPolicy: "Leer la política de cookies", reject: "Rechazar", accept: "Aceptar", close: "Cerrar aviso de cookies" },
-    settings: { title: "Configuración", language: "Idioma", languageLabel: "Idioma de la interfaz", saved: "Tu preferencia se guarda en este dispositivo y en tu sesión.", progressive: "El texto de la interfaz se traduce progresivamente." },
   },
 } as const;
 
