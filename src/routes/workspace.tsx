@@ -1753,7 +1753,7 @@ function Workspace() {
 
   return (
     <div
-      className="relative min-h-[100dvh] overflow-hidden bg-[#0d0912] text-white"
+      className="workspace-shell relative min-h-[100dvh] overflow-hidden bg-[#0d0912] text-white"
       onPointerDown={() => {
         if (chatMenuId) {
           setChatMenuId(null);

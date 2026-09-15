@@ -410,3 +410,36 @@ html[data-theme="light"] [class*="bg-slate-950"] { background-color: #ffffff !im
 html[data-theme="light"] [class*="text-white"] { color: #292137 !important; }
 html[data-theme="light"] main[class*="bg-[#070711]"] [class*="text-white"],
 html[data-theme="light"] main[class*="bg-slate-950"] [class*="text-white"] { color: #292137 !important; }
+
+/* Workspace claro: os componentes antigos usam superfícies escuras explícitas. */
+html[data-theme="light"] .workspace-shell {
+  background: #f7f5fb !important;
+  color: #292137 !important;
+}
+html[data-theme="light"] .workspace-shell aside,
+html[data-theme="light"] .workspace-shell [class*="bg-[#17101f]"],
+html[data-theme="light"] .workspace-shell [class*="bg-[#18101f]"],
+html[data-theme="light"] .workspace-shell [class*="bg-[#21152d]"] {
+  background-color: #ffffff !important;
+  color: #292137 !important;
+}
+html[data-theme="light"] .workspace-shell textarea,
+html[data-theme="light"] .workspace-shell input {
+  background-color: transparent !important;
+  color: #292137 !important;
+  caret-color: #6d28d9 !important;
+}
+html[data-theme="light"] .workspace-shell textarea::placeholder,
+html[data-theme="light"] .workspace-shell input::placeholder {
+  color: #7a6d8d !important;
+  opacity: 1 !important;
+}
+html[data-theme="light"] .workspace-shell [class*="text-white/"] {
+  color: #5d536e !important;
+}
+html[data-theme="light"] .workspace-shell [class*="text-white"] {
+  color: #292137 !important;
+}
+html[data-theme="light"] .workspace-shell [class*="border-white/"] {
+  border-color: #ded7eb !important;
+}
