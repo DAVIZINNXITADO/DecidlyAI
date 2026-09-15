@@ -166,7 +166,51 @@ function Index() {
 }
 
 function DecisionPreview() {
-  return <div className="relative mx-auto w-full max-w-xl"><div className="absolute -inset-8 rounded-full bg-violet-500/10 blur-3xl" /><div className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-[#10101d]/90 p-5 shadow-2xl backdrop-blur-xl md:p-7"><div className="flex items-center justify-between border-b border-white/10 pb-5"><div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-400/15 text-violet-300"><BrainCircuit /></div><div><p className="font-semibold">Nova decisão</p><p className="text-xs text-slate-500">Análise em andamento</p></div></div><span className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs text-emerald-300">Pronto para explorar</span></div><p className="mt-7 text-xs uppercase tracking-[0.16em] text-slate-500">Sua pergunta</p><h2 className="mt-3 text-2xl font-semibold leading-tight md:text-3xl">Devo aceitar esta nova oportunidade?</h2><div className="mt-7 grid gap-3 sm:grid-cols-2"><div className="rounded-2xl border border-violet-300/30 bg-violet-400/10 p-4"><div className="flex items-center gap-2 text-sm font-semibold text-violet-200"><Sparkles className="h-4 w-4" /> Primeira perspectiva</div><p className="mt-3 text-sm leading-6 text-slate-300">Considere o impacto no seu crescimento, rotina e prioridades atuais.</p></div><div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><div className="flex items-center gap-2 text-sm font-semibold text-slate-200"><CircleHelp className="h-4 w-4" /> Para refletir</div><p className="mt-3 text-sm leading-6 text-slate-400">Quais condições tornariam essa escolha sustentável para você?</p></div></div><div className="mt-5 flex items-center justify-between rounded-xl bg-black/20 px-4 py-3 text-xs text-slate-500"><span>Uso estimado de tokens</span><span className="text-violet-200">Calculado por análise</span></div></div></div>;
+  return (
+    <div className="relative mx-auto w-full max-w-xl">
+      <div className="absolute -inset-8 rounded-full bg-violet-500/10 blur-3xl" />
+      <div className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-[#10101d]/95 p-4 shadow-2xl backdrop-blur-xl md:p-6">
+        <div className="flex items-center justify-between border-b border-white/10 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-400/15 text-violet-300">
+              <BrainCircuit />
+            </div>
+            <div>
+              <p className="font-semibold">DecidlyAI</p>
+              <p className="text-xs text-slate-500">Uma conversa para pensar melhor</p>
+            </div>
+          </div>
+          <span className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs text-emerald-300">Online</span>
+        </div>
+
+        <div className="space-y-4 py-5">
+          <div className="flex justify-end">
+            <div className="max-w-[86%] rounded-2xl rounded-br-md bg-violet-500 px-4 py-3 text-sm leading-6 text-white shadow-lg shadow-violet-950/20">
+              Recebi uma proposta de emprego melhor, mas teria que me mudar para outra cidade. Como posso decidir?
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2.5">
+            <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-400/15 text-violet-300">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            <div className="max-w-[88%] rounded-2xl rounded-tl-md border border-white/10 bg-white/[0.045] px-4 py-3 text-sm leading-6 text-slate-300">
+              Essa decisão parece envolver dois pontos principais: <strong className="text-white">crescimento profissional</strong> e <strong className="text-white">qualidade de vida</strong>.
+              <div className="mt-3 space-y-2 border-t border-white/10 pt-3 text-xs leading-5 text-slate-400">
+                <p><span className="font-semibold text-violet-200">Considere:</span> salário, custo de vida e oportunidades reais de evolução.</p>
+                <p><span className="font-semibold text-violet-200">Reflita:</span> você teria uma rede de apoio e uma saída segura se não desse certo?</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-xs text-slate-500">
+          <span className="h-1.5 w-1.5 rounded-full bg-violet-300" />
+          O DecidlyAI organiza a dúvida. A decisão continua sendo sua.
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function SectionHeading({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) { return <div className="max-w-3xl"><p className="text-sm font-semibold tracking-[0.18em] text-violet-300">{eyebrow}</p><h2 className="mt-5 text-4xl font-semibold leading-tight tracking-tight md:text-5xl">{title}</h2><p className="mt-5 max-w-2xl text-lg leading-8 text-slate-400">{description}</p></div>; }
