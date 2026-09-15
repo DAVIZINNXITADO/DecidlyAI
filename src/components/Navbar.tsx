@@ -175,7 +175,6 @@ export function Navbar() {
       {mobileMenuOpen ? (
         <div className="border-t border-slate-800 bg-slate-950/95 px-6 py-5 backdrop-blur-xl md:hidden">
           <div className="mx-auto flex max-w-6xl flex-col gap-2">
-            <CustomLanguageSelector />
             <button
               type="button"
               onClick={() =>
