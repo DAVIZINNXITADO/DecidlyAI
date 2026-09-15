@@ -121,8 +121,7 @@ type Feedback = {
 
 function maskedReferralName(value: string): string {
   const parts = value.trim().split(/\s+/).filter(Boolean);
-  if (parts.length <= 1) return parts[0] || "Alguém";
-  return `${parts.slice(0, -1).join(" ")} ${parts[parts.length - 1].charAt(0)}.`;
+  return parts[0] || "Alguém";
 }
 
 const GOOGLE_CLIENT_ID =
