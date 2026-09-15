@@ -24,7 +24,8 @@ export function dailyCreditsBalance(wallet: Pick<CreditWallet, "daily_credits_us
   const previous = Date.parse(`${wallet.daily_credits_reset_at.slice(0, 10)}T00:00:00Z`);
   const current = Date.parse(`${today}T00:00:00Z`);
   const elapsedDays = Math.max(1, Math.floor((current - previous) / 86_400_000));
-  return Math.min(wallet.daily_credits_limit, wallet.daily_credits_used + elapsedDays * 5);
+  const dailyGrant = wallet.daily_credits_limit >= 100 ? 10 : 5;
+  return Math.min(wallet.daily_credits_limit, wallet.daily_credits_used + elapsedDays * dailyGrant);
 }
 
 export const effectiveDailyUsed = dailyCreditsBalance;

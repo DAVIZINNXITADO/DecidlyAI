@@ -16,7 +16,8 @@ const dailyBalanceForToday = (resetAt: unknown, storedBalance: unknown, limit: n
   const previous = String(resetAt).slice(0, 10);
   if (previous >= today) return Math.min(limit, Number(storedBalance ?? 0));
   const elapsedDays = Math.max(1, Math.floor((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${previous}T00:00:00Z`)) / 86_400_000));
-  return Math.min(limit, Number(storedBalance ?? 0) + elapsedDays * 5);
+  const dailyGrant = limit >= 100 ? 10 : 5;
+  return Math.min(limit, Number(storedBalance ?? 0) + elapsedDays * dailyGrant);
 };
 
 Deno.serve(async (request) => {
