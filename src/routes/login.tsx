@@ -119,6 +119,12 @@ type Feedback = {
   message: string;
 } | null;
 
+function maskedReferralName(value: string): string {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return parts[0] || "Alguém";
+  return `${parts.slice(0, -1).join(" ")} ${parts[parts.length - 1].charAt(0)}.`;
+}
+
 const GOOGLE_CLIENT_ID =
   "895354448430-qs5ilh31kgp5qqlb0c6s6abiag9s8vti.apps.googleusercontent.com";
 
@@ -215,14 +221,14 @@ function LoginPage() {
   useEffect(() => {
     const code = new URLSearchParams(window.location.search).get("ref")?.trim() || "";
     if (!code) return;
-    setReferralCode(code);
     setMode("signup");
     setReferralBlocked(Boolean(window.localStorage.getItem("decidly-account-created")));
     void (async () => {
       const { data: referral } = await supabase.from("referral_codes").select("user_id").eq("code", code).maybeSingle();
       if (!referral?.user_id) return;
+      setReferralCode(code);
       const { data: profile } = await supabase.from("profiles").select("full_name,username").eq("id", referral.user_id).maybeSingle();
-      setReferrerName(profile?.full_name?.trim() || profile?.username?.trim() || "Alguém");
+      setReferrerName(maskedReferralName(profile?.full_name?.trim() || profile?.username?.trim() || "Alguém"));
     })();
   }, []);
 
