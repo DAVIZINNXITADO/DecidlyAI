@@ -263,6 +263,12 @@ export const Route =
           crossOrigin: "anonymous",
         },
         {
+          src: "https://cdn.weglot.com/weglot.min.js",
+        },
+        {
+          children: `window.Weglot = window.Weglot || {}; window.Weglot.initialize({ api_key: "wg_27c75c00e6636b7f29b2c8b9e67c33856" });`,
+        },
+        {
           type: "application/ld+json",
           children: JSON.stringify(websiteSchema),
         },
