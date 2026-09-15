@@ -257,6 +257,11 @@ export const Route =
 
       scripts: [
         {
+          async: true,
+          src: "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9790514285476638",
+          crossOrigin: "anonymous",
+        },
+        {
           type: "application/ld+json",
           children: JSON.stringify(websiteSchema),
         },
