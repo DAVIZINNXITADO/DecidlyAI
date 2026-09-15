@@ -3,7 +3,7 @@ import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import { useLanguageContext } from "../lib/LanguageProvider";
 import { t } from "../lib/i18n";
-import CustomLanguageSelector from "./CustomLanguageSelector";
+import { LanguageSelector } from "./LanguageSelector";
 
 function scrollToSection(sectionId: string) {
   const target = document.getElementById(sectionId);
@@ -130,7 +130,7 @@ export function Navbar() {
         {/* BOTÕES DESKTOP */}
 
         <div className="hidden items-center gap-3 md:flex">
-          <CustomLanguageSelector />
+          <LanguageSelector />
           <Link
             to="/login"
             className="interactive-lift rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-violet-500 hover:text-white"

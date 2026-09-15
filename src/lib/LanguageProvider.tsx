@@ -9,25 +9,17 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>("en-US");
-  const [mounted, setMounted] = useState(false);
+  const [language, setLanguageState] = useState<Language>("pt-BR");
 
   useEffect(() => {
-    // Detect language on client side only
     const detectedLang = useLanguage();
     setLanguageState(detectedLang);
-    setMounted(true);
   }, []);
 
   const handleSetLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);
     setLanguageLib(lang);
   }, []);
-
-  // Don't render until mounted to avoid hydration mismatch
-  if (!mounted) {
-    return <>{children}</>;
-  }
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage: handleSetLanguage }}>
