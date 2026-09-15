@@ -1288,13 +1288,6 @@ function LoginPage() {
                       : "Crie sua conta e transforme sua próxima dúvida em um caminho mais claro."
                     : "Continue organizando suas decisões com mais clareza."}
                 </p>
-                {isSignUp && referralCode && (
-                  <div className={`mt-5 rounded-2xl border px-4 py-3 text-sm leading-6 ${referralBlocked ? "border-amber-300/20 bg-amber-300/[0.08] text-amber-100" : "border-violet-300/20 bg-violet-300/[0.08] text-violet-100"}`}>
-                    {referralBlocked
-                      ? "Este dispositivo já possui uma conta registrada. O bônus de convite só vale para pessoas novas ou inativas; não é possível autoindicar ou repetir a recompensa."
-                      : "Você recebeu um convite: crie uma conta nova por este link e, depois da primeira mensagem enviada, você e quem convidou recebem 25 créditos grátis."}
-                  </div>
-                )}
               </div>
 
               <div className="mt-9">
