@@ -261,7 +261,19 @@ function Workspace() {
       } = await supabase.auth.getUser();
 
       if (mounted) {
-        setUserId(user?.id ?? null);
+        if (!user) {
+          setUserId(null);
+          setUserEmail("");
+          setUserName("");
+          setPreferredName("");
+          setConversations([]);
+          setMessages([]);
+          setActiveConversationId(null);
+          void navigate({ to: "/login", replace: true });
+          return;
+        }
+
+        setUserId(user.id);
         setUserEmail(user?.email ?? "");
         const metadata = user?.user_metadata as
           | { name?: string; full_name?: string; display_name?: string }
@@ -286,18 +298,30 @@ function Workspace() {
     } = supabase.auth.onAuthStateChange(
       (_event, session) => {
           if (mounted) {
+            if (!session?.user) {
+              setUserId(null);
+              setUserEmail("");
+              setUserName("");
+              setPreferredName("");
+              setConversations([]);
+              setMessages([]);
+              setActiveConversationId(null);
+              void navigate({ to: "/login", replace: true });
+              return;
+            }
+
             setUserId(
-              session?.user?.id ?? null,
+              session.user.id,
             );
-            setUserEmail(session?.user?.email ?? "");
-            const metadata = session?.user?.user_metadata as
+            setUserEmail(session.user.email ?? "");
+            const metadata = session.user.user_metadata as
               | { name?: string; full_name?: string; display_name?: string }
               | undefined;
             const accountName =
               metadata?.name?.trim() ||
                 metadata?.full_name?.trim() ||
                 metadata?.display_name?.trim() ||
-                session?.user?.email?.split("@")[0] ||
+                session.user.email?.split("@")[0] ||
                 "";
             setUserName(accountName);
             setPreferredName(
@@ -311,7 +335,7 @@ function Workspace() {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [navigate]);
 
   /*
    * ============================================================
@@ -323,6 +347,8 @@ function Workspace() {
     useCallback(async () => {
       if (!userId) {
         setConversations([]);
+        setMessages([]);
+        setActiveConversationId(null);
         return;
       }
 
@@ -345,6 +371,8 @@ function Workspace() {
       }
 
       setConversations(data ?? []);
+      setMessages([]);
+      setActiveConversationId(null);
 
       const savedConversationId = window.localStorage.getItem(
         `decidly-active-conversation:${userId}`,

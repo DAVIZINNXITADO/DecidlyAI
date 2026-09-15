@@ -297,11 +297,7 @@ function RootComponent() {
     Route.useRouteContext();
 
   useEffect(() => {
-    const applyPreferences = async () => {
-      const { data } = await supabase.auth.getUser();
-      const metadata = data.user?.user_metadata as { theme?: string; language?: string } | undefined;
-      const theme = metadata?.theme || window.localStorage.getItem("decidly-theme") || "dark";
-      const language = metadata?.language || window.localStorage.getItem("decidly-language") || "pt-BR";
+    const applyDocumentPreferences = (theme: string, language: string) => {
       window.localStorage.setItem("decidly-theme", theme);
       window.localStorage.setItem("decidly-language", language);
       document.documentElement.dataset.theme = theme;
@@ -309,7 +305,18 @@ function RootComponent() {
       document.documentElement.lang = language;
       document.body.dataset.theme = theme;
     };
-    void applyPreferences();
+
+    const localTheme = window.localStorage.getItem("decidly-theme") || "dark";
+    const localLanguage = window.localStorage.getItem("decidly-language") || "pt-BR";
+    applyDocumentPreferences(localTheme, localLanguage);
+
+    const syncAccountPreferences = async () => {
+      const { data } = await supabase.auth.getUser();
+      const metadata = data.user?.user_metadata as { theme?: string; language?: string } | undefined;
+      applyDocumentPreferences(metadata?.theme || localTheme, metadata?.language || localLanguage);
+    };
+
+    void syncAccountPreferences();
   }, []);
 
   return (
