@@ -2083,7 +2083,7 @@ function Workspace() {
               ================================================== */}
 
           <div className="border-t border-white/[0.06] px-3 py-3">
-            <Link to="/credits" onClick={closeSidebar} className="mb-2 flex w-full items-center gap-3 rounded-xl bg-violet-400/[0.08] px-3 py-3 text-left text-sm text-violet-100 transition hover:bg-violet-400/[0.14]">
+            <Link to="/credits" onClick={closeSidebar} className="mb-2 flex w-full items-center gap-3 rounded-xl bg-[#21152d] px-3 py-3 text-left text-sm font-semibold text-violet-100 shadow-sm ring-1 ring-violet-300/20 transition hover:bg-[#2a1b38]">
               <Coins size={18} />
               <span className="flex-1">Credits</span>
               <span className="text-xs text-violet-200/70">{usableCredits.toFixed(2)}</span>
