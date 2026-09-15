@@ -210,11 +210,20 @@ function LoginPage() {
 
   const [referralCode, setReferralCode] = useState("");
   const [referralBlocked, setReferralBlocked] = useState(false);
+  const [referrerName, setReferrerName] = useState("");
 
   useEffect(() => {
     const code = new URLSearchParams(window.location.search).get("ref")?.trim() || "";
+    if (!code) return;
     setReferralCode(code);
+    setMode("signup");
     setReferralBlocked(Boolean(window.localStorage.getItem("decidly-account-created")));
+    void (async () => {
+      const { data: referral } = await supabase.from("referral_codes").select("user_id").eq("code", code).maybeSingle();
+      if (!referral?.user_id) return;
+      const { data: profile } = await supabase.from("profiles").select("full_name,username").eq("id", referral.user_id).maybeSingle();
+      setReferrerName(profile?.full_name?.trim() || profile?.username?.trim() || "Alguém");
+    })();
   }, []);
 
   const isSignUp =
@@ -1272,9 +1281,11 @@ function LoginPage() {
                     : "Entrar"}
                 </h1>
 
-                <p className="mt-4 text-base leading-relaxed text-slate-400 sm:text-lg">
+                <p className={`mt-4 text-base leading-relaxed sm:text-lg ${isSignUp && referralCode && !referralBlocked ? "font-semibold text-violet-100" : "text-slate-300"}`}>
                   {isSignUp
-                    ? "Crie sua conta e transforme sua próxima dúvida em um caminho mais claro."
+                    ? referralCode && !referralBlocked
+                      ? `${referrerName || "Seu convidador"} compartilhou 25 créditos com você. Crie sua conta para receber esses 25 créditos e transforme sua próxima dúvida em um caminho mais claro.`
+                      : "Crie sua conta e transforme sua próxima dúvida em um caminho mais claro."
                     : "Continue organizando suas decisões com mais clareza."}
                 </p>
                 {isSignUp && referralCode && (
