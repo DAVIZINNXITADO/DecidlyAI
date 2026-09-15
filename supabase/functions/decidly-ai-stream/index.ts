@@ -36,7 +36,7 @@ Deno.serve(async (request) => {
     if (!userData.user) return new Response(JSON.stringify({ error: "Sessão inválida. Faça login novamente." }), { status: 401, headers: jsonHeaders });
 
     const admin = createClient(supabaseUrl, serviceKey);
-    const body = await request.json() as { message?: unknown; history?: unknown };
+    const body = await request.json() as { message?: unknown; history?: unknown; language?: unknown };
     if (typeof body.message !== "string" || !body.message.trim()) return new Response(JSON.stringify({ error: "Envie uma mensagem válida." }), { status: 400, headers: jsonHeaders });
 
     const { data: creditRow, error: creditError } = await admin.from("ai_credits").select("free_credits,purchased_credits,total_credits,daily_credits_used,daily_credits_limit,daily_credits_reset_at,total_tokens_used,total_input_tokens,total_output_tokens,total_cost_usd").eq("user_id", userData.user.id).maybeSingle();
@@ -51,10 +51,11 @@ Deno.serve(async (request) => {
     const credits = dailyBalance + freeCredits + purchasedCredits;
     if (credits <= 0) return new Response(JSON.stringify({ error: "Você não possui créditos suficientes para usar o DecidlyAI." }), { status: 402, headers: jsonHeaders });
 
+    const language = typeof body.language === "string" ? body.language : "en-US";
     const upstream = await fetch(`${supabaseUrl}/functions/v1/free-ai-router`, {
       method: "POST",
       headers: { Authorization: authorization, apikey: anonKey, "Content-Type": "application/json", Accept: "text/event-stream" },
-      body: JSON.stringify({ message: body.message.trim(), history: Array.isArray(body.history) ? body.history.slice(-20) : [], stream: true }),
+      body: JSON.stringify({ message: body.message.trim(), history: Array.isArray(body.history) ? body.history.slice(-20) : [], stream: true, language }),
     });
     if (!upstream.ok || !upstream.body) return new Response(await upstream.text(), { status: upstream.status || 502, headers: jsonHeaders });
 

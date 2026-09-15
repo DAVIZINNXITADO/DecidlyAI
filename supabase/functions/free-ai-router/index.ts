@@ -8,7 +8,7 @@ const corsHeaders = {
 
 type ProviderResult = { response: Response; provider: string };
 
-type Body = { message?: unknown; history?: unknown; stream?: boolean };
+type Body = { message?: unknown; history?: unknown; stream?: boolean; language?: unknown };
 
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
 const sseHeaders = {
@@ -163,10 +163,12 @@ Deno.serve(async (request) => {
         headers: jsonHeaders,
       });
 
+    const language = typeof body.language === "string" ? body.language : "en-US";
     const payload = JSON.stringify({
       message: body.message.trim(),
       history: Array.isArray(body.history) ? body.history.slice(-20) : [],
       stream: body.stream !== false,
+      language,
     });
     const providers = ["gemini-free", "groq-free", "cloudflare-free"];
     let lastError = "";

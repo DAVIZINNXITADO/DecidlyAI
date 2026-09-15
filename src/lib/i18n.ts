@@ -54,12 +54,12 @@ export const translations: Record<Language, TranslationTree> = Object.fromEntrie
 ) as Record<Language, TranslationTree>;
 
 export function detectBrowserLanguage(): Language {
-  if (typeof navigator === "undefined") return "pt-BR";
+  if (typeof navigator === "undefined") return "en-US";
   const language = navigator.language.toLowerCase();
   const exact = (Object.keys(LANGUAGES) as Language[]).find((item) => item.toLowerCase() === language);
   if (exact) return exact;
   const prefix = language.split("-")[0];
-  return (Object.keys(LANGUAGES) as Language[]).find((item) => item.toLowerCase().startsWith(prefix)) || "pt-BR";
+  return (Object.keys(LANGUAGES) as Language[]).find((item) => item.toLowerCase().startsWith(prefix)) || "en-US";
 }
 
 export function isLanguage(value: string | null): value is Language {
@@ -80,7 +80,7 @@ export function t(language: Language, path: string): string {
 }
 
 export function useLanguage(): Language {
-  if (typeof window === "undefined") return "pt-BR";
+  if (typeof window === "undefined") return "en-US";
   const stored = window.localStorage.getItem("decidly-language");
   return isLanguage(stored) ? stored : detectBrowserLanguage();
 }

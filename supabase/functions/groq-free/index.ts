@@ -16,6 +16,7 @@ type RequestBody = {
   message?: string;
   history?: ChatMessage[];
   stream?: boolean;
+  language?: string;
 };
 
 const json = (body: unknown, status = 200) =>
@@ -198,12 +199,14 @@ Deno.serve(async (request) => {
     const model = Deno.env.get("GROQ_MODEL") || "openai/gpt-oss-120b";
     const wantsStream = body.stream !== false;
     const history = cleanHistory(body.history);
+    const languageNames: Record<string, string> = { "pt-BR": "Português do Brasil", "en-US": "English", "es-ES": "Español", "fr-FR": "Français", "de-DE": "Deutsch", "it-IT": "Italiano", "ja-JP": "日本語", "ko-KR": "한국어", "zh-CN": "简体中文", "hi-IN": "हिन्दी", "ar-SA": "العربية", "ru-RU": "Русский" };
+    const responseLanguage = languageNames[body.language || "en-US"] || "English";
 
     const messages: ChatMessage[] = [
       {
         role: "system",
         content:
-          "Você é o assistente do DecidlyAI. Ajude o usuário a organizar decisões com clareza, apresente possibilidades, riscos e próximos passos. Responda em português do Brasil quando o usuário escrever em português. Seja útil, honesto e não invente informações.",
+          `Você é o assistente do DecidlyAI. Ajude o usuário a organizar decisões com clareza, apresente possibilidades, riscos e próximos passos. Responda sempre em ${responseLanguage}, salvo se o usuário pedir explicitamente outro idioma. Seja útil, honesto e não invente informações.`,
       },
       ...history,
       { role: "user", content: message },

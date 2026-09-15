@@ -313,7 +313,7 @@ function RootComponent() {
     };
 
     const localTheme = window.localStorage.getItem("decidly-theme") || "dark";
-    const localLanguage = window.localStorage.getItem("decidly-language") || "pt-BR";
+    const localLanguage = window.localStorage.getItem("decidly-language") || "en-US";
     applyDocumentPreferences(localTheme, localLanguage);
 
     const syncAccountPreferences = async () => {
