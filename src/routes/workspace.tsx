@@ -168,8 +168,35 @@ function Workspace() {
 
   useEffect(() => {
     void loadCreditWallet();
-    const timer = window.setInterval(() => void loadCreditWallet(), 1000);
-    return () => window.clearInterval(timer);
+    const timer = window.setInterval(() => void loadCreditWallet(), 15000);
+    const refreshOnFocus = () => void loadCreditWallet();
+    const refreshOnVisibility = () => {
+      if (document.visibilityState === "visible") void loadCreditWallet();
+    };
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshOnVisibility);
+
+    if (!userId) {
+      return () => {
+        window.clearInterval(timer);
+        window.removeEventListener("focus", refreshOnFocus);
+        document.removeEventListener("visibilitychange", refreshOnVisibility);
+      };
+    }
+
+    const channel = supabase
+      .channel(`credits-${userId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "ai_credits", filter: `user_id=eq.${userId}` }, () => {
+        void loadCreditWallet();
+      })
+      .subscribe();
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", refreshOnVisibility);
+      void supabase.removeChannel(channel);
+    };
   }, [loadCreditWallet]);
 
   const sidebarDragRef = useRef<{
@@ -2117,11 +2144,11 @@ function Workspace() {
 
       {creditsOpen && (
         <div
-          className="fixed inset-0 z-[160] flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm sm:items-center"
+          className="fixed inset-0 z-[160] flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm"
           onPointerDown={() => setCreditsOpen(false)}
         >
           <section
-            className="w-full max-w-md rounded-3xl border border-white/10 bg-[#18101f] p-5 shadow-2xl"
+            className="w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl border border-white/10 bg-[#18101f] p-5 shadow-2xl"
             onPointerDown={(event) => event.stopPropagation()}
             aria-labelledby="credits-title"
           >
@@ -2150,7 +2177,7 @@ function Workspace() {
               <div className="rounded-2xl border border-violet-300/15 bg-violet-400/[0.07] p-4">
                 <p className="font-semibold text-white">Comprar créditos</p>
                 <p className="mt-1 text-sm leading-5 text-white/50">Os créditos comprados ficam separados do saldo grátis e não entram no limite de acúmulo.</p>
-                <button type="button" disabled className="mt-3 w-full rounded-xl bg-violet-500/40 px-4 py-3 text-sm font-semibold text-white/60">Compras em breve</button>
+                <a href="/credits/buy" className="mt-3 flex w-full items-center justify-center rounded-xl bg-violet-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-400">Ver pacotes de créditos</a>
               </div>
             </div>
 

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowRight,
   BrainCircuit,
@@ -14,9 +14,10 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Navbar } from "../components/Navbar";
+import { supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -33,6 +34,20 @@ function scrollToSection(sectionId: string) {
 }
 
 function Index() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    let active = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (active && data.session) {
+        void navigate({ to: "/workspace", replace: true });
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [navigate]);
+
   return (
     <AppShell>
       <main className="relative overflow-x-hidden bg-[#070711] text-white">
