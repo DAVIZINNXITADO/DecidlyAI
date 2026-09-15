@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Language, useLanguage, setLanguage as setLanguageLib, detectBrowserLanguage } from './i18n';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { Language, useLanguage, setLanguage as setLanguageLib } from "./i18n";
 
 interface LanguageContextType {
   language: Language;
@@ -9,7 +9,7 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>('pt-BR');
+  const [language, setLanguageState] = useState<Language>("pt-BR");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 export function useLanguageContext() {
   const context = useContext(LanguageContext);
   if (!context) {
-    throw new Error('useLanguageContext must be used within LanguageProvider');
+    throw new Error("useLanguageContext must be used within LanguageProvider");
   }
   return context;
 }

@@ -1,6 +1,6 @@
-DecideAI 🧠
+DecidlyAI
 
-Uma plataforma inteligente criada para ajudar pessoas a tomar melhores decisões.
+Uma plataforma inteligente criada para ajudar pessoas a tomar decisões com mais clareza.
 
 🚀 Sobre o projeto
 
@@ -14,7 +14,7 @@ O DecideAI permite que usuários registrem decisões, comparem opções e receba
 - 📊 Comparação de opções
 - 🤖 Análises com inteligência artificial
 - 📜 Histórico de decisões
-- ⭐ Planos Free, Premium e Pro
+- ⭐ Plano Free e estrutura preparada para planos pagos
 
 🛠️ Tecnologias
 
@@ -38,4 +38,4 @@ Criar uma plataforma que ajude pessoas a tomar decisões melhores e aprender com
 
 ---
 
-🚧 Projeto em desenvolvimento.
+O produto já possui landing page pública, autenticação, workspace de conversas, créditos, histórico, preferências e páginas legais. O checkout de créditos e o plano VIP ainda estão em preparação.

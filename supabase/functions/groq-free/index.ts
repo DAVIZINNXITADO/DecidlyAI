@@ -1,3 +1,5 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -166,6 +168,21 @@ Deno.serve(async (request) => {
   }
 
   try {
+    const authorization = request.headers.get("Authorization");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    if (!authorization?.startsWith("Bearer ") || !supabaseUrl || !anonKey) {
+      return json({ error: "Você precisa estar autenticado." }, 401);
+    }
+
+    const authClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authorization } },
+    });
+    const { data: userData } = await authClient.auth.getUser(authorization.slice("Bearer ".length));
+    if (!userData.user) {
+      return json({ error: "Sessão inválida. Faça login novamente." }, 401);
+    }
+
     const body = (await request.json()) as RequestBody;
     const message = body.message?.trim();
 

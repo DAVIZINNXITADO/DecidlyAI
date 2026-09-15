@@ -1,3 +1,4 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { EdgeTTS } from "npm:edge-tts-universal@1.4.0";
 
@@ -22,6 +23,27 @@ Deno.serve(async (request) => {
   }
 
   try {
+    const authorization = request.headers.get("Authorization");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    if (!authorization?.startsWith("Bearer ") || !supabaseUrl || !anonKey) {
+      return new Response(JSON.stringify({ error: "Você precisa estar autenticado." }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const authClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authorization } },
+    });
+    const { data: userData } = await authClient.auth.getUser(authorization.slice("Bearer ".length));
+    if (!userData.user) {
+      return new Response(JSON.stringify({ error: "Sessão inválida. Faça login novamente." }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const body = await request.json().catch(() => ({}));
     const text = typeof body?.texto === "string" ? body.texto.trim() : "";
 

@@ -122,7 +122,7 @@ function Index() {
                 <p className="mt-5 max-w-md leading-7 text-slate-300">Um espaço para começar a organizar suas decisões e descobrir se pensar com mais clareza pode mudar o seu próximo passo.</p>
                 <div className="my-7 h-px bg-white/10" />
                 <ul className="grid gap-4 text-sm text-slate-200 sm:grid-cols-2">
-                  <PlanItem>5 créditos gratuitos por dia</PlanItem>
+                  <PlanItem>10 créditos gratuitos por dia</PlanItem>
                   <PlanItem>Acúmulo máximo de 10 créditos gratuitos</PlanItem>
                   <PlanItem>Créditos calculados pelo uso de tokens</PlanItem>
                   <PlanItem>Modelos em fallback automático</PlanItem>
@@ -135,7 +135,7 @@ function Index() {
               </div>
 
               <div className="flex flex-col justify-between rounded-3xl border border-white/10 bg-white/[0.035] p-7 md:p-9">
-                <div><div className="flex items-center justify-between"><p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">VIP</p><span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400">Em breve</span></div><h3 className="mt-5 text-3xl font-semibold">Mais espaço para pensar.</h3><p className="mt-4 leading-7 text-slate-400">Quando o plano pago chegar, você terá mais liberdade para usar o produto sem perder a clareza sobre seus créditos.</p><div className="mt-8 space-y-4 text-sm text-slate-300"><PlanItem>10 créditos gratuitos por dia</PlanItem><PlanItem>Acúmulo de até 100 créditos gratuitos</PlanItem><PlanItem>Créditos comprados separados da regra de acúmulo</PlanItem></div></div>
+                <div><div className="flex items-center justify-between"><p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">VIP</p><span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400">Em breve</span></div><h3 className="mt-5 text-3xl font-semibold">Mais espaço para pensar.</h3><p className="mt-4 leading-7 text-slate-400">Quando o plano pago chegar, você terá mais liberdade para usar o produto sem perder a clareza sobre seus créditos.</p><div className="mt-8 space-y-4 text-sm text-slate-300"><PlanItem>100 créditos gratuitos por dia</PlanItem><PlanItem>Acúmulo de até 100 créditos gratuitos</PlanItem><PlanItem>Créditos comprados separados da regra de acúmulo</PlanItem></div></div>
                 <div className="mt-10 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-slate-400">Os detalhes finais, preço e recursos extras do VIP serão anunciados em breve.</div>
               </div>
             </div>

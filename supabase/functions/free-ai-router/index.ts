@@ -1,3 +1,5 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -41,9 +43,17 @@ async function toSse(providerResponse: Response, provider: string): Promise<Resp
   if (!contentType.includes("text/event-stream") || !providerResponse.body) {
     const raw = await providerResponse.text();
     let parsed: unknown = raw;
-    try { parsed = JSON.parse(raw); } catch { /* plain text */ }
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      /* plain text */
+    }
     const complete = cleanDoneMarker(responseText(parsed));
-    if (!complete) return new Response(event({ error: `${provider} retornou resposta vazia.` }, "error"), { status: 502, headers: sseHeaders });
+    if (!complete)
+      return new Response(event({ error: `${provider} retornou resposta vazia.` }, "error"), {
+        status: 502,
+        headers: sseHeaders,
+      });
     return new Response(
       event({ delta: complete, accumulated: complete, provider }) +
         event({ response: complete, complete: true, provider }, "complete") +
@@ -58,7 +68,8 @@ async function toSse(providerResponse: Response, provider: string): Promise<Resp
   let fullText = "";
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (value: unknown, name?: string) => controller.enqueue(encoder.encode(event(value, name)));
+      const send = (value: unknown, name?: string) =>
+        controller.enqueue(encoder.encode(event(value, name)));
       try {
         while (true) {
           const { value, done } = await reader.read();
@@ -81,9 +92,16 @@ async function toSse(providerResponse: Response, provider: string): Promise<Resp
                   }
                   continue;
                 }
-                const delta = responseText(parsed) || responseText((parsed.choices?.[0] as Record<string, unknown> | undefined)?.delta);
-                if (delta) { fullText = cleanDoneMarker(fullText + delta); send({ delta: cleanDoneMarker(delta), accumulated: fullText, provider }); }
-              } catch { /* aguarda o próximo bloco */ }
+                const delta =
+                  responseText(parsed) ||
+                  responseText((parsed.choices?.[0] as Record<string, unknown> | undefined)?.delta);
+                if (delta) {
+                  fullText = cleanDoneMarker(fullText + delta);
+                  send({ delta: cleanDoneMarker(delta), accumulated: fullText, provider });
+                }
+              } catch {
+                /* aguarda o próximo bloco */
+              }
             }
           }
         }
@@ -98,7 +116,9 @@ async function toSse(providerResponse: Response, provider: string): Promise<Resp
       } catch (error) {
         send({ error: error instanceof Error ? error.message : "Erro no fallback." }, "error");
         controller.close();
-      } finally { reader.releaseLock(); }
+      } finally {
+        reader.releaseLock();
+      }
     },
   });
   return new Response(stream, { headers: sseHeaders });
@@ -106,20 +126,48 @@ async function toSse(providerResponse: Response, provider: string): Promise<Resp
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (request.method !== "POST") return new Response(JSON.stringify({ error: "Método não permitido." }), { status: 405, headers: jsonHeaders });
+  if (request.method !== "POST")
+    return new Response(JSON.stringify({ error: "Método não permitido." }), {
+      status: 405,
+      headers: jsonHeaders,
+    });
 
   try {
     const authorization = request.headers.get("Authorization");
-    if (!authorization?.startsWith("Bearer ")) return new Response(JSON.stringify({ error: "Você precisa estar autenticado." }), { status: 401, headers: jsonHeaders });
+    if (!authorization?.startsWith("Bearer "))
+      return new Response(JSON.stringify({ error: "Você precisa estar autenticado." }), {
+        status: 401,
+        headers: jsonHeaders,
+      });
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
     if (!supabaseUrl || !anonKey) throw new Error("Configuração do Supabase não encontrada.");
 
-    const body = (await request.json()) as Body;
-    if (typeof body.message !== "string" || !body.message.trim()) return new Response(JSON.stringify({ error: "Envie uma mensagem válida." }), { status: 400, headers: jsonHeaders });
+    const accessToken = authorization.slice("Bearer ".length);
+    const authClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authorization } },
+    });
+    const { data: userData } = await authClient.auth.getUser(accessToken);
+    if (!userData.user) {
+      return new Response(JSON.stringify({ error: "Sessão inválida. Faça login novamente." }), {
+        status: 401,
+        headers: jsonHeaders,
+      });
+    }
 
-    const payload = JSON.stringify({ message: body.message.trim(), history: Array.isArray(body.history) ? body.history.slice(-20) : [], stream: body.stream !== false });
+    const body = (await request.json()) as Body;
+    if (typeof body.message !== "string" || !body.message.trim())
+      return new Response(JSON.stringify({ error: "Envie uma mensagem válida." }), {
+        status: 400,
+        headers: jsonHeaders,
+      });
+
+    const payload = JSON.stringify({
+      message: body.message.trim(),
+      history: Array.isArray(body.history) ? body.history.slice(-20) : [],
+      stream: body.stream !== false,
+    });
     const providers = ["gemini-free", "groq-free", "cloudflare-free"];
     let lastError = "";
 
@@ -129,7 +177,12 @@ Deno.serve(async (request) => {
           provider,
           response: await fetch(`${supabaseUrl}/functions/v1/${provider}`, {
             method: "POST",
-            headers: { Authorization: authorization, apikey: anonKey, "Content-Type": "application/json", Accept: "text/event-stream, application/json" },
+            headers: {
+              Authorization: authorization,
+              apikey: anonKey,
+              "Content-Type": "application/json",
+              Accept: "text/event-stream, application/json",
+            },
             body: payload,
           }),
         };
@@ -145,8 +198,14 @@ Deno.serve(async (request) => {
       }
     }
 
-    return new Response(JSON.stringify({ error: "Nenhum provedor de IA está disponível.", details: lastError }), { status: 503, headers: jsonHeaders });
+    return new Response(
+      JSON.stringify({ error: "Nenhum provedor de IA está disponível.", details: lastError }),
+      { status: 503, headers: jsonHeaders },
+    );
   } catch (error) {
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Erro inesperado." }), { status: 500, headers: jsonHeaders });
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : "Erro inesperado." }),
+      { status: 500, headers: jsonHeaders },
+    );
   }
 });
