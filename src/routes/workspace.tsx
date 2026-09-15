@@ -51,6 +51,7 @@ type Conversation = {
   title: string;
   created_at: string;
   updated_at: string;
+  is_pinned?: boolean;
 };
 
 type Subscription = {
@@ -124,6 +125,7 @@ function Workspace() {
 
   const [readingMessageId, setReadingMessageId] =
     useState<string | null>(null);
+  const [readingLoading, setReadingLoading] = useState(false);
 
   const [readingCharIndex, setReadingCharIndex] =
     useState(-1);
@@ -378,7 +380,7 @@ function Workspace() {
       } = await supabase
         .from("conversations")
         .select(
-          "id,title,created_at,updated_at",
+          "id,title,created_at,updated_at,is_pinned",
         )
         .eq("user_id", userId)
         .order("updated_at", {
@@ -390,7 +392,12 @@ function Workspace() {
         return;
       }
 
-      setConversations(data ?? []);
+      setConversations(
+        ((data ?? []) as Conversation[]).sort((a, b) => {
+          if (Boolean(a.is_pinned) !== Boolean(b.is_pinned)) return a.is_pinned ? -1 : 1;
+          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+        }),
+      );
       setMessages([]);
       setActiveConversationId(null);
 
@@ -418,6 +425,28 @@ function Workspace() {
   useEffect(() => {
     void loadConversations();
   }, [loadConversations]);
+
+  useEffect(() => {
+    if (!userId) {
+      setLikes({});
+      setDislikes({});
+      return;
+    }
+    void supabase
+      .from("message_feedback")
+      .select("message_id,feedback")
+      .eq("user_id", userId)
+      .then(({ data }) => {
+        const nextLikes: Record<string, boolean> = {};
+        const nextDislikes: Record<string, boolean> = {};
+        (data ?? []).forEach((item) => {
+          if (item.feedback === "like") nextLikes[item.message_id] = true;
+          if (item.feedback === "dislike") nextDislikes[item.message_id] = true;
+        });
+        setLikes(nextLikes);
+        setDislikes(nextDislikes);
+      });
+  }, [userId]);
 
   /*
    * ============================================================
@@ -1501,6 +1530,7 @@ function Workspace() {
       }
       ttsAudioRef.current = null;
 
+      setReadingLoading(false);
       setReadingMessageId(null);
       setReadingCharIndex(-1);
     }, []);
@@ -1529,6 +1559,7 @@ function Workspace() {
       setReadingMessageId(
         message.id,
       );
+      setReadingLoading(true);
 
       setReadingCharIndex(-1);
 
@@ -1541,12 +1572,14 @@ function Workspace() {
         const audio = await requestTtsAudio(speakableText);
         if (speechSessionRef.current !== session) return;
         ttsAudioRef.current = audio;
+        setReadingLoading(false);
         audio.onended = () => {
           if (speechSessionRef.current === session) stopReading();
         };
         await audio.play();
       } catch (error) {
         if (speechSessionRef.current !== session) return;
+        setReadingLoading(false);
         const reason = error instanceof Error ? error.message : "TTS_ERROR";
         setError(reason === "TTS_NOT_CONFIGURED"
           ? "A voz interna ainda não está configurada nesta versão."
@@ -1671,33 +1704,40 @@ function Workspace() {
    * ============================================================
    */
 
-  const toggleLike = (
-    id: string,
-  ) => {
-    setLikes((current) => ({
-      ...current,
-      [id]: !current[id],
-    }));
+  const saveFeedback = useCallback(async (id: string, feedback: "like" | "dislike") => {
+    if (!userId) return;
+    const alreadySelected = feedback === "like" ? likes[id] : dislikes[id];
+    if (alreadySelected) {
+      await supabase.from("message_feedback").delete().eq("user_id", userId).eq("message_id", id);
+      if (feedback === "like") setLikes((current) => ({ ...current, [id]: false }));
+      else setDislikes((current) => ({ ...current, [id]: false }));
+      return;
+    }
+    const { error: feedbackError } = await supabase.from("message_feedback").upsert(
+      { user_id: userId, message_id: id, feedback },
+      { onConflict: "user_id,message_id" },
+    );
+    if (feedbackError) {
+      setError("Não foi possível salvar sua avaliação. Tente novamente.");
+      return;
+    }
+    setLikes((current) => ({ ...current, [id]: feedback === "like" }));
+    setDislikes((current) => ({ ...current, [id]: feedback === "dislike" }));
+  }, [dislikes, likes, userId]);
 
-    setDislikes((current) => ({
-      ...current,
-      [id]: false,
-    }));
-  };
+  const toggleLike = useCallback((id: string) => { void saveFeedback(id, "like"); }, [saveFeedback]);
+  const toggleDislike = useCallback((id: string) => { void saveFeedback(id, "dislike"); }, [saveFeedback]);
 
-  const toggleDislike = (
-    id: string,
-  ) => {
-    setDislikes((current) => ({
-      ...current,
-      [id]: !current[id],
-    }));
-
-    setLikes((current) => ({
-      ...current,
-      [id]: false,
-    }));
-  };
+  const togglePinned = useCallback(async (conversation: Conversation) => {
+    const nextPinned = !conversation.is_pinned;
+    const { error: pinError } = await supabase.from("conversations").update({ is_pinned: nextPinned }).eq("id", conversation.id).eq("user_id", userId);
+    if (pinError) {
+      setError("Não foi possível atualizar esta conversa.");
+      return;
+    }
+    setConversations((current) => current.map((item) => item.id === conversation.id ? { ...item, is_pinned: nextPinned } : item).sort((a, b) => Number(Boolean(b.is_pinned)) - Number(Boolean(a.is_pinned)) || new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
+    setChatMenuId(null);
+  }, [userId]);
 
   /*
    * ============================================================
@@ -2020,6 +2060,14 @@ function Workspace() {
                                 className="w-full rounded-lg px-3 py-2.5 text-left text-sm text-white/85 transition hover:bg-white/[0.08] hover:text-white"
                               >
                                 Renomear chat
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => void togglePinned(conversation)}
+                                className="w-full rounded-lg px-3 py-2.5 text-left text-sm text-white/85 transition hover:bg-white/[0.08] hover:text-white"
+                              >
+                                {conversation.is_pinned ? "Desafixar chat" : "Fixar chat"}
                               </button>
 
                               <button
@@ -2372,15 +2420,19 @@ function Workspace() {
                   />
 
                   <h1 className="text-xl font-semibold">
-                    {userName ? `Olá, ${userName.split(" ")[0]}!` : "O que você está decidindo?"}
+                    {preferredName ? `Olá, ${preferredName.split(" ")[0]}!` : "O que você está decidindo?"}
                   </h1>
                 </div>
 
                 <p className="max-w-md text-center text-sm leading-6 text-white/45">
-                  {userName
+                  {preferredName
                     ? "Explique a situação, as opções que você tem e o que está te deixando em dúvida."
                     : "Explique a situação, as opções que você tem e o que está te deixando em dúvida."}
                 </p>
+
+                <Link to="/credits" className="mt-4 inline-flex items-center gap-2 rounded-full border border-violet-300/20 bg-violet-400/[0.08] px-4 py-2 text-xs text-violet-100 transition hover:bg-violet-400/[0.15]">
+                  <Coins size={14} /> {usableCredits.toFixed(2)} créditos disponíveis
+                </Link>
 
                 <div className="mt-7 grid w-full max-w-xl gap-2 sm:grid-cols-3">
                   {[
@@ -2603,7 +2655,7 @@ function Workspace() {
                                       : "Ouvir mensagem"
                                   }
                                 >
-                                  {isReading ? <Square size={15} fill="currentColor" /> : <Volume2 size={16} />}
+                                  {readingLoading ? <span className="text-[10px] font-semibold">...</span> : isReading ? <Square size={15} fill="currentColor" /> : <Volume2 size={16} />}
                                 </button>
                               </div>
                             </>

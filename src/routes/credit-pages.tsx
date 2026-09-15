@@ -14,7 +14,7 @@ function useCreditData() {
   const [wallet, setWallet] = useState<Wallet>(normalizeCreditWallet({ daily_credits_limit: 10 }));
   const [events, setEvents] = useState<Event[]>([]); const [code, setCode] = useState("");
   const load = useCallback(async () => { const { data: auth } = await supabase.auth.getUser(); const user = auth.user; if (!user) return; const [{ data: credits }, { data: history }, { data: referral }] = await Promise.all([supabase.from("ai_credits").select("free_credits,purchased_credits,total_credits,daily_credits_used,daily_credits_limit,daily_credits_reset_at").eq("user_id", user.id).maybeSingle(), supabase.from("credit_events").select("id,event_type,amount,description,created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(100), supabase.from("referral_codes").select("code").eq("user_id", user.id).maybeSingle()]); if (credits) setWallet(normalizeCreditWallet(credits)); setEvents((history || []) as Event[]); if (referral?.code) setCode(referral.code); }, []);
-  useEffect(() => { void load(); const timer = window.setInterval(() => void load(), 1000); return () => window.clearInterval(timer); }, [load]); return { wallet, events, code, dailyBalance: dailyCreditsBalance(wallet) };
+  useEffect(() => { void load(); const timer = window.setInterval(() => void load(), 1000); return () => window.clearInterval(timer); }, [load]); return { wallet, events, code, dailyBalance: dailyCreditsBalance(wallet), reload: load };
 }
 
 export function HistoryPage() {
@@ -23,14 +23,26 @@ export function HistoryPage() {
 }
 
 export function FreePage() {
-  const { wallet, code, dailyBalance } = useCreditData();
+  const { wallet, code, dailyBalance, reload } = useCreditData();
   const [copied, setCopied] = useState(false);
+  const [adSeconds, setAdSeconds] = useState(0);
+  const [adNotice, setAdNotice] = useState("");
   const copy = async () => {
     await navigator.clipboard?.writeText(`${window.location.origin}/login?ref=${code}`);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1600);
   };
-  return <InnerPage eyebrow="Credits" title="Free Credits" description="Ganhe créditos sem pagar, de forma clara e segura."><CreditNav active="Free Credits" /><div className="space-y-4"><div className="rounded-3xl border border-violet-300/15 bg-violet-400/[0.07] p-6"><div className="flex items-center gap-3"><Gift className="text-violet-300" /><div><p className="text-sm text-white/45">Seu saldo gratuito</p><p className="text-3xl font-semibold">{wallet.free_credits.toFixed(2)}</p></div></div><p className="mt-5 text-sm text-white/50">Créditos diários: {dailyBalance.toFixed(0)}/{wallet.daily_credits_limit >= 9999 ? "♾" : wallet.daily_credits_limit}</p></div><div className="rounded-3xl border border-white/10 bg-white/[0.035] p-6"><h2 className="text-xl font-semibold">Referral program</h2><p className="mt-2 text-sm leading-6 text-white/50">Crie uma conta pelo seu link. Quando uma pessoa nova ou inativa criar a conta e enviar a primeira mensagem, vocês dois recebem <b className="text-white">25 free credits</b>.</p><div className="mt-4 flex gap-2 rounded-2xl bg-black/20 p-2"><code className="flex-1 px-2 py-2 text-sm text-violet-200">{code || "Gerando código…"}</code><button type="button" onClick={() => void copy()} className="rounded-xl bg-white/[0.08] px-3"><>{copied ? <Check size={16} /> : <Copy size={16} />}</></button></div><p className="mt-3 text-xs text-white/35">Você não pode convidar a si mesmo. Contas já ativas não participam; apenas contas novas ou inativas pode se qualificar.</p></div><div className="rounded-3xl border border-white/10 bg-white/[0.035] p-6"><div className="flex gap-3"><Play className="text-amber-300" /><div><h2 className="font-semibold">AdShield Rewards</h2><p className="mt-1 text-sm leading-6 text-white/45">Assista a um anúncio verificado e receba +5 free credits. O programa será ativado com um provedor anti-fraude.</p></div></div><button disabled className="mt-5 w-full rounded-xl bg-white/[0.07] px-4 py-3 text-sm text-white/40">AdShield Rewards coming soon</button></div></div></InnerPage>;
+  const watchAd = async () => {
+    if (adSeconds > 0) return;
+    setAdNotice("Anúncio de demonstração iniciado. Aguarde 5 segundos…");
+    setAdSeconds(5);
+    const timer = window.setInterval(() => setAdSeconds((value) => { if (value <= 1) { window.clearInterval(timer); return 0; } return value - 1; }), 1000);
+    await new Promise((resolve) => window.setTimeout(resolve, 5000));
+    const { data, error } = await supabase.functions.invoke("decidly-reward-ad", { body: {} });
+    if (error || data?.error) setAdNotice(data?.error === "AD_ALREADY_REWARDED_TODAY" ? "Você já recebeu a recompensa de hoje." : "Não foi possível validar o anúncio. Tente novamente.");
+    else { setAdNotice("+5 créditos gratuitos adicionados."); await reload(); }
+  };
+  return <InnerPage eyebrow="Credits" title="Free Credits" description="Ganhe créditos sem pagar, de forma clara e segura."><CreditNav active="Free Credits" /><div className="space-y-4"><div className="rounded-3xl border border-violet-300/15 bg-violet-400/[0.07] p-6"><div className="flex items-center gap-3"><Gift className="text-violet-300" /><div><p className="text-sm text-white/45">Seu saldo gratuito</p><p className="text-3xl font-semibold">{wallet.free_credits.toFixed(2)}</p></div></div><p className="mt-5 text-sm text-white/50">Créditos diários: {dailyBalance.toFixed(0)}/{wallet.daily_credits_limit >= 9999 ? "♾" : wallet.daily_credits_limit}</p></div><div className="rounded-3xl border border-white/10 bg-white/[0.035] p-6"><h2 className="text-xl font-semibold">Referral program</h2><p className="mt-2 text-sm leading-6 text-white/50">Crie uma conta pelo seu link. Quando uma pessoa nova ou inativa criar a conta e enviar a primeira mensagem, vocês dois recebem <b className="text-white">25 free credits</b>.</p><div className="mt-4 flex gap-2 rounded-2xl bg-black/20 p-2"><code className="flex-1 px-2 py-2 text-sm text-violet-200">{code || "Gerando código…"}</code><button type="button" onClick={() => void copy()} className="rounded-xl bg-white/[0.08] px-3"><>{copied ? <Check size={16} /> : <Copy size={16} />}</></button></div><p className="mt-3 text-xs text-white/35">Você não pode convidar a si mesmo. Contas já ativas não participam; apenas contas novas ou inativas podem se qualificar.</p></div><div className="rounded-3xl border border-white/10 bg-white/[0.035] p-6"><div className="flex gap-3"><Play className="text-amber-300" /><div><h2 className="font-semibold">AdShield Rewards</h2><p className="mt-1 text-sm leading-6 text-white/45">Assista à experiência recompensada e receba +5 free credits uma vez por dia.</p></div></div><button type="button" disabled={adSeconds > 0} onClick={() => void watchAd()} className="mt-5 w-full rounded-xl bg-amber-400 px-4 py-3 text-sm font-semibold text-black disabled:opacity-50">{adSeconds > 0 ? `Validando… ${adSeconds}s` : "Assistir anúncio e ganhar +5"}</button>{adNotice && <p className="mt-3 text-sm text-white/55">{adNotice}</p>}</div></div></InnerPage>;
 }
 
 export function BuyPage() {
