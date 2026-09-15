@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
+import { useLanguageContext } from "../lib/LanguageProvider";
+import { t } from "../lib/i18n";
 
 function scrollToSection(sectionId: string) {
   const target = document.getElementById(sectionId);
@@ -20,6 +22,7 @@ function scrollToSection(sectionId: string) {
 }
 
 export function Navbar() {
+  const { language } = useLanguageContext();
   const [mobileMenuOpen, setMobileMenuOpen] =
     useState(false);
 
@@ -67,7 +70,7 @@ export function Navbar() {
             closeMobileMenu();
           }}
           className="interactive-scale flex items-center gap-3 rounded-xl transition-opacity hover:opacity-90"
-          aria-label="Voltar para o início"
+          aria-label={t(language, "nav.workspace")}
         >
           <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl">
             <img
@@ -98,7 +101,7 @@ export function Navbar() {
             }
             className="rounded-lg px-1 py-2 transition-colors hover:text-white focus-visible:text-white"
           >
-            Como funciona
+            {t(language, "nav.howItWorks")}
           </button>
 
           <button
@@ -108,7 +111,7 @@ export function Navbar() {
             }
             className="rounded-lg px-1 py-2 transition-colors hover:text-white focus-visible:text-white"
           >
-            Recursos
+            {t(language, "nav.resources")}
           </button>
 
           <button
@@ -118,7 +121,7 @@ export function Navbar() {
             }
             className="rounded-lg px-1 py-2 transition-colors hover:text-white focus-visible:text-white"
           >
-            Planos
+            {t(language, "nav.plans")}
           </button>
         </div>
 
@@ -129,14 +132,14 @@ export function Navbar() {
             to="/login"
             className="interactive-lift rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-violet-500 hover:text-white"
           >
-            Entrar
+            {t(language, "nav.signIn")}
           </Link>
 
           <Link
             to="/login"
             className="interactive-lift rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 hover:shadow-violet-950/50"
           >
-            Começar
+            {t(language, "nav.start")}
           </Link>
         </div>
 
@@ -151,8 +154,8 @@ export function Navbar() {
           }
           aria-label={
             mobileMenuOpen
-              ? "Fechar menu"
-              : "Abrir menu"
+              ? t(language, "nav.closeMenu")
+              : t(language, "nav.openMenu")
           }
           aria-expanded={mobileMenuOpen}
           className="interactive-scale flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 text-slate-300 transition hover:border-violet-500 hover:text-white md:hidden"
@@ -179,7 +182,7 @@ export function Navbar() {
               }
               className="rounded-xl px-4 py-3 text-left text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white"
             >
-              Como funciona
+              {t(language, "nav.howItWorks")}
             </button>
 
             <button
@@ -189,7 +192,7 @@ export function Navbar() {
               }
               className="rounded-xl px-4 py-3 text-left text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white"
             >
-              Recursos
+              {t(language, "nav.resources")}
             </button>
 
             <button
@@ -199,7 +202,7 @@ export function Navbar() {
               }
               className="rounded-xl px-4 py-3 text-left text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white"
             >
-              Planos
+              {t(language, "nav.plans")}
             </button>
 
             <div className="mt-3 grid grid-cols-2 gap-3">
@@ -208,7 +211,7 @@ export function Navbar() {
                 onClick={closeMobileMenu}
                 className="interactive-lift flex items-center justify-center rounded-xl border border-slate-700 px-4 py-3 text-sm font-medium text-slate-200 transition hover:border-violet-500 hover:text-white"
               >
-                Entrar
+                {t(language, "nav.signIn")}
               </Link>
 
               <Link
@@ -216,7 +219,7 @@ export function Navbar() {
                 onClick={closeMobileMenu}
                 className="interactive-lift flex items-center justify-center rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-950/20 transition hover:bg-violet-500"
               >
-                Começar
+                {t(language, "nav.start")}
               </Link>
             </div>
           </div>

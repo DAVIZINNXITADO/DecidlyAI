@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "../lib/supabase";
+import { LanguageProvider } from "../lib/LanguageProvider";
 
 const SITE_URL = "https://decidlyai.lovable.app/";
 
@@ -326,7 +327,9 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      <LanguageProvider>
+        <Outlet />
+      </LanguageProvider>
     </QueryClientProvider>
   );
 }

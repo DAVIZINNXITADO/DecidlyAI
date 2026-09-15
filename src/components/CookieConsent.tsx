@@ -5,6 +5,8 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useLanguageContext } from "../lib/LanguageProvider";
+import { t } from "../lib/i18n";
 
 type CookieConsentStatus =
   | "accepted"
@@ -15,6 +17,7 @@ const COOKIE_CONSENT_KEY =
   "decidlyai-cookie-consent";
 
 export function CookieConsent() {
+  const { language } = useLanguageContext();
   const [
     consent,
     setConsent,
@@ -76,7 +79,7 @@ export function CookieConsent() {
       className="fixed inset-x-0 bottom-0 z-[100] p-4 sm:p-6"
       role="dialog"
       aria-modal="false"
-      aria-label="Aviso sobre cookies"
+      aria-label={t(language, "cookies.title")}
     >
       <div className="mx-auto max-w-xl">
         <div className="relative overflow-hidden rounded-3xl border border-slate-700/80 bg-slate-950/95 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7">
@@ -99,11 +102,11 @@ export function CookieConsent() {
 
                 <div>
                   <h2 className="text-lg font-semibold text-white">
-                    Cookies
+                    {t(language, "cookies.title")}
                   </h2>
 
                   <p className="mt-1 text-sm text-slate-500">
-                    Sua privacidade é importante.
+                    {t(language, "cookies.subtitle")}
                   </p>
                 </div>
               </div>
@@ -111,7 +114,7 @@ export function CookieConsent() {
               <button
                 type="button"
                 onClick={handleReject}
-                aria-label="Fechar aviso de cookies"
+                aria-label={t(language, "cookies.close")}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-800 hover:text-white"
               >
                 <X className="h-5 w-5" />
@@ -121,18 +124,11 @@ export function CookieConsent() {
             {/* TEXTO */}
 
             <p className="mt-6 leading-relaxed text-slate-400">
-              Utilizamos cookies e tecnologias
-              semelhantes para manter o funcionamento
-              do DecidlyAI, manter sua sessão e
-              melhorar sua experiência na plataforma.
+              {t(language, "cookies.description")}
             </p>
 
             <p className="mt-4 text-sm leading-relaxed text-slate-500">
-              Você pode aceitar ou recusar o uso de
-              cookies não essenciais. Algumas
-              funcionalidades essenciais podem continuar
-              utilizando tecnologias necessárias para o
-              funcionamento do serviço.
+              {t(language, "cookies.optional")}
             </p>
 
             {/* LINK */}
@@ -141,7 +137,7 @@ export function CookieConsent() {
               to="/cookies"
               className="mt-5 inline-flex text-sm font-medium text-violet-400 transition hover:text-violet-300"
             >
-              Ler a Política de Cookies
+              {t(language, "cookies.readPolicy")}
             </Link>
 
             {/* BOTÕES */}
@@ -152,7 +148,7 @@ export function CookieConsent() {
                 onClick={handleReject}
                 className="flex items-center justify-center rounded-xl border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-300 transition hover:border-slate-500 hover:bg-slate-900 hover:text-white"
               >
-                Recusar
+                {t(language, "cookies.reject")}
               </button>
 
               <button
@@ -162,7 +158,7 @@ export function CookieConsent() {
               >
                 <Check className="h-4 w-4" />
 
-                Aceitar
+                {t(language, "cookies.accept")}
               </button>
             </div>
           </div>

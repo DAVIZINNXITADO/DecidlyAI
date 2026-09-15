@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { Language, useLanguage, setLanguage as setLanguageLib } from "./i18n";
 
 interface LanguageContextType {
@@ -19,10 +19,10 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
-  const handleSetLanguage = (lang: Language) => {
+  const handleSetLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);
     setLanguageLib(lang);
-  };
+  }, []);
 
   // Don't render until mounted to avoid hydration mismatch
   if (!mounted) {

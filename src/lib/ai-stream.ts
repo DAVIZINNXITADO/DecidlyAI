@@ -6,6 +6,7 @@ type Options = {
   message: string;
   history: ChatMessage[];
   onDelta?: (text: string, accumulated: string) => void;
+  language?: string;
   signal?: AbortSignal;
 };
 
@@ -51,7 +52,12 @@ export async function streamAi(functionName: string, options: Options): Promise<
         Accept: "text/event-stream, application/json",
       },
       signal: options.signal,
-      body: JSON.stringify({ message: options.message, history: options.history, stream: true }),
+      body: JSON.stringify({
+        message: options.message,
+        history: options.history,
+        stream: true,
+        language: options.language || window.localStorage.getItem("decidly-language") || "pt-BR",
+      }),
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw error;
