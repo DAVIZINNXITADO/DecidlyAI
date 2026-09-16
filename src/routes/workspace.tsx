@@ -25,6 +25,8 @@ import {
   MoreHorizontal,
   Gift,
   Link2,
+  Mail,
+  Users,
   Loader2,
   Share2,
   MessageSquareText,
@@ -2225,7 +2227,6 @@ function Workspace() {
             >
               <Gift size={18} />
               <span className="min-w-0 flex-1 truncate">{WORKSPACE_EVENT.label}</span>
-              <span className="text-xs text-amber-200/80">+{WORKSPACE_EVENT.reward}</span>
             </button>
             <Link to="/credits" onClick={closeSidebar} className="mb-2 flex w-full items-center gap-3 rounded-xl bg-[#21152d] px-3 py-3 text-left text-sm font-semibold text-violet-100 shadow-sm ring-1 ring-violet-300/20 transition hover:bg-[#2a1b38]">
               <Coins size={18} />
@@ -2292,6 +2293,13 @@ function Workspace() {
             onPointerDown={(event) => event.stopPropagation()}
             aria-labelledby="credits-title"
           >
+            <div className="mb-5 flex justify-center">
+              <div className="relative flex h-24 w-24 items-center justify-center rounded-[2rem] bg-gradient-to-br from-amber-200 via-amber-300 to-orange-400 text-[#24150b] shadow-xl shadow-amber-500/20">
+                <Mail size={42} strokeWidth={1.8} />
+                <Sparkles className="absolute -right-2 -top-2 text-amber-100" size={22} />
+                <Users className="absolute -bottom-2 -left-2 rounded-full bg-[#18101f] p-1 text-violet-200" size={26} />
+              </div>
+            </div>
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300/80">Carteira</p>
@@ -2494,13 +2502,13 @@ function Workspace() {
               <p className="text-xs uppercase tracking-[0.15em] text-white/35">Seu link de convite</p>
               <p className="mt-2 break-all text-sm text-violet-200">{referralCode ? `${window.location.origin}/login?ref=${referralCode}&campaign=${WORKSPACE_EVENT.id}` : "Gerando seu link…"}</p>
             </div>
-            <button type="button" disabled={!referralCode} onClick={() => void copyReferralLink()} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-300 px-4 py-3 font-semibold text-[#20150a] transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-50"><Link2 size={17} />{referralCopied ? "Link copiado" : "Copiar link de convite"}</button>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
-              <a target="_blank" rel="noreferrer" href={referralCode ? `https://wa.me/?text=${encodeURIComponent(`Convidei você para conhecer o DecidlyAI: ${window.location.origin}/login?ref=${referralCode}&campaign=${WORKSPACE_EVENT.id}`)}` : "#"} className="rounded-xl bg-[#25D366] px-2 py-2.5 text-center text-xs font-semibold text-black">WhatsApp</a>
-              <a target="_blank" rel="noreferrer" href={referralCode ? `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`${window.location.origin}/login?ref=${referralCode}&campaign=${WORKSPACE_EVENT.id}`)}` : "#"} className="rounded-xl bg-[#1877F2] px-2 py-2.5 text-center text-xs font-semibold text-white">Facebook</a>
-              <a target="_blank" rel="noreferrer" href={referralCode ? `https://twitter.com/intent/tweet?text=${encodeURIComponent("Conheça o DecidlyAI")}&url=${encodeURIComponent(`${window.location.origin}/login?ref=${referralCode}&campaign=${WORKSPACE_EVENT.id}`)}` : "#"} className="rounded-xl bg-black px-2 py-2.5 text-center text-xs font-semibold text-white">X</a>
-              <a target="_blank" rel="noreferrer" href={referralCode ? `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(`${window.location.origin}/login?ref=${referralCode}&campaign=${WORKSPACE_EVENT.id}`)}` : "#"} className="rounded-xl bg-[#0A66C2] px-2 py-2.5 text-center text-xs font-semibold text-white">LinkedIn</a>
-              <a target="_blank" rel="noreferrer" href={referralCode ? `https://www.reddit.com/submit?title=${encodeURIComponent("Conheça o DecidlyAI")}&url=${encodeURIComponent(`${window.location.origin}/login?ref=${referralCode}&campaign=${WORKSPACE_EVENT.id}`)}` : "#"} className="rounded-xl bg-[#FF4500] px-2 py-2.5 text-center text-xs font-semibold text-white">Reddit</a>
+            <button type="button" disabled={!referralCode} onClick={() => void copyReferralLink()} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3.5 font-semibold text-[#20150a] shadow-lg shadow-black/10 transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"><Link2 size={17} />{referralCopied ? "Link copiado" : "Copiar link de convite"}</button>
+            <div className="mt-4 flex items-center justify-center gap-3">
+              <a aria-label="Compartilhar no WhatsApp" target="_blank" rel="noreferrer" href={referralCode ? `https://wa.me/?text=${encodeURIComponent(`Convidei você para conhecer o DecidlyAI: ${window.location.origin}/login?ref=${referralCode}&campaign=${WORKSPACE_EVENT.id}`)}` : "#"} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#25D366] text-sm font-black text-black shadow-lg shadow-[#25D366]/15 transition hover:-translate-y-0.5" title="WhatsApp">W</a>
+              <a aria-label="Compartilhar no Facebook" target="_blank" rel="noreferrer" href={referralCode ? `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`${window.location.origin}/login?ref=${referralCode}&campaign=${WORKSPACE_EVENT.id}`)}` : "#"} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1877F2] text-xl font-bold text-white shadow-lg shadow-[#1877F2]/15 transition hover:-translate-y-0.5" title="Facebook">f</a>
+              <a aria-label="Compartilhar no X" target="_blank" rel="noreferrer" href={referralCode ? `https://twitter.com/intent/tweet?text=${encodeURIComponent("Conheça o DecidlyAI")}&url=${encodeURIComponent(`${window.location.origin}/login?ref=${referralCode}&campaign=${WORKSPACE_EVENT.id}`)}` : "#"} className="flex h-12 w-12 items-center justify-center rounded-full bg-black text-sm font-bold text-white ring-1 ring-white/15 transition hover:-translate-y-0.5" title="X">𝕏</a>
+              <a aria-label="Compartilhar no LinkedIn" target="_blank" rel="noreferrer" href={referralCode ? `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(`${window.location.origin}/login?ref=${referralCode}&campaign=${WORKSPACE_EVENT.id}`)}` : "#"} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0A66C2] text-xs font-black text-white shadow-lg shadow-[#0A66C2]/15 transition hover:-translate-y-0.5" title="LinkedIn">in</a>
+              <a aria-label="Compartilhar no Reddit" target="_blank" rel="noreferrer" href={referralCode ? `https://www.reddit.com/submit?title=${encodeURIComponent("Conheça o DecidlyAI")}&url=${encodeURIComponent(`${window.location.origin}/login?ref=${referralCode}&campaign=${WORKSPACE_EVENT.id}`)}` : "#"} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FF4500] text-xs font-black text-white shadow-lg shadow-[#FF4500]/15 transition hover:-translate-y-0.5" title="Reddit">r/</a>
             </div>
             <Link to="/credits/free" onClick={() => setEventOpen(false)} className="mt-3 flex w-full items-center justify-center rounded-xl border border-white/10 px-4 py-3 text-sm text-white/60 transition hover:bg-white/[0.06] hover:text-white">Ver regras de créditos e convites</Link>
           </div>
