@@ -122,13 +122,13 @@ export const Route =
 
         {
           title:
-            "DecidlyAI | Tome decisões com mais clareza",
+            "DecidlyAI | IA para Tomada de Decisão e Clareza Mental",
         },
 
         {
           name: "description",
           content:
-            "DecidlyAI é uma plataforma para ajudar você a organizar pensamentos, analisar possibilidades e tomar decisões com mais clareza.",
+            "Organize dilemas, compare cenários e tome decisões conscientes com inteligência artificial reflexiva. Reduza o ruído mental sem terceirizar sua escolha.",
         },
 
         {
@@ -181,13 +181,13 @@ export const Route =
         {
           property: "og:title",
           content:
-            "DecidlyAI | Tome decisões com mais clareza",
+            "DecidlyAI | IA para Tomada de Decisão e Clareza Mental",
         },
 
         {
           property: "og:description",
           content:
-            "DecidlyAI é uma plataforma para ajudar você a organizar pensamentos, analisar possibilidades e tomar decisões com mais clareza.",
+            "Organize dilemas, compare cenários e tome decisões conscientes com inteligência artificial reflexiva. Reduza o ruído mental sem terceirizar sua escolha.",
         },
 
         {
@@ -218,13 +218,13 @@ export const Route =
         {
           name: "twitter:title",
           content:
-            "DecidlyAI | Tome decisões com mais clareza",
+            "DecidlyAI | IA para Tomada de Decisão e Clareza Mental",
         },
 
         {
           name: "twitter:description",
           content:
-            "DecidlyAI é uma plataforma para ajudar você a organizar pensamentos, analisar possibilidades e tomar decisões com mais clareza.",
+            "Organize dilemas, compare cenários e tome decisões conscientes com inteligência artificial reflexiva. Reduza o ruído mental sem terceirizar sua escolha.",
         },
       ],
 

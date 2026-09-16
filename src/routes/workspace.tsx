@@ -23,6 +23,9 @@ import {
   Volume2,
   Square,
   MoreHorizontal,
+  Gift,
+  Link2,
+  Loader2,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -63,6 +66,13 @@ type Subscription = {
 const SIDEBAR_MAX_WIDTH = 320;
 const INITIAL_CHAT_LIMIT = 15;
 const LOAD_MORE_CHAT_LIMIT = 25;
+const WORKSPACE_EVENT = {
+  id: "invite-30",
+  label: "Convide um amigo",
+  title: "Convide um amigo e ganhe 30 créditos",
+  description: "Compartilhe seu link. Quando o convite for qualificado, você recebe 30 créditos nesta campanha.",
+  reward: 30,
+} as const;
 
 function Workspace() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -95,6 +105,8 @@ function Workspace() {
 
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [requestPhase, setRequestPhase] = useState<"idle" | "sending" | "thinking">("idle");
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState("");
 
   const [userId, setUserId] = useState<string | null>(null);
@@ -102,6 +114,9 @@ function Workspace() {
   const [userEmail, setUserEmail] = useState("");
   const [preferredName, setPreferredName] = useState("");
   const [accountOpen, setAccountOpen] = useState(false);
+  const [eventOpen, setEventOpen] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
+  const [referralCopied, setReferralCopied] = useState(false);
   const [creditsOpen, setCreditsOpen] = useState(false);
   const [creditWallet, setCreditWallet] = useState<CreditWallet>({
     free_credits: 0,
@@ -146,6 +161,7 @@ function Workspace() {
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const speechSessionRef = useRef(0);
+  const requestStartedAtRef = useRef<number | null>(null);
 
   const loadCreditWallet = useCallback(async () => {
     if (!userId) return;
@@ -159,6 +175,19 @@ function Workspace() {
       setCreditWallet(normalizeCreditWallet(data));
     }
     setCreditsLoading(false);
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) {
+      setReferralCode("");
+      return;
+    }
+    void supabase
+      .from("referral_codes")
+      .select("code")
+      .eq("user_id", userId)
+      .maybeSingle()
+      .then(({ data }) => setReferralCode(typeof data?.code === "string" ? data.code : ""));
   }, [userId]);
 
   useEffect(() => {
@@ -1094,6 +1123,9 @@ function Workspace() {
       ]);
 
       setIsLoading(true);
+      setRequestPhase("sending");
+      setElapsedSeconds(0);
+      requestStartedAtRef.current = Date.now();
       const abortController = new AbortController();
       streamAbortRef.current = abortController;
 
@@ -1156,6 +1188,10 @@ function Workspace() {
           history,
           signal: abortController.signal,
           onDelta: (_delta, accumulated) => {
+            if (requestPhase !== "thinking") {
+              setRequestPhase("thinking");
+              requestStartedAtRef.current = requestStartedAtRef.current || Date.now();
+            }
             latestAccumulated = accumulated;
             if (chatRef.current) {
               const distanceFromBottom = chatRef.current.scrollHeight - chatRef.current.scrollTop - chatRef.current.clientHeight;
@@ -1240,6 +1276,9 @@ function Workspace() {
          * Mantém o comportamento instantâneo atual.
          */
         setIsLoading(false);
+        setRequestPhase("idle");
+        setElapsedSeconds(0);
+        requestStartedAtRef.current = null;
         streamAbortRef.current = null;
       }
     },
@@ -1253,6 +1292,7 @@ function Workspace() {
       activeConversationId,
       userName,
       preferredName,
+      requestPhase,
     ],
   );
 
@@ -1260,6 +1300,8 @@ function Workspace() {
     streamAbortRef.current?.abort();
     streamAbortRef.current = null;
     setIsLoading(false);
+    setRequestPhase("idle");
+    requestStartedAtRef.current = null;
   }, []);
 
   /*
@@ -1739,6 +1781,21 @@ function Workspace() {
     setChatMenuId(null);
   }, [userId]);
 
+  const copyReferralLink = useCallback(async () => {
+    if (!referralCode) return;
+    await navigator.clipboard?.writeText(`${window.location.origin}/login?ref=${referralCode}&campaign=${WORKSPACE_EVENT.id}`);
+    setReferralCopied(true);
+    window.setTimeout(() => setReferralCopied(false), 1800);
+  }, [referralCode]);
+
+  useEffect(() => {
+    if (!isLoading || !requestStartedAtRef.current) return;
+    const update = () => setElapsedSeconds(Math.max(0, Math.floor((Date.now() - (requestStartedAtRef.current || Date.now())) / 1000)));
+    update();
+    const timer = window.setInterval(update, 1000);
+    return () => window.clearInterval(timer);
+  }, [isLoading]);
+
   /*
    * ============================================================
    * AUTO SCROLL
@@ -2131,6 +2188,15 @@ function Workspace() {
               ================================================== */}
 
           <div className="border-t border-white/[0.06] px-3 py-3">
+            <button
+              type="button"
+              onClick={() => setEventOpen(true)}
+              className="mb-2 flex w-full items-center gap-3 rounded-xl border border-amber-300/20 bg-amber-300/[0.08] px-3 py-3 text-left text-sm font-semibold text-amber-100 transition hover:bg-amber-300/[0.14]"
+            >
+              <Gift size={18} />
+              <span className="min-w-0 flex-1 truncate">{WORKSPACE_EVENT.label}</span>
+              <span className="text-xs text-amber-200/80">+{WORKSPACE_EVENT.reward}</span>
+            </button>
             <Link to="/credits" onClick={closeSidebar} className="mb-2 flex w-full items-center gap-3 rounded-xl bg-[#21152d] px-3 py-3 text-left text-sm font-semibold text-violet-100 shadow-sm ring-1 ring-violet-300/20 transition hover:bg-[#2a1b38]">
               <Coins size={18} />
               <span className="flex-1">Credits</span>
@@ -2349,6 +2415,30 @@ function Workspace() {
                 Deletar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {eventOpen && (
+        <div
+          className="fixed inset-0 z-[320] flex items-center justify-center bg-black/65 px-4 backdrop-blur-sm"
+          onPointerDown={() => setEventOpen(false)}
+        >
+          <div className="w-full max-w-md rounded-3xl border border-amber-300/20 bg-[#18101f] p-6 shadow-2xl" onPointerDown={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">Evento atual</p>
+                <h2 className="mt-2 text-2xl font-semibold text-white">{WORKSPACE_EVENT.title}</h2>
+                <p className="mt-2 text-sm leading-6 text-white/50">{WORKSPACE_EVENT.description}</p>
+              </div>
+              <button type="button" onClick={() => setEventOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-xl text-white/45 hover:bg-white/[0.06] hover:text-white" aria-label="Fechar evento"><X size={18} /></button>
+            </div>
+            <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
+              <p className="text-xs uppercase tracking-[0.15em] text-white/35">Seu link de convite</p>
+              <p className="mt-2 break-all text-sm text-violet-200">{referralCode ? `${window.location.origin}/login?ref=${referralCode}&campaign=${WORKSPACE_EVENT.id}` : "Gerando seu link…"}</p>
+            </div>
+            <button type="button" disabled={!referralCode} onClick={() => void copyReferralLink()} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-300 px-4 py-3 font-semibold text-[#20150a] transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-50"><Link2 size={17} />{referralCopied ? "Link copiado" : "Copiar link de convite"}</button>
+            <Link to="/credits/free" onClick={() => setEventOpen(false)} className="mt-3 flex w-full items-center justify-center rounded-xl border border-white/10 px-4 py-3 text-sm text-white/60 transition hover:bg-white/[0.06] hover:text-white">Ver regras de créditos e convites</Link>
           </div>
         </div>
       )}
@@ -2674,8 +2764,10 @@ function Workspace() {
 
                 {isLoading && (
                   <div className="flex justify-start">
-                    <div className="text-sm text-white/45">
-                      {thinkingLabel}
+                    <div className="inline-flex items-center gap-2 rounded-2xl border border-violet-300/15 bg-violet-400/[0.07] px-3 py-2 text-sm text-white/60">
+                      <Loader2 size={15} className="animate-spin text-violet-300" />
+                      <span>{requestPhase === "sending" ? "Enviando…" : thinkingLabel}</span>
+                      {requestPhase === "thinking" && <span className="tabular-nums text-violet-200/80">{elapsedSeconds}s</span>}
                     </div>
                   </div>
                 )}

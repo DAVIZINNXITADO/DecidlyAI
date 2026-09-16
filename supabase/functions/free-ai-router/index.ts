@@ -170,7 +170,7 @@ Deno.serve(async (request) => {
       stream: body.stream !== false,
       language,
     });
-    const providers = ["gemini-free", "groq-free", "cloudflare-free"];
+    const providers = ["groq-free", "cloudflare-free"];
     let lastError = "";
 
     for (const provider of providers) {

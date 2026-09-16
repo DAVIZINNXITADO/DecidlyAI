@@ -9,6 +9,7 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 const originalText = new WeakMap<Text, string>();
+const translationCache = new Map<string, string>();
 
 function translatableNodes() {
   if (typeof document === "undefined") return [] as Text[];
@@ -53,20 +54,34 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     const originals = nodes.map((node) => originalText.get(node) || "");
-    const { data, error } = await supabase.functions.invoke("decidly-translate", { body: { texts: originals.filter(Boolean), source: "pt", target: "en" } });
-    if (!error && Array.isArray(data?.translations)) {
-      let index = 0;
-      nodes.forEach((node) => { const value = originalText.get(node); if (value && node.isConnected) node.textContent = typeof data.translations[index] === "string" ? data.translations[index] : value; index += value ? 1 : 0; });
+    const missing = originals.filter((value) => value && !translationCache.has(value));
+    if (missing.length > 0) {
+      const { data, error } = await supabase.functions.invoke("decidly-translate", { body: { texts: missing, source: "pt", target: "en" } });
+      if (!error && Array.isArray(data?.translations)) {
+        missing.forEach((value, index) => {
+          const translated = data.translations[index];
+          if (typeof translated === "string") translationCache.set(value, translated);
+        });
+      }
     }
+    nodes.forEach((node) => {
+      const value = originalText.get(node);
+      if (value && node.isConnected) node.textContent = translationCache.get(value) || value;
+    });
     lastTranslationAt.current = Date.now();
     translating.current = false;
   }, [language]);
 
   useEffect(() => {
     void translatePage();
-    const observer = new MutationObserver(() => { if (!translating.current && language === "en-US" && Date.now() - lastTranslationAt.current > 250) window.setTimeout(() => void translatePage(), 40); });
+    let translationTimer: number | null = null;
+    const observer = new MutationObserver(() => {
+      if (translating.current || language !== "en-US" || Date.now() - lastTranslationAt.current <= 400) return;
+      if (translationTimer !== null) window.clearTimeout(translationTimer);
+      translationTimer = window.setTimeout(() => void translatePage(), 220);
+    });
     observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); if (translationTimer !== null) window.clearTimeout(translationTimer); };
   }, [language, translatePage]);
 
   return (

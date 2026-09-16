@@ -214,11 +214,14 @@ function LoginPage() {
     useState<Feedback>(null);
 
   const [referralCode, setReferralCode] = useState("");
+  const [referralCampaign, setReferralCampaign] = useState("");
   const [referralBlocked, setReferralBlocked] = useState(false);
   const [referrerName, setReferrerName] = useState("");
 
   useEffect(() => {
-    const code = new URLSearchParams(window.location.search).get("ref")?.trim() || "";
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("ref")?.trim() || "";
+    setReferralCampaign(params.get("campaign")?.trim() || "");
     if (!code) return;
     setMode("signup");
     setReferralBlocked(Boolean(window.localStorage.getItem("decidly-account-created")));
@@ -941,6 +944,7 @@ function LoginPage() {
                 name:
                   cleanName,
                 ...(eligibleReferralCode ? { referral_code: eligibleReferralCode } : {}),
+                ...(eligibleReferralCode && referralCampaign === "invite-30" ? { referral_campaign: "invite-30" } : {}),
 
               },
           },
@@ -1290,7 +1294,7 @@ function LoginPage() {
                 <p className={`mt-4 text-base leading-relaxed sm:text-lg ${isSignUp && referralCode && !referralBlocked ? "font-semibold text-violet-100" : "text-slate-300"}`}>
                   {isSignUp
                     ? referralCode && !referralBlocked
-                      ? `${referrerName || "Seu convidador"} compartilhou 25 créditos com você. Crie sua conta para receber esses 25 créditos e transforme sua próxima dúvida em um caminho mais claro.`
+                      ? `${referrerName || "Seu convidador"} compartilhou ${referralCampaign === "invite-30" ? "30" : "25"} créditos com você. Crie sua conta para receber esse bônus e transforme sua próxima dúvida em um caminho mais claro.`
                       : "Crie sua conta e transforme sua próxima dúvida em um caminho mais claro."
                     : "Continue organizando suas decisões com mais clareza."}
                 </p>

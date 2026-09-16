@@ -196,7 +196,7 @@ Deno.serve(async (request) => {
       return json({ error: "GROQ_API_KEY não configurada." }, 500);
     }
 
-    const model = Deno.env.get("GROQ_MODEL") || "openai/gpt-oss-120b";
+    const model = Deno.env.get("GROQ_MODEL") || "llama-3.1-8b-instant";
     const wantsStream = body.stream !== false;
     const history = cleanHistory(body.history);
     const languageNames: Record<string, string> = { "pt-BR": "Português do Brasil", "en-US": "English", "es-ES": "Español", "fr-FR": "Français", "de-DE": "Deutsch", "it-IT": "Italiano", "ja-JP": "日本語", "ko-KR": "한국어", "zh-CN": "简体中文", "hi-IN": "हिन्दी", "ar-SA": "العربية", "ru-RU": "Русский" };
@@ -222,7 +222,7 @@ Deno.serve(async (request) => {
         model,
         messages,
         temperature: 0.7,
-        max_tokens: 4096,
+        max_tokens: 2048,
         stream: wantsStream,
       }),
     });
