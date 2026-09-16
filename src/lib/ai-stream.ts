@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./supabase-config";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -37,8 +38,8 @@ function cleanDoneMarker(text: string): string {
 export async function streamAi(functionName: string, options: Options): Promise<string> {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
-  const baseUrl = import.meta.env["VITE_SUPABASE_URL"] as string | undefined;
-  const anonKey = import.meta.env["VITE_SUPABASE_ANON_KEY"] as string | undefined;
+  const baseUrl = SUPABASE_URL;
+  const anonKey = SUPABASE_ANON_KEY;
   if (!token || !baseUrl || !anonKey) throw new Error("AUTH");
 
   let response: Response;

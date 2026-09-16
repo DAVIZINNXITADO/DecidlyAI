@@ -1,7 +1,8 @@
 import { supabase } from "./supabase";
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./supabase-config";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+const supabaseUrl = SUPABASE_URL;
+const supabaseAnonKey = SUPABASE_ANON_KEY;
 const ttsUrl = supabaseUrl ? `${supabaseUrl}/functions/v1/decidly-tts` : "";
 
 export async function requestTtsAudio(text: string): Promise<HTMLAudioElement> {
