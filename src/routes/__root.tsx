@@ -155,7 +155,7 @@ export const Route =
 
         {
           name: "theme-color",
-          content: "#020617",
+          content: "#151322",
         },
 
         {
