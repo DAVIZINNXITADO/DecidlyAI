@@ -14,7 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "../lib/supabase";
 import { LanguageProvider } from "../lib/LanguageProvider";
 
-const SITE_URL = "https://decidlyai.lovable.app/";
+const SITE_URL = "https://decidlyai.lovable.app";
 
 const websiteSchema = {
   "@context": "https://schema.org",
@@ -217,7 +217,7 @@ export const Route =
 
         {
           property: "og:image:height",
-          content: "630",
+          content: "600",
         },
 
         {
