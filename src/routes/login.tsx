@@ -1442,8 +1442,7 @@ function LoginPage() {
                   type="submit"
                   disabled={
                     loading ||
-                    googleLoading ||
-                    (isSignUp && captchaLoading)
+                    googleLoading
                   }
                   className="interactive-lift group flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 hover:shadow-violet-950/50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
