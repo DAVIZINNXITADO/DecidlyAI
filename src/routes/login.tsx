@@ -564,6 +564,14 @@ function LoginPage() {
           return;
         }
 
+        const pendingReferralCode = referralBlocked ? "" : referralCode;
+        if (pendingReferralCode) {
+          await supabase.rpc("claim_referral_for_user", {
+            invited_code: pendingReferralCode,
+            campaign: referralCampaign || null,
+          });
+        }
+
         navigate({
           to: "/workspace",
         });
