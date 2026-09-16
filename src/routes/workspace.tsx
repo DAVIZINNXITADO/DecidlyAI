@@ -26,6 +26,8 @@ import {
   Gift,
   Link2,
   Loader2,
+  Share2,
+  MessageSquareText,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -68,7 +70,7 @@ const INITIAL_CHAT_LIMIT = 15;
 const LOAD_MORE_CHAT_LIMIT = 25;
 const WORKSPACE_EVENT = {
   id: "invite-30",
-  label: "Convide um amigo",
+  label: "Convide e ganhe!",
   title: "Convide um amigo e ganhe 30 créditos",
   description: "Compartilhe seu link. Quando o convite for qualificado, você recebe 30 créditos nesta campanha.",
   reward: 30,
@@ -115,6 +117,11 @@ function Workspace() {
   const [preferredName, setPreferredName] = useState("");
   const [accountOpen, setAccountOpen] = useState(false);
   const [eventOpen, setEventOpen] = useState(false);
+  const [shareMessage, setShareMessage] = useState<ChatMessage | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState<ChatMessage | null>(null);
+  const [feedbackChoice, setFeedbackChoice] = useState<"like" | "dislike">("like");
+  const [feedbackComment, setFeedbackComment] = useState("");
+  const [feedbackSaving, setFeedbackSaving] = useState(false);
   const [referralCode, setReferralCode] = useState("");
   const [referralCopied, setReferralCopied] = useState(false);
   const [creditsOpen, setCreditsOpen] = useState(false);
@@ -463,7 +470,7 @@ function Workspace() {
     }
     void supabase
       .from("message_feedback")
-      .select("message_id,feedback")
+      .select("message_id,feedback,comment")
       .eq("user_id", userId)
       .then(({ data }) => {
         const nextLikes: Record<string, boolean> = {};
@@ -1181,6 +1188,7 @@ function Workspace() {
             return current.map((item) => item.id === assistantId ? { ...item, content } : item);
           });
         };
+        setRequestPhase("thinking");
         const answer = await streamAi(functionName, {
           message: privateContext
             ? `${privateContext}\n\nMensagem do usuário:\n${text}`
@@ -1238,11 +1246,11 @@ function Workspace() {
 
         if (message === "402" || status === 402) {
           setError(
-            "Seu plano atual não permite usar este recurso.",
+            "Seus créditos acabaram por agora. Você pode esperar a renovação diária ou abrir a área de créditos para ver as opções disponíveis.",
           );
         } else if (message === "429" || status === 429) {
           setError(
-            "Muitas solicitações no momento. Tente novamente em instantes.",
+            "A IA está recebendo muitas solicitações. Aguarde alguns segundos e tente novamente — sua conversa continua salva.",
           );
         } else if (message === "AUTH" || status === 401 || status === 403) {
           setError(
@@ -1619,19 +1627,35 @@ function Workspace() {
           if (speechSessionRef.current === session) stopReading();
         };
         await audio.play();
-      } catch (error) {
+      } catch {
         if (speechSessionRef.current !== session) return;
+        if (typeof window.speechSynthesis === "undefined" || typeof window.SpeechSynthesisUtterance === "undefined") {
+          setReadingLoading(false);
+          setError("A leitura de voz não está disponível neste navegador.");
+          stopReading();
+          return;
+        }
+        const utterance = new SpeechSynthesisUtterance(speakableText);
+        utterance.lang = language === "en-US" ? "en-US" : "pt-BR";
+        utterance.rate = 0.98;
+        utterance.onend = () => {
+          if (speechSessionRef.current === session) stopReading();
+        };
+        utterance.onerror = () => {
+          if (speechSessionRef.current === session) {
+            setError("Não foi possível iniciar a leitura de voz.");
+            stopReading();
+          }
+        };
+        window.speechSynthesis.cancel();
         setReadingLoading(false);
-        const reason = error instanceof Error ? error.message : "TTS_ERROR";
-        setError(reason === "TTS_NOT_CONFIGURED"
-          ? "A voz interna ainda não está configurada nesta versão."
-          : `Não foi possível reproduzir a voz interna (${reason}).`);
-        stopReading();
+        window.speechSynthesis.speak(utterance);
       }
     },
     [
       readingMessageId,
       stopReading,
+      language,
     ],
   );
 
@@ -1746,29 +1770,33 @@ function Workspace() {
    * ============================================================
    */
 
-  const saveFeedback = useCallback(async (id: string, feedback: "like" | "dislike") => {
+  const saveFeedback = useCallback(async (id: string, feedback: "like" | "dislike", comment = "") => {
     if (!userId) return;
-    const alreadySelected = feedback === "like" ? likes[id] : dislikes[id];
-    if (alreadySelected) {
-      await supabase.from("message_feedback").delete().eq("user_id", userId).eq("message_id", id);
-      if (feedback === "like") setLikes((current) => ({ ...current, [id]: false }));
-      else setDislikes((current) => ({ ...current, [id]: false }));
+    setFeedbackSaving(true);
+    const { error: deleteError } = await supabase.from("message_feedback").delete().eq("user_id", userId).eq("message_id", id);
+    if (deleteError) {
+      setFeedbackSaving(false);
+      setError("Não foi possível registrar sua avaliação. Verifique sua conexão e tente novamente.");
       return;
     }
-    const { error: feedbackError } = await supabase.from("message_feedback").upsert(
-      { user_id: userId, message_id: id, feedback },
-      { onConflict: "user_id,message_id" },
-    );
-    if (feedbackError) {
-      setError("Não foi possível salvar sua avaliação. Tente novamente.");
+    const { error: insertError } = await supabase.from("message_feedback").insert({ user_id: userId, message_id: id, feedback, comment: comment.trim() || null });
+    setFeedbackSaving(false);
+    if (insertError) {
+      setError("Não foi possível registrar sua avaliação. Verifique sua conexão e tente novamente.");
       return;
     }
     setLikes((current) => ({ ...current, [id]: feedback === "like" }));
     setDislikes((current) => ({ ...current, [id]: feedback === "dislike" }));
-  }, [dislikes, likes, userId]);
-
-  const toggleLike = useCallback((id: string) => { void saveFeedback(id, "like"); }, [saveFeedback]);
-  const toggleDislike = useCallback((id: string) => { void saveFeedback(id, "dislike"); }, [saveFeedback]);
+    setFeedbackMessage(null);
+    setFeedbackComment("");
+  }, [userId]);
+  const openFeedback = useCallback((message: ChatMessage, feedback: "like" | "dislike") => {
+    setFeedbackMessage(message);
+    setFeedbackChoice(feedback);
+    setFeedbackComment("");
+  }, []);
+  const toggleLike = useCallback((message: ChatMessage) => { openFeedback(message, "like"); }, [openFeedback]);
+  const toggleDislike = useCallback((message: ChatMessage) => { openFeedback(message, "dislike"); }, [openFeedback]);
 
   const togglePinned = useCallback(async (conversation: Conversation) => {
     const nextPinned = !conversation.is_pinned;
@@ -2419,6 +2447,33 @@ function Workspace() {
         </div>
       )}
 
+      {shareMessage && (
+        <div className="fixed inset-0 z-[330] flex items-center justify-center bg-black/65 px-4 backdrop-blur-sm" onPointerDown={() => setShareMessage(null)}>
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#18101f] p-6 shadow-2xl" onPointerDown={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Compartilhar</p><h2 className="mt-2 text-2xl font-semibold">Envie esta resposta</h2></div><button type="button" onClick={() => setShareMessage(null)} className="flex h-9 w-9 items-center justify-center rounded-xl text-white/45 hover:bg-white/[0.06] hover:text-white" aria-label="Fechar compartilhamento"><X size={18} /></button></div>
+            <p className="mt-4 max-h-24 overflow-hidden rounded-2xl bg-black/20 p-4 text-sm leading-6 text-white/55">{shareMessage.content}</p>
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <a target="_blank" rel="noreferrer" href={`https://wa.me/?text=${encodeURIComponent(`Olha esta reflexão do DecidlyAI: ${shareMessage.content}`)}`} className="rounded-xl bg-[#25D366] px-3 py-3 text-center text-sm font-semibold text-black">WhatsApp</a>
+              <a target="_blank" rel="noreferrer" href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`} className="rounded-xl bg-[#1877F2] px-3 py-3 text-center text-sm font-semibold text-white">Facebook</a>
+              <a target="_blank" rel="noreferrer" href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMessage.content.slice(0, 240))}&url=${encodeURIComponent(window.location.href)}`} className="rounded-xl bg-black px-3 py-3 text-center text-sm font-semibold text-white">X</a>
+              <a target="_blank" rel="noreferrer" href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`} className="rounded-xl bg-[#0A66C2] px-3 py-3 text-center text-sm font-semibold text-white">LinkedIn</a>
+              <a target="_blank" rel="noreferrer" href={`https://www.reddit.com/submit?title=${encodeURIComponent("Reflexão do DecidlyAI")}&text=${encodeURIComponent(shareMessage.content)}`} className="rounded-xl bg-[#FF4500] px-3 py-3 text-center text-sm font-semibold text-white">Reddit</a>
+              <button type="button" onClick={() => void navigator.clipboard?.writeText(shareMessage.content)} className="rounded-xl border border-white/10 px-3 py-3 text-sm font-semibold text-white/70 hover:bg-white/[0.06]">Copiar texto</button>
+            </div>
+            {typeof navigator !== "undefined" && "share" in navigator && <button type="button" onClick={() => void navigator.share?.({ title: "DecidlyAI", text: shareMessage.content, url: window.location.href })} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-3 font-semibold text-white"><Share2 size={17} />Abrir compartilhamento do celular</button>}
+          </div>
+        </div>
+      )}
+      {feedbackMessage && (
+        <div className="fixed inset-0 z-[330] flex items-center justify-center bg-black/65 px-4 backdrop-blur-sm" onPointerDown={() => setFeedbackMessage(null)}>
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#18101f] p-6 shadow-2xl" onPointerDown={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Sua opinião</p><h2 className="mt-2 text-2xl font-semibold">O que achou da resposta?</h2></div><button type="button" onClick={() => setFeedbackMessage(null)} className="flex h-9 w-9 items-center justify-center rounded-xl text-white/45 hover:bg-white/[0.06] hover:text-white" aria-label="Fechar feedback"><X size={18} /></button></div>
+            <div className="mt-4 flex items-center gap-2 rounded-2xl bg-black/20 p-3 text-sm text-white/55"><MessageSquareText size={17} className="text-violet-300" /><span>{feedbackChoice === "like" ? "O que foi útil para você?" : "O que podemos melhorar?"}</span></div>
+            <textarea value={feedbackComment} onChange={(event) => setFeedbackComment(event.target.value.slice(0, 500))} placeholder="Escreva um comentário (opcional)" className="mt-4 min-h-28 w-full resize-none rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-white outline-none placeholder:text-white/25 focus:border-violet-300/50" />
+            <button type="button" disabled={feedbackSaving} onClick={() => void saveFeedback(feedbackMessage.id, feedbackChoice, feedbackComment)} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-3 font-semibold text-white disabled:opacity-50">{feedbackSaving ? <Loader2 size={17} className="animate-spin" /> : null}{feedbackSaving ? "Salvando…" : "Enviar feedback"}</button>
+          </div>
+        </div>
+      )}
       {eventOpen && (
         <div
           className="fixed inset-0 z-[320] flex items-center justify-center bg-black/65 px-4 backdrop-blur-sm"
@@ -2438,6 +2493,13 @@ function Workspace() {
               <p className="mt-2 break-all text-sm text-violet-200">{referralCode ? `${window.location.origin}/login?ref=${referralCode}&campaign=${WORKSPACE_EVENT.id}` : "Gerando seu link…"}</p>
             </div>
             <button type="button" disabled={!referralCode} onClick={() => void copyReferralLink()} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-300 px-4 py-3 font-semibold text-[#20150a] transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-50"><Link2 size={17} />{referralCopied ? "Link copiado" : "Copiar link de convite"}</button>
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+              <a target="_blank" rel="noreferrer" href={referralCode ? `https://wa.me/?text=${encodeURIComponent(`Convidei você para conhecer o DecidlyAI: ${window.location.origin}/login?ref=${referralCode}&campaign=${WORKSPACE_EVENT.id}`)}` : "#"} className="rounded-xl bg-[#25D366] px-2 py-2.5 text-center text-xs font-semibold text-black">WhatsApp</a>
+              <a target="_blank" rel="noreferrer" href={referralCode ? `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`${window.location.origin}/login?ref=${referralCode}&campaign=${WORKSPACE_EVENT.id}`)}` : "#"} className="rounded-xl bg-[#1877F2] px-2 py-2.5 text-center text-xs font-semibold text-white">Facebook</a>
+              <a target="_blank" rel="noreferrer" href={referralCode ? `https://twitter.com/intent/tweet?text=${encodeURIComponent("Conheça o DecidlyAI")}&url=${encodeURIComponent(`${window.location.origin}/login?ref=${referralCode}&campaign=${WORKSPACE_EVENT.id}`)}` : "#"} className="rounded-xl bg-black px-2 py-2.5 text-center text-xs font-semibold text-white">X</a>
+              <a target="_blank" rel="noreferrer" href={referralCode ? `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(`${window.location.origin}/login?ref=${referralCode}&campaign=${WORKSPACE_EVENT.id}`)}` : "#"} className="rounded-xl bg-[#0A66C2] px-2 py-2.5 text-center text-xs font-semibold text-white">LinkedIn</a>
+              <a target="_blank" rel="noreferrer" href={referralCode ? `https://www.reddit.com/submit?title=${encodeURIComponent("Conheça o DecidlyAI")}&url=${encodeURIComponent(`${window.location.origin}/login?ref=${referralCode}&campaign=${WORKSPACE_EVENT.id}`)}` : "#"} className="rounded-xl bg-[#FF4500] px-2 py-2.5 text-center text-xs font-semibold text-white">Reddit</a>
+            </div>
             <Link to="/credits/free" onClick={() => setEventOpen(false)} className="mt-3 flex w-full items-center justify-center rounded-xl border border-white/10 px-4 py-3 text-sm text-white/60 transition hover:bg-white/[0.06] hover:text-white">Ver regras de créditos e convites</Link>
           </div>
         </div>
@@ -2520,9 +2582,14 @@ function Workspace() {
                     : "Explique a situação, as opções que você tem e o que está te deixando em dúvida."}
                 </p>
 
-                <Link to="/credits" className="mt-4 inline-flex items-center gap-2 rounded-full border border-violet-300/20 bg-violet-400/[0.08] px-4 py-2 text-xs text-violet-100 transition hover:bg-violet-400/[0.15]">
-                  <Coins size={14} /> {usableCredits.toFixed(2)} créditos disponíveis
-                </Link>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  <Link to="/credits" className="inline-flex items-center gap-2 rounded-full border border-violet-300/20 bg-violet-400/[0.08] px-4 py-2 text-xs text-violet-100 transition hover:bg-violet-400/[0.15]">
+                    <Coins size={14} /> {usableCredits.toFixed(2)} créditos disponíveis
+                  </Link>
+                  <button type="button" onClick={() => setEventOpen(true)} className="inline-flex items-center gap-2 rounded-full border border-amber-300/25 bg-amber-300/[0.1] px-4 py-2 text-xs font-semibold text-amber-100 transition hover:bg-amber-300/[0.18]">
+                    <Gift size={14} /> Convide e ganhe!
+                  </button>
+                </div>
 
                 <div className="mt-7 grid w-full max-w-xl gap-2 sm:grid-cols-3">
                   {[
@@ -2663,7 +2730,7 @@ function Workspace() {
                                   type="button"
                                   onClick={() =>
                                     toggleLike(
-                                      message.id,
+                                      message,
                                     )
                                   }
                                   className={`flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-white/5 hover:text-white ${
@@ -2684,7 +2751,7 @@ function Workspace() {
                                   type="button"
                                   onClick={() =>
                                     toggleDislike(
-                                      message.id,
+                                      message,
                                     )
                                   }
                                   className={`flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-white/5 hover:text-white ${
@@ -2727,6 +2794,9 @@ function Workspace() {
                                   )}
                                 </button>
 
+                                <button type="button" onClick={() => setShareMessage(message)} className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-white/5 hover:text-white" aria-label="Compartilhar resposta">
+                                  <Share2 size={16} />
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() =>
