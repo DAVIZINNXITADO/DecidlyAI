@@ -974,8 +974,13 @@ function LoginPage() {
           return;
         }
 
+        if (errorMessage.includes("rate limit") || errorMessage.includes("too many requests")) {
+          showError("Muitas tentativas de cadastro em pouco tempo. Aguarde alguns minutos e tente novamente.");
+          return;
+        }
+
         showError(
-          "Não foi possível criar sua conta agora. Confira os dados e tente novamente.",
+          `Não foi possível criar sua conta. ${error.message}`,
         );
 
         return;
@@ -995,7 +1000,7 @@ function LoginPage() {
 
       if (!data.session) {
         showSuccess(
-          "Conta criada! Verifique seu e-mail e confirme sua conta antes de entrar.",
+          "Conta criada com sucesso! Confirme seu e-mail pelo link recebido e depois entre com seus dados.",
         );
 
         setPassword("");
