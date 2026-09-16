@@ -11,7 +11,7 @@ const packages = [{ credits: 10, price: "R$ 1,90" }, { credits: 30, price: "R$ 4
 const eventLabel = (event: Event) => event.event_type === "usage" ? "AI usage" : event.event_type === "daily_free" ? "Daily credits" : event.event_type === "referral" ? "Referral reward" : event.event_type === "rewarded_ad" ? "Rewarded ad" : event.description || "Credit adjustment";
 
 function useCreditData() {
-  const [wallet, setWallet] = useState<Wallet>(normalizeCreditWallet({ daily_credits_limit: 10 }));
+  const [wallet, setWallet] = useState<Wallet>(normalizeCreditWallet({ daily_credits_limit: 5 }));
   const [events, setEvents] = useState<Event[]>([]); const [code, setCode] = useState("");
   const load = useCallback(async () => { const { data: auth } = await supabase.auth.getUser(); const user = auth.user; if (!user) return; const [{ data: credits }, { data: history }, { data: referral }] = await Promise.all([supabase.from("ai_credits").select("free_credits,purchased_credits,total_credits,daily_credits_used,daily_credits_limit,daily_credits_reset_at").eq("user_id", user.id).maybeSingle(), supabase.from("credit_events").select("id,event_type,amount,description,created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(100), supabase.from("referral_codes").select("code").eq("user_id", user.id).maybeSingle()]); if (credits) setWallet(normalizeCreditWallet(credits)); setEvents((history || []) as Event[]); if (referral?.code) setCode(referral.code); }, []);
   useEffect(() => { void load(); const timer = window.setInterval(() => void load(), 1000); return () => window.clearInterval(timer); }, [load]); return { wallet, events, code, dailyBalance: dailyCreditsBalance(wallet), reload: load };

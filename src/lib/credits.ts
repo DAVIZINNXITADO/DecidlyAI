@@ -40,7 +40,7 @@ export function normalizeCreditWallet(data: Partial<CreditWallet> | null | undef
     purchased_credits: Number(data?.purchased_credits ?? 0),
     total_credits: Number(data?.total_credits ?? 0),
     daily_credits_used: Number(data?.daily_credits_used ?? 0),
-    daily_credits_limit: Number(data?.daily_credits_limit ?? 10),
+    daily_credits_limit: Number(data?.daily_credits_limit ?? 5),
     daily_credits_reset_at: data?.daily_credits_reset_at ? String(data.daily_credits_reset_at) : null,
   };
 }

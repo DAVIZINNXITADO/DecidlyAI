@@ -42,7 +42,7 @@ Deno.serve(async (request) => {
     const { data: creditRow, error: creditError } = await admin.from("ai_credits").select("free_credits,purchased_credits,total_credits,daily_credits_used,daily_credits_limit,daily_credits_reset_at,total_tokens_used,total_input_tokens,total_output_tokens,total_cost_usd").eq("user_id", userData.user.id).maybeSingle();
     if (creditError) throw new Error("Não foi possível verificar seus créditos.");
     const plan = String((await admin.from("profiles").select("plan").eq("id", userData.user.id).maybeSingle()).data?.plan ?? "free").toLowerCase();
-    const planLimit = plan === "premium" ? 999999999 : plan === "vip" ? 100 : 10;
+    const planLimit = plan === "premium" ? 999999999 : plan === "vip" ? 100 : 5;
     const today = todayInSaoPaulo();
     const dailyLimit = planLimit;
     const dailyBalance = dailyBalanceForToday(creditRow?.daily_credits_reset_at, creditRow?.daily_credits_used, dailyLimit, today);
