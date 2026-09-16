@@ -236,12 +236,21 @@ function Workspace() {
       setReferralCode("");
       return;
     }
-    void supabase
-      .from("referral_codes")
-      .select("code")
-      .eq("user_id", userId)
-      .maybeSingle()
-      .then(({ data }) => setReferralCode(typeof data?.code === "string" ? data.code : ""));
+    let cancelled = false;
+    void (async () => {
+      const { data: generatedCode, error: generationError } = await supabase.rpc("ensure_referral_code");
+      if (!cancelled && !generationError && typeof generatedCode === "string") {
+        setReferralCode(generatedCode);
+        return;
+      }
+      const { data } = await supabase
+        .from("referral_codes")
+        .select("code")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (!cancelled) setReferralCode(typeof data?.code === "string" ? data.code : "");
+    })();
+    return () => { cancelled = true; };
   }, [userId]);
 
   useEffect(() => {
