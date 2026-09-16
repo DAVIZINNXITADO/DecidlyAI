@@ -2466,18 +2466,29 @@ function Workspace() {
 
       {shareMessage && (
         <div className="fixed inset-0 z-[330] flex items-center justify-center bg-black/65 px-4 backdrop-blur-sm" onPointerDown={() => setShareMessage(null)}>
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#18101f] p-6 shadow-2xl" onPointerDown={(event) => event.stopPropagation()}>
-            <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Compartilhar resposta</p><h2 className="mt-2 text-2xl font-semibold">Leve esta reflexão com você</h2><p className="mt-2 text-sm text-white/45">Escolha um app ou abra o menu de compartilhamento do seu aparelho.</p></div><button type="button" onClick={() => setShareMessage(null)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/55 hover:bg-white/10 hover:text-white" aria-label="Fechar compartilhamento"><X size={18} /></button></div>
-            <p className="mt-5 max-h-28 overflow-hidden rounded-2xl border border-violet-300/15 bg-violet-400/[0.07] p-4 text-sm leading-6 text-white/65">{shareMessage.content}</p>
-            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-              <a target="_blank" rel="noreferrer" href={`https://wa.me/?text=${encodeURIComponent(`Olha esta reflexão do DecidlyAI: ${shareMessage.content}`)}`} className="rounded-xl bg-[#25D366] px-3 py-3 text-center text-sm font-semibold text-black">WhatsApp</a>
-              <a target="_blank" rel="noreferrer" href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`} className="rounded-xl bg-[#1877F2] px-3 py-3 text-center text-sm font-semibold text-white">Facebook</a>
-              <a target="_blank" rel="noreferrer" href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMessage.content.slice(0, 240))}&url=${encodeURIComponent(window.location.href)}`} className="rounded-xl bg-black px-3 py-3 text-center text-sm font-semibold text-white">X</a>
-              <a target="_blank" rel="noreferrer" href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`} className="rounded-xl bg-[#0A66C2] px-3 py-3 text-center text-sm font-semibold text-white">LinkedIn</a>
-              <a target="_blank" rel="noreferrer" href={`https://www.reddit.com/submit?title=${encodeURIComponent("Reflexão do DecidlyAI")}&text=${encodeURIComponent(shareMessage.content)}`} className="rounded-xl bg-[#FF4500] px-3 py-3 text-center text-sm font-semibold text-white">Reddit</a>
-              <button type="button" onClick={() => void navigator.clipboard?.writeText(shareMessage.content)} className="rounded-xl border border-white/10 px-3 py-3 text-sm font-semibold text-white/70 hover:bg-white/[0.06]">Copiar texto</button>
+          <div className="w-full max-w-md rounded-3xl border border-violet-300/20 bg-[#18101f] p-6 shadow-2xl" onPointerDown={(event) => event.stopPropagation()}>
+            <div className="relative min-h-[142px] pr-20">
+              <div className="relative z-10 max-w-[78%] text-left">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Compartilhar resposta</p>
+                <h2 className="mt-2 text-2xl font-semibold leading-tight text-white">Leve esta reflexão com você</h2>
+                <p className="mt-3 text-sm leading-6 text-white/50">Envie esta ideia para alguém ou guarde o texto para depois.</p>
+              </div>
+              <div className="absolute right-0 top-8 flex h-20 w-20 items-center justify-center rounded-[1.7rem] bg-gradient-to-br from-violet-300 via-violet-500 to-indigo-600 text-white shadow-xl shadow-violet-950/30">
+                <MessageSquareText size={38} strokeWidth={1.8} />
+                <Sparkles className="absolute -right-2 -top-2 text-violet-100" size={20} />
+              </div>
+              <button type="button" onClick={() => setShareMessage(null)} className="absolute right-0 top-0 flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.06] text-white/55 hover:bg-white/10 hover:text-white" aria-label="Fechar compartilhamento"><X size={18} /></button>
             </div>
-            {typeof navigator !== "undefined" && "share" in navigator && <button type="button" onClick={() => void navigator.share?.({ title: "Uma reflexão do DecidlyAI", text: shareMessage.content, url: window.location.href })} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-violet-500 px-4 py-3.5 font-semibold text-white shadow-lg shadow-violet-950/25 transition hover:bg-violet-400"><Share2 size={18} />Compartilhar pelo celular</button>}
+            <p className="mt-2 max-h-28 overflow-hidden rounded-2xl border border-violet-300/15 bg-violet-400/[0.07] p-4 text-sm leading-6 text-white/65">{shareMessage.content}</p>
+            <button type="button" onClick={() => void navigator.share?.({ title: "Uma reflexão do DecidlyAI", text: shareMessage.content, url: window.location.href })} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-violet-500 px-4 py-3.5 font-semibold text-white shadow-lg shadow-violet-950/25 transition hover:bg-violet-400"><Share2 size={18} />Compartilhar</button>
+            <div className="mt-4 flex items-center justify-center gap-3">
+              <a aria-label="WhatsApp" target="_blank" rel="noreferrer" href={`https://wa.me/?text=${encodeURIComponent(`Olha esta reflexão do DecidlyAI: ${shareMessage.content}`)}`} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition hover:-translate-y-0.5" title="WhatsApp"><SiWhatsapp size={23} /></a>
+              <a aria-label="Facebook" target="_blank" rel="noreferrer" href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1877F2] text-white shadow-lg transition hover:-translate-y-0.5" title="Facebook"><SiFacebook size={22} /></a>
+              <a aria-label="X" target="_blank" rel="noreferrer" href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMessage.content.slice(0, 240))}&url=${encodeURIComponent(window.location.href)}`} className="flex h-12 w-12 items-center justify-center rounded-full bg-black text-white ring-1 ring-white/15 transition hover:-translate-y-0.5" title="X"><SiX size={20} /></a>
+              <a aria-label="LinkedIn" target="_blank" rel="noreferrer" href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0A66C2] text-white shadow-lg transition hover:-translate-y-0.5" title="LinkedIn"><FaLinkedinIn size={22} /></a>
+              <a aria-label="Reddit" target="_blank" rel="noreferrer" href={`https://www.reddit.com/submit?title=${encodeURIComponent("Reflexão do DecidlyAI")}&text=${encodeURIComponent(shareMessage.content)}`} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FF4500] text-white shadow-lg transition hover:-translate-y-0.5" title="Reddit"><SiReddit size={23} /></a>
+            </div>
+            <button type="button" onClick={() => void navigator.clipboard?.writeText(shareMessage.content)} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-white/65 transition hover:bg-white/[0.06] hover:text-white"><Copy size={16} />Copiar texto</button>
           </div>
         </div>
       )}
