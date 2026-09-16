@@ -34,6 +34,7 @@ import remarkGfm from "remark-gfm";
 import { supabase } from "../lib/supabase";
 import { streamAi } from "../lib/ai-stream";
 import { requestTtsAudio } from "../lib/tts";
+import { useLanguageContext } from "../lib/LanguageProvider";
 import {
   availableCredits,
   dailyCreditsBalance,
@@ -77,6 +78,7 @@ const WORKSPACE_EVENT = {
 } as const;
 
 function Workspace() {
+  const { language } = useLanguageContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarProgress, setSidebarProgress] = useState(0);
 
