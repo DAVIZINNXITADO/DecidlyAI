@@ -2497,20 +2497,18 @@ function Workspace() {
           onPointerDown={() => setEventOpen(false)}
         >
           <div className="w-full max-w-md rounded-3xl border border-amber-300/20 bg-[#18101f] p-6 shadow-2xl" onPointerDown={(event) => event.stopPropagation()}>
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex flex-1 items-center gap-4">
-                <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-[1.7rem] bg-gradient-to-br from-amber-200 via-amber-300 to-orange-400 text-[#24150b] shadow-xl shadow-amber-500/20">
-                  <Mail size={38} strokeWidth={1.8} />
-                  <Sparkles className="absolute -right-2 -top-2 text-amber-100" size={20} />
-                  <Users className="absolute -bottom-2 -left-2 rounded-full bg-[#18101f] p-1 text-violet-200" size={25} />
-                </div>
-                <div>
+            <div className="relative min-h-[150px] pr-20">
+              <div className="relative z-10 max-w-[78%] text-left">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">Convide e Ganhe!</p>
-                <h2 className="mt-2 text-2xl font-semibold text-white">{WORKSPACE_EVENT.title}</h2>
-                <p className="mt-2 text-sm leading-6 text-white/50">{WORKSPACE_EVENT.description}</p>
+                <h2 className="mt-2 text-2xl font-semibold leading-tight text-white">{WORKSPACE_EVENT.title}</h2>
+                <p className="mt-3 text-sm leading-6 text-white/50">{WORKSPACE_EVENT.description}</p>
               </div>
-              <button type="button" onClick={() => setEventOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-xl text-white/45 hover:bg-white/[0.06] hover:text-white" aria-label="Fechar evento"><X size={18} /></button>
-            </div>
+              <div className="absolute right-0 top-8 flex h-20 w-20 items-center justify-center rounded-[1.7rem] bg-gradient-to-br from-amber-200 via-amber-300 to-orange-400 text-[#24150b] shadow-xl shadow-amber-500/20">
+                <Mail size={38} strokeWidth={1.8} />
+                <Sparkles className="absolute -right-2 -top-2 text-amber-100" size={20} />
+                <Users className="absolute -bottom-2 -left-2 rounded-full bg-[#18101f] p-1 text-violet-200" size={25} />
+              </div>
+              <button type="button" onClick={() => setEventOpen(false)} className="absolute right-0 top-0 flex h-9 w-9 items-center justify-center rounded-xl text-white/45 hover:bg-white/[0.06] hover:text-white" aria-label="Fechar evento"><X size={18} /></button>
             </div>
             <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
               <p className="text-xs uppercase tracking-[0.15em] text-white/35">Seu link de convite</p>
