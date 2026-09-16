@@ -1625,6 +1625,25 @@ function Workspace() {
         .replace(/\s+/g, " ")
         .trim();
       try {
+        if (typeof window.speechSynthesis !== "undefined" && typeof window.SpeechSynthesisUtterance !== "undefined") {
+          const utterance = new SpeechSynthesisUtterance(speakableText);
+          utterance.lang = language === "en-US" ? "en-US" : "pt-BR";
+          utterance.rate = 0.98;
+          utterance.pitch = 1;
+          utterance.onend = () => {
+            if (speechSessionRef.current === session) stopReading();
+          };
+          utterance.onerror = () => {
+            if (speechSessionRef.current === session) {
+              setError("Não foi possível iniciar a leitura de voz. Verifique o volume do aparelho.");
+              stopReading();
+            }
+          };
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(utterance);
+          setReadingLoading(false);
+          return;
+        }
         const audio = await requestTtsAudio(speakableText);
         if (speechSessionRef.current !== session) return;
         ttsAudioRef.current = audio;
@@ -1635,27 +1654,8 @@ function Workspace() {
         await audio.play();
       } catch {
         if (speechSessionRef.current !== session) return;
-        if (typeof window.speechSynthesis === "undefined" || typeof window.SpeechSynthesisUtterance === "undefined") {
-          setReadingLoading(false);
-          setError("A leitura de voz não está disponível neste navegador.");
-          stopReading();
-          return;
-        }
-        const utterance = new SpeechSynthesisUtterance(speakableText);
-        utterance.lang = language === "en-US" ? "en-US" : "pt-BR";
-        utterance.rate = 0.98;
-        utterance.onend = () => {
-          if (speechSessionRef.current === session) stopReading();
-        };
-        utterance.onerror = () => {
-          if (speechSessionRef.current === session) {
-            setError("Não foi possível iniciar a leitura de voz.");
-            stopReading();
-          }
-        };
-        window.speechSynthesis.cancel();
-        setReadingLoading(false);
-        window.speechSynthesis.speak(utterance);
+        setError("Não foi possível iniciar a leitura de voz. Verifique o volume do aparelho.");
+        stopReading();
       }
     },
     [
@@ -2467,8 +2467,8 @@ function Workspace() {
       {shareMessage && (
         <div className="fixed inset-0 z-[330] flex items-center justify-center bg-black/65 px-4 backdrop-blur-sm" onPointerDown={() => setShareMessage(null)}>
           <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#18101f] p-6 shadow-2xl" onPointerDown={(event) => event.stopPropagation()}>
-            <div className="flex items-center justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Compartilhar</p><h2 className="mt-2 text-2xl font-semibold">Envie esta resposta</h2></div><button type="button" onClick={() => setShareMessage(null)} className="flex h-9 w-9 items-center justify-center rounded-xl text-white/45 hover:bg-white/[0.06] hover:text-white" aria-label="Fechar compartilhamento"><X size={18} /></button></div>
-            <p className="mt-4 max-h-24 overflow-hidden rounded-2xl bg-black/20 p-4 text-sm leading-6 text-white/55">{shareMessage.content}</p>
+            <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Compartilhar resposta</p><h2 className="mt-2 text-2xl font-semibold">Leve esta reflexão com você</h2><p className="mt-2 text-sm text-white/45">Escolha um app ou abra o menu de compartilhamento do seu aparelho.</p></div><button type="button" onClick={() => setShareMessage(null)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/55 hover:bg-white/10 hover:text-white" aria-label="Fechar compartilhamento"><X size={18} /></button></div>
+            <p className="mt-5 max-h-28 overflow-hidden rounded-2xl border border-violet-300/15 bg-violet-400/[0.07] p-4 text-sm leading-6 text-white/65">{shareMessage.content}</p>
             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
               <a target="_blank" rel="noreferrer" href={`https://wa.me/?text=${encodeURIComponent(`Olha esta reflexão do DecidlyAI: ${shareMessage.content}`)}`} className="rounded-xl bg-[#25D366] px-3 py-3 text-center text-sm font-semibold text-black">WhatsApp</a>
               <a target="_blank" rel="noreferrer" href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`} className="rounded-xl bg-[#1877F2] px-3 py-3 text-center text-sm font-semibold text-white">Facebook</a>
@@ -2477,7 +2477,7 @@ function Workspace() {
               <a target="_blank" rel="noreferrer" href={`https://www.reddit.com/submit?title=${encodeURIComponent("Reflexão do DecidlyAI")}&text=${encodeURIComponent(shareMessage.content)}`} className="rounded-xl bg-[#FF4500] px-3 py-3 text-center text-sm font-semibold text-white">Reddit</a>
               <button type="button" onClick={() => void navigator.clipboard?.writeText(shareMessage.content)} className="rounded-xl border border-white/10 px-3 py-3 text-sm font-semibold text-white/70 hover:bg-white/[0.06]">Copiar texto</button>
             </div>
-            {typeof navigator !== "undefined" && "share" in navigator && <button type="button" onClick={() => void navigator.share?.({ title: "DecidlyAI", text: shareMessage.content, url: window.location.href })} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-3 font-semibold text-white"><Share2 size={17} />Abrir compartilhamento do celular</button>}
+            {typeof navigator !== "undefined" && "share" in navigator && <button type="button" onClick={() => void navigator.share?.({ title: "Uma reflexão do DecidlyAI", text: shareMessage.content, url: window.location.href })} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-violet-500 px-4 py-3.5 font-semibold text-white shadow-lg shadow-violet-950/25 transition hover:bg-violet-400"><Share2 size={18} />Compartilhar pelo celular</button>}
           </div>
         </div>
       )}

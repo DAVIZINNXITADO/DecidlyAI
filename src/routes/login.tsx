@@ -1276,7 +1276,7 @@ function LoginPage() {
                 <p className={`mt-4 text-base leading-relaxed sm:text-lg ${isSignUp && referralCode && !referralBlocked ? "font-semibold text-violet-100" : "text-slate-300"}`}>
                   {isSignUp
                     ? referralCode && !referralBlocked
-                      ? `${referrerName || "Seu convidador"} compartilhou ${referralCampaign === "invite-30" ? "30" : "25"} créditos com você. Crie sua conta para receber esse bônus e transforme sua próxima dúvida em um caminho mais claro.`
+                      ? `Você recebeu um convite para conhecer o DecidlyAI${referrerName ? ` de ${referrerName}` : ""}! Crie sua conta e ganhe ${referralCampaign === "invite-30" ? "30" : "25"} créditos para organizar suas decisões, comparar caminhos e encontrar mais clareza — sem cartão.`
                       : "Crie sua conta e transforme sua próxima dúvida em um caminho mais claro."
                     : "Continue organizando suas decisões com mais clareza."}
                 </p>
