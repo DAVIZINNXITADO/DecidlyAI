@@ -913,14 +913,6 @@ function LoginPage() {
       return;
     }
 
-    if (!captchaToken) {
-      showError(
-        "Conclua a verificação de segurança antes de continuar.",
-      );
-
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -937,8 +929,7 @@ function LoginPage() {
             emailRedirectTo:
               `${window.location.origin}/login`,
 
-            captchaToken:
-              captchaToken,
+            ...(captchaToken ? { captchaToken } : {}),
 
               data: {
                 name:
@@ -1051,14 +1042,6 @@ function LoginPage() {
       return;
     }
 
-    if (!captchaToken) {
-      showError(
-        "Conclua a verificação de segurança antes de continuar.",
-      );
-
-      return;
-    }
-
     setVerifyLoading(true);
 
     try {
@@ -1069,8 +1052,7 @@ function LoginPage() {
             redirectTo:
               `${window.location.origin}/reset-password`,
 
-            captchaToken:
-              captchaToken,
+            ...(captchaToken ? { captchaToken } : {}),
           },
         );
 
@@ -1461,9 +1443,7 @@ function LoginPage() {
                   disabled={
                     loading ||
                     googleLoading ||
-                    (isSignUp &&
-                      (!captchaToken ||
-                        captchaLoading))
+                    (isSignUp && captchaLoading)
                   }
                   className="interactive-lift group flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 hover:shadow-violet-950/50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
