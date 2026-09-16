@@ -206,13 +206,43 @@ export const Route =
         },
 
         {
+          property: "og:image",
+          content: `${SITE_URL}/social-preview.png`,
+        },
+
+        {
+          property: "og:image:width",
+          content: "1200",
+        },
+
+        {
+          property: "og:image:height",
+          content: "630",
+        },
+
+        {
+          property: "og:image:alt",
+          content: "DecidlyAI — clareza para decisões importantes",
+        },
+
+        {
           property: "og:locale",
           content: "pt_BR",
         },
 
         {
           name: "twitter:card",
-          content: "summary",
+          content: "summary_large_image",
+        },
+
+        {
+          name: "twitter:image",
+          content: `${SITE_URL}/social-preview.png`,
+        },
+
+        {
+          name: "twitter:image:alt",
+          content: "DecidlyAI — clareza para decisões importantes",
         },
 
         {
