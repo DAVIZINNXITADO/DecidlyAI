@@ -64,6 +64,11 @@ type Conversation = {
   is_pinned?: boolean;
 };
 
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+};
+
 type Subscription = {
   plan?: string | null;
   status?: string | null;
@@ -142,7 +147,42 @@ function Workspace() {
   });
   const [creditsLoading, setCreditsLoading] = useState(false);
   const [thinkingLabel, setThinkingLabel] = useState("Organizando sua decisão...");
+  const [workspaceEntered, setWorkspaceEntered] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [installOpen, setInstallOpen] = useState(false);
+  const [installNeverShow, setInstallNeverShow] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const enterTimer = window.setTimeout(() => setWorkspaceEntered(true), 80);
+    return () => window.clearTimeout(enterTimer);
+  }, []);
+
+  useEffect(() => {
+    const onBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      const installEvent = event as BeforeInstallPromptEvent;
+      setInstallPrompt(installEvent);
+      if (window.localStorage.getItem("decidly-pwa-install-dismissed") !== "true") {
+        window.setTimeout(() => setInstallOpen(true), 900);
+      }
+    };
+    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+    return () => window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+  }, []);
+
+  const continueOnWeb = useCallback(() => {
+    if (installNeverShow) window.localStorage.setItem("decidly-pwa-install-dismissed", "true");
+    setInstallOpen(false);
+  }, [installNeverShow]);
+
+  const installApp = useCallback(async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    await installPrompt.userChoice;
+    setInstallPrompt(null);
+    setInstallOpen(false);
+  }, [installPrompt]);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
 
   const [listening, setListening] = useState(false);
@@ -1920,7 +1960,7 @@ function Workspace() {
 
   return (
     <div
-      className="workspace-shell relative min-h-[100dvh] overflow-hidden bg-[#0d0912] text-white"
+      className={`workspace-shell relative min-h-[100dvh] overflow-hidden text-white ${workspaceEntered ? "workspace-entered" : ""}`}
       onPointerDown={() => {
         if (chatMenuId) {
           setChatMenuId(null);
@@ -2970,6 +3010,32 @@ function Workspace() {
           </div>
         </div>
       </main>
+
+      {installOpen && installPrompt && (
+        <div className="fixed inset-0 z-[180] flex items-end justify-center bg-[#0d0912]/70 p-4 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-[#21152d] p-6 text-white shadow-2xl shadow-black/40 sm:p-7">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <img src="/appicon-192.png" alt="" className="h-14 w-14 rounded-2xl bg-white object-cover shadow-lg" />
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">DecidlyAI</p>
+                  <h2 className="mt-1 text-xl font-bold">Leve suas decisões com você</h2>
+                </div>
+              </div>
+              <button type="button" onClick={() => setInstallOpen(false)} className="rounded-xl p-2 text-white/45 transition hover:bg-white/10 hover:text-white" aria-label="Fechar"><X size={18} /></button>
+            </div>
+            <p className="mt-5 text-sm leading-relaxed text-white/65">Instale o app para abrir o DecidlyAI mais rápido, com uma experiência limpa e acesso direto pela tela inicial.</p>
+            <label className="mt-5 flex cursor-pointer items-center gap-3 text-sm text-white/60">
+              <input type="checkbox" checked={installNeverShow} onChange={(event) => setInstallNeverShow(event.target.checked)} className="h-4 w-4 accent-violet-500" />
+              Não mostrar novamente
+            </label>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <button type="button" onClick={() => void installApp()} className="rounded-2xl bg-violet-500 px-4 py-3.5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-400">Instalar app</button>
+              <button type="button" onClick={continueOnWeb} className="rounded-2xl border border-white/15 px-4 py-3.5 font-semibold text-white/75 transition hover:bg-white/10 hover:text-white">Continuar na web</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

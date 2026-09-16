@@ -305,6 +305,15 @@ a {
   }
 }
 
+.workspace-shell {
+  background: #ffffff;
+  transition: background-color 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.workspace-shell.workspace-entered {
+  background: #0d0912;
+}
+
 /* Oculta o badge do Lovable */
 
 #lovable-badge {
