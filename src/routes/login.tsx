@@ -1374,6 +1374,7 @@ function LoginPage() {
                     value={name}
                     onChange={setName}
                     placeholder="Como podemos te chamar?"
+                    autoComplete="nickname"
                     icon={
                       <User className="h-5 w-5" />
                     }
@@ -1670,6 +1671,7 @@ function InputField({
   value,
   onChange,
   placeholder,
+  autoComplete,
   icon,
 }: {
   id: string;
@@ -1680,6 +1682,7 @@ function InputField({
     value: string,
   ) => void;
   placeholder: string;
+  autoComplete?: string;
   icon: ReactNode;
 }) {
   return (
@@ -1706,6 +1709,7 @@ function InputField({
             )
           }
           placeholder={placeholder}
+          autoComplete={autoComplete}
           maxLength={160}
           className="h-14 w-full rounded-2xl border border-slate-700 bg-slate-950 px-5 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
         />

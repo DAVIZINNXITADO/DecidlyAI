@@ -394,19 +394,9 @@ function Workspace() {
 
         setUserId(user.id);
         setUserEmail(user?.email ?? "");
-        const metadata = user?.user_metadata as
-          | { name?: string; full_name?: string; display_name?: string }
-          | undefined;
-        const accountName = safePublicName(
-          metadata?.name ||
-            metadata?.full_name ||
-            metadata?.display_name ||
-            user?.email?.split("@")[0],
-        );
-        setUserName(accountName);
-        setPreferredName(
-          safePublicName(window.localStorage.getItem("decidly-preferred-name")) || accountName,
-        );
+        const savedPreferredName = safePublicName(window.localStorage.getItem("decidly-preferred-name"));
+        setUserName("Conta");
+        setPreferredName(savedPreferredName);
       }
     };
 
@@ -433,19 +423,9 @@ function Workspace() {
               session.user.id,
             );
             setUserEmail(session.user.email ?? "");
-            const metadata = session.user.user_metadata as
-              | { name?: string; full_name?: string; display_name?: string }
-              | undefined;
-            const accountName = safePublicName(
-              metadata?.name ||
-                metadata?.full_name ||
-                metadata?.display_name ||
-                session.user.email?.split("@")[0],
-            );
-            setUserName(accountName);
-            setPreferredName(
-              safePublicName(window.localStorage.getItem("decidly-preferred-name")) || accountName,
-            );
+            const savedPreferredName = safePublicName(window.localStorage.getItem("decidly-preferred-name"));
+            setUserName("Conta");
+            setPreferredName(savedPreferredName);
           }
       },
     );
