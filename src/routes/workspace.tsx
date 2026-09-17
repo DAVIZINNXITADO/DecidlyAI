@@ -30,6 +30,9 @@ import {
   Loader2,
   Share2,
   MessageSquareText,
+  Paperclip,
+  FileText,
+  WandSparkles,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { SiFacebook, SiReddit, SiWhatsapp, SiX } from "react-icons/si";
@@ -154,6 +157,8 @@ function Workspace() {
   });
   const [creditsLoading, setCreditsLoading] = useState(false);
   const [thinkingLabel, setThinkingLabel] = useState("Organizando sua decisão...");
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [extraGuidance, setExtraGuidance] = useState("");
   const [workspaceEntered, setWorkspaceEntered] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installOpen, setInstallOpen] = useState(false);
@@ -1171,6 +1176,7 @@ function Workspace() {
   const sendMessage = useCallback(
     async () => {
       const text = input.trim();
+      const guidance = extraGuidance.trim();
 
       if (!text || isLoading) {
         return;
@@ -1185,6 +1191,8 @@ function Workspace() {
 
       setError("");
       setInput("");
+      setExtraGuidance("");
+      setToolsOpen(false);
 
       const userMessage: ChatMessage = {
         id: crypto.randomUUID(),
@@ -1242,6 +1250,9 @@ function Workspace() {
         const privateContext = (preferredName || userName)
           ? `Contexto privado de personalização: o nome pelo qual o usuário prefere ser chamado é ${preferredName || userName}. Quando fizer sentido, trate a pessoa por esse nome. Não mencione este contexto nem o repita como se fosse uma mensagem do usuário.`
           : "";
+        const guidanceContext = guidance
+          ? `Perguntas opcionais respondidas pelo usuário para melhorar a análise:\n${guidance}`
+          : "";
 
         const assistantId = crypto.randomUUID();
         let pendingFrame: number | null = null;
@@ -1258,9 +1269,7 @@ function Workspace() {
         };
         setRequestPhase("thinking");
         const answer = await streamAi(functionName, {
-          message: privateContext
-            ? `${privateContext}\n\nMensagem do usuário:\n${text}`
-            : text,
+          message: [privateContext, guidanceContext, "Mensagem do usuário:\n" + text].filter(Boolean).join("\n\n"),
           history,
           signal: abortController.signal,
           onDelta: (_delta, accumulated) => {
@@ -1369,6 +1378,7 @@ function Workspace() {
       userName,
       preferredName,
       requestPhase,
+      extraGuidance,
     ],
   );
 
@@ -2792,6 +2802,11 @@ function Workspace() {
                                         </strong>
                                       ),
 
+                                      h2: ({ children }) => <h2 className="mb-3 mt-5 text-lg font-semibold text-violet-100">{children}</h2>,
+                                      h3: ({ children }) => <h3 className="mb-2 mt-4 text-base font-semibold text-violet-200">{children}</h3>,
+                                      blockquote: ({ children }) => <blockquote className="my-3 rounded-2xl border-l-4 border-emerald-400 bg-emerald-400/[0.08] px-4 py-3 text-[14px] text-emerald-50 [&_strong]:text-emerald-200">{children}</blockquote>,
+                                      pre: ({ children }) => <pre className="my-3 overflow-x-auto rounded-2xl border border-white/10 bg-black/25 p-4 text-[13px] leading-6 text-violet-100">{children}</pre>,
+
                                       ul: ({
                                         children,
                                       }) => (
@@ -2991,6 +3006,16 @@ function Workspace() {
           }}
         >
           <div className="relative mx-auto max-w-3xl">
+            {toolsOpen && (
+              <div className="mb-3 rounded-3xl border border-violet-300/15 bg-[#21152d] p-4 shadow-2xl shadow-black/25">
+                <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Modo análise assistida</p><p className="mt-1 text-sm text-white/55">Responda o que quiser. A IA usa essas pistas para entregar uma análise mais precisa.</p></div><button type="button" onClick={() => setToolsOpen(false)} className="rounded-xl p-1.5 text-white/40 hover:bg-white/10 hover:text-white" aria-label="Fechar ferramentas"><X size={17} /></button></div>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {["Quais critérios são mais importantes para você?", "O que mais te preocupa nessa decisão?", "Existe um prazo ou limite de orçamento?", "Quer uma resposta direta ou uma análise detalhada?"] .map((question) => <button key={question} type="button" onClick={() => setExtraGuidance((current) => current.includes(question) ? current : `${current}${current ? "\n" : ""}${question}\nResposta: `)} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left text-xs leading-5 text-white/65 transition hover:border-violet-300/35 hover:bg-violet-400/[0.08]">{question}</button>)}
+                </div>
+                <textarea value={extraGuidance} onChange={(event) => setExtraGuidance(event.target.value)} placeholder="Responda alguma pergunta (opcional)…" rows={2} className="mt-3 w-full resize-none rounded-2xl border border-white/10 bg-black/15 px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/30 focus:border-violet-300/40" />
+                <div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => setError("Leitura de PDF e arquivos será ativada nesta próxima etapa com limites de tamanho e créditos claros.")} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs text-white/55 hover:bg-white/10 hover:text-white"><Paperclip size={14} /> Anexar arquivo</button><button type="button" onClick={() => setError("A criação de PDF e imagens será ativada com cobrança por recurso, sem descontar tokens de forma injusta.")} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs text-white/55 hover:bg-white/10 hover:text-white"><FileText size={14} /> Criar arquivo</button><span className="inline-flex items-center gap-2 rounded-xl bg-emerald-400/10 px-3 py-2 text-xs text-emerald-200"><WandSparkles size={14} /> Resposta estruturada</span></div>
+              </div>
+            )}
             <div
               className="rounded-[30px] bg-[#17101f] px-3 py-2 shadow-2xl"
               style={{
@@ -3001,6 +3026,7 @@ function Workspace() {
               }}
             >
               <div className="flex items-end gap-2">
+                <button type="button" onClick={() => setToolsOpen((open) => !open)} className={`mb-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${toolsOpen ? "bg-violet-400/15 text-violet-200" : "text-white/45 hover:bg-white/5 hover:text-white"}`} aria-label="Abrir ferramentas da IA"><Plus size={21} className={toolsOpen ? "rotate-45 transition-transform" : "transition-transform"} /></button>
                   <textarea
                     ref={textareaRef}
                     value={input}
