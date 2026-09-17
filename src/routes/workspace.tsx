@@ -2807,7 +2807,10 @@ function Workspace() {
                                       readingCharIndex,
                                     )}
                                   </div>
-                                ) : <RichResponse content={message.content} />}
+                                ) : <RichResponse content={message.content} onActionRequest={(action) => {
+                                  setSelectedTool({ id: action.type as SelectedTool["id"], label: action.title });
+                                  setError(`Autorizado: ${action.title}. A ferramenta está selecionada e aguardando sua solicitação no próximo envio.`);
+                                }} />}
                               </div>
 
                               <div className="mt-3 flex items-center gap-1 text-white/35">
