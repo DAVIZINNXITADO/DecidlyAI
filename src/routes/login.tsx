@@ -221,14 +221,17 @@ function LoginPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("ref")?.trim() || "";
-    setReferralCampaign(params.get("campaign")?.trim() || "");
+    const campaign = params.get("campaign")?.trim() || "";
+    setReferralCampaign(campaign);
     if (!code) return;
     setMode("signup");
     setReferralBlocked(Boolean(window.localStorage.getItem("decidly-account-created")));
+    setReferralCode(code);
+    window.sessionStorage.setItem("decidly-pending-referral-code", code);
+    window.sessionStorage.setItem("decidly-pending-referral-campaign", campaign);
     void (async () => {
       const { data: referral } = await supabase.from("referral_codes").select("user_id").eq("code", code).maybeSingle();
       if (!referral?.user_id) return;
-      setReferralCode(code);
       const { data: profile } = await supabase.from("profiles").select("full_name,username").eq("id", referral.user_id).maybeSingle();
       setReferrerName(maskedReferralName(profile?.full_name?.trim() || profile?.username?.trim() || "Alguém"));
     })();
@@ -564,11 +567,14 @@ function LoginPage() {
           return;
         }
 
-        const pendingReferralCode = referralBlocked ? "" : referralCode;
+        const pendingReferralCode = referralBlocked
+          ? ""
+          : referralCode || window.sessionStorage.getItem("decidly-pending-referral-code") || "";
+        const pendingReferralCampaign = referralCampaign || window.sessionStorage.getItem("decidly-pending-referral-campaign") || "";
         if (pendingReferralCode) {
           await supabase.rpc("claim_referral_for_user", {
             invited_code: pendingReferralCode,
-            campaign: referralCampaign || null,
+            campaign: pendingReferralCampaign || null,
           });
         }
 
@@ -924,7 +930,10 @@ function LoginPage() {
     setLoading(true);
 
     try {
-      const eligibleReferralCode = referralBlocked ? undefined : referralCode || undefined;
+      const pendingReferralCode = window.sessionStorage.getItem("decidly-pending-referral-code") || "";
+      const pendingReferralCampaign = window.sessionStorage.getItem("decidly-pending-referral-campaign") || "";
+      const eligibleReferralCode = referralBlocked ? undefined : referralCode || pendingReferralCode || undefined;
+      const eligibleReferralCampaign = referralCampaign || pendingReferralCampaign;
       const {
         data,
         error,
@@ -943,7 +952,7 @@ function LoginPage() {
                 name:
                   cleanName,
                 ...(eligibleReferralCode ? { referral_code: eligibleReferralCode } : {}),
-                ...(eligibleReferralCode && referralCampaign === "invite-30" ? { referral_campaign: "invite-30" } : {}),
+                ...(eligibleReferralCode && eligibleReferralCampaign === "invite-30" ? { referral_campaign: "invite-30" } : {}),
 
               },
           },
@@ -1005,6 +1014,8 @@ function LoginPage() {
       }
 
       window.localStorage.setItem("decidly-account-created", "1");
+      window.sessionStorage.removeItem("decidly-pending-referral-code");
+      window.sessionStorage.removeItem("decidly-pending-referral-campaign");
 
       if (!data.session) {
         showSuccess(
