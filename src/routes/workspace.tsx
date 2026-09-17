@@ -4,6 +4,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type ChangeEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
@@ -42,6 +43,8 @@ import { supabase } from "../lib/supabase";
 import { streamAi } from "../lib/ai-stream";
 import { requestTtsAudio } from "../lib/tts";
 import { useLanguageContext } from "../lib/LanguageProvider";
+import { RichResponse, responseProtocolInstructions } from "../components/RichResponse";
+import { ToolCenter, type SelectedTool } from "../components/ToolCenter";
 import {
   availableCredits,
   dailyCreditsBalance,
@@ -159,6 +162,9 @@ function Workspace() {
   const [thinkingLabel, setThinkingLabel] = useState("Organizando sua decisão...");
   const [toolsOpen, setToolsOpen] = useState(false);
   const [extraGuidance, setExtraGuidance] = useState("");
+  const [selectedTool, setSelectedTool] = useState<SelectedTool | null>(null);
+  const [pendingQuestion, setPendingQuestion] = useState<{ id: string; text: string; ai: string } | null>(null);
+  const [attachedFiles, setAttachedFiles] = useState<string[]>([]);
   const [workspaceEntered, setWorkspaceEntered] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installOpen, setInstallOpen] = useState(false);
@@ -228,6 +234,18 @@ function Workspace() {
 
   const speechSessionRef = useRef(0);
   const requestStartedAtRef = useRef<number | null>(null);
+
+  const handleToolFile = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const names = Array.from(event.target.files ?? []).map((file) => file.name);
+    if (names.length) setAttachedFiles((current) => [...current, ...names].slice(-5));
+    event.target.value = "";
+  }, []);
+
+  const answerQuestion = useCallback((answer: string) => {
+    if (!pendingQuestion) return;
+    setExtraGuidance((current) => `${current}${current ? "\n" : ""}${pendingQuestion.text}\nResposta: ${answer}`);
+    setPendingQuestion(null);
+  }, [pendingQuestion]);
 
   const loadCreditWallet = useCallback(async () => {
     if (!userId) return;
@@ -1253,6 +1271,12 @@ function Workspace() {
         const guidanceContext = guidance
           ? `Perguntas opcionais respondidas pelo usuário para melhorar a análise:\n${guidance}`
           : "";
+        const toolContext = selectedTool
+          ? `Ferramenta solicitada pelo usuário: ${selectedTool.label}. Use-a somente se for compatível com a tarefa.`
+          : "";
+        const fileContext = attachedFiles.length
+          ? `Arquivos anexados pelo usuário: ${attachedFiles.join(", ")}. Considere-os disponíveis para a próxima etapa de processamento.`
+          : "";
 
         const assistantId = crypto.randomUUID();
         let pendingFrame: number | null = null;
@@ -1269,7 +1293,7 @@ function Workspace() {
         };
         setRequestPhase("thinking");
         const answer = await streamAi(functionName, {
-          message: [privateContext, guidanceContext, "Mensagem do usuário:\n" + text].filter(Boolean).join("\n\n"),
+          message: [privateContext, guidanceContext, toolContext, fileContext, responseProtocolInstructions(), "Mensagem do usuário:\n" + text].filter(Boolean).join("\n\n"),
           history,
           signal: abortController.signal,
           onDelta: (_delta, accumulated) => {
@@ -1289,6 +1313,11 @@ function Workspace() {
         if (pendingFrame !== null) window.cancelAnimationFrame(pendingFrame);
         latestAccumulated = answer;
         flushAssistant();
+
+        const questionMatch = answer.match(/\[question(?:\s+id=([^\s\]]+))?\]([\s\S]*?)\[\/question\]/i);
+        if (questionMatch?.[2]?.trim()) {
+          setPendingQuestion({ id: questionMatch[1] || crypto.randomUUID(), text: questionMatch[2].trim(), ai: "IA atual" });
+        }
 
         const { error: assistantMessageError } = await supabase
           .from("messages")
@@ -1379,6 +1408,8 @@ function Workspace() {
       preferredName,
       requestPhase,
       extraGuidance,
+      selectedTool,
+      attachedFiles,
     ],
   );
 
@@ -2776,83 +2807,7 @@ function Workspace() {
                                       readingCharIndex,
                                     )}
                                   </div>
-                                ) : (
-                                  <ReactMarkdown
-                                    remarkPlugins={[
-                                      remarkGfm,
-                                    ]}
-                                    components={{
-                                      p: ({
-                                        children,
-                                      }) => (
-                                        <p className="mb-3 last:mb-0">
-                                          {
-                                            children
-                                          }
-                                        </p>
-                                      ),
-
-                                      strong: ({
-                                        children,
-                                      }) => (
-                                        <strong className="font-semibold text-white">
-                                          {
-                                            children
-                                          }
-                                        </strong>
-                                      ),
-
-                                      h2: ({ children }) => <h2 className="mb-3 mt-5 text-lg font-semibold text-violet-100">{children}</h2>,
-                                      h3: ({ children }) => <h3 className="mb-2 mt-4 text-base font-semibold text-violet-200">{children}</h3>,
-                                      blockquote: ({ children }) => <blockquote className="my-3 rounded-2xl border-l-4 border-emerald-400 bg-emerald-400/[0.08] px-4 py-3 text-[14px] text-emerald-50 [&_strong]:text-emerald-200">{children}</blockquote>,
-                                      pre: ({ children }) => <pre className="my-3 overflow-x-auto rounded-2xl border border-white/10 bg-black/25 p-4 text-[13px] leading-6 text-violet-100">{children}</pre>,
-
-                                      ul: ({
-                                        children,
-                                      }) => (
-                                        <ul className="mb-3 list-disc space-y-1 pl-5">
-                                          {
-                                            children
-                                          }
-                                        </ul>
-                                      ),
-
-                                      ol: ({
-                                        children,
-                                      }) => (
-                                        <ol className="mb-3 list-decimal space-y-1 pl-5">
-                                          {
-                                            children
-                                          }
-                                        </ol>
-                                      ),
-
-                                      li: ({
-                                        children,
-                                      }) => (
-                                        <li>
-                                          {
-                                            children
-                                          }
-                                        </li>
-                                      ),
-
-                                      code: ({
-                                        children,
-                                      }) => (
-                                        <code className="rounded-md bg-white/10 px-1.5 py-0.5 text-sm">
-                                          {
-                                            children
-                                          }
-                                        </code>
-                                      ),
-                                    }}
-                                  >
-                                    {
-                                      message.content
-                                    }
-                                  </ReactMarkdown>
-                                )}
+                                ) : <RichResponse content={message.content} />}
                               </div>
 
                               <div className="mt-3 flex items-center gap-1 text-white/35">
@@ -3006,16 +2961,19 @@ function Workspace() {
           }}
         >
           <div className="relative mx-auto max-w-3xl">
-            {toolsOpen && (
-              <div className="mb-3 rounded-3xl border border-violet-300/15 bg-[#21152d] p-4 shadow-2xl shadow-black/25">
-                <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Modo análise assistida</p><p className="mt-1 text-sm text-white/55">Responda o que quiser. A IA usa essas pistas para entregar uma análise mais precisa.</p></div><button type="button" onClick={() => setToolsOpen(false)} className="rounded-xl p-1.5 text-white/40 hover:bg-white/10 hover:text-white" aria-label="Fechar ferramentas"><X size={17} /></button></div>
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  {["Quais critérios são mais importantes para você?", "O que mais te preocupa nessa decisão?", "Existe um prazo ou limite de orçamento?", "Quer uma resposta direta ou uma análise detalhada?"] .map((question) => <button key={question} type="button" onClick={() => setExtraGuidance((current) => current.includes(question) ? current : `${current}${current ? "\n" : ""}${question}\nResposta: `)} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left text-xs leading-5 text-white/65 transition hover:border-violet-300/35 hover:bg-violet-400/[0.08]">{question}</button>)}
+            {pendingQuestion && (
+              <div className="mb-3 rounded-3xl border border-violet-300/20 bg-[#21152d] p-4 shadow-xl shadow-black/20">
+                <div className="flex items-start justify-between gap-3">
+                  <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-300">✦ {pendingQuestion.ai} quer saber</p><p className="mt-2 text-sm leading-6 text-white/80">{pendingQuestion.text}</p></div>
+                  <button type="button" onClick={() => setPendingQuestion(null)} className="rounded-xl p-1.5 text-white/40 hover:bg-white/10 hover:text-white" aria-label="Ignorar pergunta"><X size={17} /></button>
                 </div>
-                <textarea value={extraGuidance} onChange={(event) => setExtraGuidance(event.target.value)} placeholder="Responda alguma pergunta (opcional)…" rows={2} className="mt-3 w-full resize-none rounded-2xl border border-white/10 bg-black/15 px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/30 focus:border-violet-300/40" />
-                <div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => setError("Leitura de PDF e arquivos será ativada nesta próxima etapa com limites de tamanho e créditos claros.")} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs text-white/55 hover:bg-white/10 hover:text-white"><Paperclip size={14} /> Anexar arquivo</button><button type="button" onClick={() => setError("A criação de PDF e imagens será ativada com cobrança por recurso, sem descontar tokens de forma injusta.")} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs text-white/55 hover:bg-white/10 hover:text-white"><FileText size={14} /> Criar arquivo</button><span className="inline-flex items-center gap-2 rounded-xl bg-emerald-400/10 px-3 py-2 text-xs text-emerald-200"><WandSparkles size={14} /> Resposta estruturada</span></div>
+                <div className="mt-3 flex gap-2"><button type="button" onClick={() => { setInput("Resposta: "); requestAnimationFrame(() => textareaRef.current?.focus()); }} className="rounded-xl bg-violet-500 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-400">Responder</button><button type="button" onClick={() => setPendingQuestion(null)} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white/60 hover:bg-white/10 hover:text-white">Ignorar</button></div>
               </div>
             )}
+            {toolsOpen && (
+              <ToolCenter selected={selectedTool} onSelect={setSelectedTool} onClose={() => setToolsOpen(false)} onFile={handleToolFile} />
+            )}
+            {attachedFiles.length > 0 && <div className="mb-2 flex flex-wrap gap-2">{attachedFiles.map((file) => <span key={file} className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] text-white/60">{file}</span>)}</div>}
             <div
               className="rounded-[30px] bg-[#17101f] px-3 py-2 shadow-2xl"
               style={{
@@ -3026,7 +2984,7 @@ function Workspace() {
               }}
             >
               <div className="flex items-end gap-2">
-                <button type="button" onClick={() => setToolsOpen((open) => !open)} className={`mb-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${toolsOpen ? "bg-violet-400/15 text-violet-200" : "text-white/45 hover:bg-white/5 hover:text-white"}`} aria-label="Abrir ferramentas da IA"><Plus size={21} className={toolsOpen ? "rotate-45 transition-transform" : "transition-transform"} /></button>
+                <button type="button" onClick={() => setToolsOpen((open) => !open)} className={`mb-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition ${toolsOpen ? "bg-violet-400/15 text-violet-200" : "text-white/45 hover:bg-white/5 hover:text-white"}`} aria-label="Abrir ferramentas"><Plus size={19} strokeWidth={2.2} className={toolsOpen ? "rotate-45 transition-transform" : "transition-transform"} /></button>
                   <textarea
                     ref={textareaRef}
                     value={input}
