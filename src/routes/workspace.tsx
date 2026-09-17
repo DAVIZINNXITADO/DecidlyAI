@@ -87,6 +87,11 @@ const WORKSPACE_EVENT = {
 } as const;
 const INVITE_SHARE_TEXT = "Você recebeu um convite para conhecer o DecidlyAI! Crie sua conta e ganhe 30 créditos para organizar seus pensamentos, comparar possibilidades e tomar decisões com mais clareza. É gratuito para começar.";
 
+function safePublicName(value: string | null | undefined) {
+  const firstName = String(value ?? "").trim().split(/\s+/)[0] ?? "";
+  return firstName.slice(0, 24);
+}
+
 function Workspace() {
   const { language } = useLanguageContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -392,15 +397,15 @@ function Workspace() {
         const metadata = user?.user_metadata as
           | { name?: string; full_name?: string; display_name?: string }
           | undefined;
-        const accountName =
-          metadata?.name?.trim() ||
-            metadata?.full_name?.trim() ||
-            metadata?.display_name?.trim() ||
-            user?.email?.split("@")[0] ||
-            "";
+        const accountName = safePublicName(
+          metadata?.name ||
+            metadata?.full_name ||
+            metadata?.display_name ||
+            user?.email?.split("@")[0],
+        );
         setUserName(accountName);
         setPreferredName(
-          window.localStorage.getItem("decidly-preferred-name")?.trim() || accountName,
+          safePublicName(window.localStorage.getItem("decidly-preferred-name")) || accountName,
         );
       }
     };
@@ -431,15 +436,15 @@ function Workspace() {
             const metadata = session.user.user_metadata as
               | { name?: string; full_name?: string; display_name?: string }
               | undefined;
-            const accountName =
-              metadata?.name?.trim() ||
-                metadata?.full_name?.trim() ||
-                metadata?.display_name?.trim() ||
-                session.user.email?.split("@")[0] ||
-                "";
+            const accountName = safePublicName(
+              metadata?.name ||
+                metadata?.full_name ||
+                metadata?.display_name ||
+                session.user.email?.split("@")[0],
+            );
             setUserName(accountName);
             setPreferredName(
-              window.localStorage.getItem("decidly-preferred-name")?.trim() || accountName,
+              safePublicName(window.localStorage.getItem("decidly-preferred-name")) || accountName,
             );
           }
       },
@@ -2617,7 +2622,7 @@ function Workspace() {
             />
             <div className="mt-5 flex justify-end gap-2">
               <button type="button" onClick={() => setAccountOpen(false)} className="rounded-xl px-4 py-3 text-sm text-white/55 hover:bg-white/[0.06] hover:text-white">Cancelar</button>
-              <button type="button" onClick={() => { window.localStorage.setItem("decidly-preferred-name", preferredName.trim()); setAccountOpen(false); }} className="rounded-xl bg-violet-500 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-400">Salvar preferência</button>
+              <button type="button" onClick={() => { const safeName = safePublicName(preferredName); setPreferredName(safeName); window.localStorage.setItem("decidly-preferred-name", safeName); setAccountOpen(false); }} className="rounded-xl bg-violet-500 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-400">Salvar preferência</button>
             </div>
             <Link to="/settings" onClick={() => setAccountOpen(false)} className="mt-3 flex w-full items-center justify-center rounded-xl bg-white/[0.06] px-4 py-3 text-sm font-semibold text-white/80 hover:bg-white/[0.1] hover:text-white">Account &amp; Settings</Link>
             <button type="button" onClick={() => { void supabase.auth.signOut(); navigate({ to: "/login" }); }} className="mt-5 w-full rounded-xl border border-red-400/20 px-4 py-3 text-sm text-red-300 hover:bg-red-400/[0.08]">Sair da conta</button>
