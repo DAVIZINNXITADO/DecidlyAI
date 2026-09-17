@@ -314,6 +314,27 @@ a {
   background: #0d0912;
 }
 
+.credit-coin {
+  position: absolute;
+  top: 5.5rem;
+  border-radius: 9999px;
+  background: rgba(52, 211, 153, 0.18);
+  color: #6ee7b7;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  animation: credit-float 2.2s ease-in-out infinite;
+}
+
+.credit-coin-1 { left: 18%; animation-delay: 0ms; }
+.credit-coin-2 { left: 46%; animation-delay: 280ms; }
+.credit-coin-3 { left: 72%; animation-delay: 560ms; }
+
+@keyframes credit-float {
+  0%, 100% { opacity: 0; transform: translateY(1.5rem) scale(0.75); }
+  35%, 70% { opacity: 1; transform: translateY(-1.25rem) scale(1); }
+}
+
 /* Oculta o badge do Lovable */
 
 #lovable-badge {

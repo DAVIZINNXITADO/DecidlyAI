@@ -23,6 +23,24 @@ export function AppShell({
 
             <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
               <Link
+                to="/como-funciona"
+                className="transition-colors hover:text-violet-300"
+              >
+                Como funciona
+              </Link>
+
+              <span className="text-slate-700">•</span>
+
+              <Link
+                to="/blog"
+                className="transition-colors hover:text-violet-300"
+              >
+                Blog
+              </Link>
+
+              <span className="text-slate-700">•</span>
+
+              <Link
                 to="/cookies"
                 className="transition-colors hover:text-violet-300"
               >

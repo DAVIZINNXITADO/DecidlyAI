@@ -141,6 +141,8 @@ function Workspace() {
   const [feedbackSaving, setFeedbackSaving] = useState(false);
   const [referralCode, setReferralCode] = useState("");
   const [referralCopied, setReferralCopied] = useState(false);
+  const [creditRewardNotice, setCreditRewardNotice] = useState<number | null>(null);
+  const referralEventsInitializedRef = useRef(false);
   const [creditsOpen, setCreditsOpen] = useState(false);
   const [creditWallet, setCreditWallet] = useState<CreditWallet>({
     free_credits: 0,
@@ -256,6 +258,33 @@ function Workspace() {
       if (!cancelled) setReferralCode(typeof data?.code === "string" ? data.code : "");
     })();
     return () => { cancelled = true; };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    const checkReferralRewards = async () => {
+      const { data } = await supabase.from("referral_events").select("id,reward_credits,status").eq("inviter_user_id", userId).eq("status", "qualified").order("qualified_at", { ascending: false }).limit(25);
+      if (!active || !data) return;
+      const storageKey = `decidly-seen-referrals-${userId}`;
+      const seen = new Set(JSON.parse(window.localStorage.getItem(storageKey) || "[]") as string[]);
+      const ids = data.map((item) => String(item.id));
+      if (!referralEventsInitializedRef.current) {
+        ids.forEach((id) => seen.add(id));
+        referralEventsInitializedRef.current = true;
+        window.localStorage.setItem(storageKey, JSON.stringify([...seen]));
+        return;
+      }
+      const fresh = data.find((item) => !seen.has(String(item.id)));
+      if (fresh) {
+        seen.add(String(fresh.id));
+        window.localStorage.setItem(storageKey, JSON.stringify([...seen]));
+        setCreditRewardNotice(Number(fresh.reward_credits || 30));
+      }
+    };
+    void checkReferralRewards();
+    const timer = window.setInterval(() => void checkReferralRewards(), 12000);
+    return () => { active = false; window.clearInterval(timer); };
   }, [userId]);
 
   useEffect(() => {
@@ -1961,6 +1990,18 @@ function Workspace() {
         }
       }}
     >
+      {creditRewardNotice !== null && (
+        <div className="fixed inset-0 z-[360] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm" onPointerDown={() => { void loadCreditWallet(); setCreditRewardNotice(null); }}>
+          <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-emerald-300/20 bg-[#18101f] p-7 text-center shadow-2xl shadow-emerald-950/30" onPointerDown={(event) => event.stopPropagation()}>
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-28 overflow-hidden"><span className="credit-coin credit-coin-1">+{creditRewardNotice}</span><span className="credit-coin credit-coin-2">+{creditRewardNotice}</span><span className="credit-coin credit-coin-3">+{creditRewardNotice}</span></div>
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-300 ring-8 ring-emerald-400/5"><Gift size={30} /></div>
+            <p className="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">Convite confirmado</p>
+            <h2 className="mt-2 text-2xl font-semibold">Você recebeu créditos!</h2>
+            <p className="mt-3 leading-6 text-white/55">Uma nova pessoa criou uma conta pelo seu convite. Você recebeu <strong className="text-emerald-300">+{creditRewardNotice} créditos</strong>.</p>
+            <button type="button" onClick={() => { void loadCreditWallet(); setCreditRewardNotice(null); }} className="mt-6 w-full rounded-xl bg-emerald-400 px-4 py-3 font-semibold text-[#07130d] transition hover:bg-emerald-300">Ver créditos atualizados</button>
+          </div>
+        </div>
+      )}
       {/* ======================================================
           MENU FIXO
           ====================================================== */}
@@ -2569,7 +2610,7 @@ function Workspace() {
               <a aria-label="Compartilhar no LinkedIn" target="_blank" rel="noreferrer" href={referralCode ? `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referralUrl)}` : "#"} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0A66C2] text-white shadow-lg shadow-[#0A66C2]/15 transition hover:-translate-y-0.5" title="LinkedIn"><FaLinkedinIn size={22} /></a>
               <a aria-label="Compartilhar no Reddit" target="_blank" rel="noreferrer" href={referralCode ? `https://www.reddit.com/submit?title=${encodeURIComponent(INVITE_SHARE_TEXT)}&url=${encodeURIComponent(referralUrl)}` : "#"} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FF4500] text-white shadow-lg shadow-[#FF4500]/15 transition hover:-translate-y-0.5" title="Reddit"><SiReddit size={23} /></a>
             </div>
-            <Link to="/credits/free" onClick={() => setEventOpen(false)} className="mt-3 flex w-full items-center justify-center rounded-xl border border-white/10 px-4 py-3 text-sm text-white/60 transition hover:bg-white/[0.06] hover:text-white">Ver regras de créditos e convites</Link>
+            <div className="mt-3 grid grid-cols-2 gap-2"><Link to="/como-funciona" onClick={() => setEventOpen(false)} className="flex w-full items-center justify-center rounded-xl border border-white/10 px-3 py-3 text-center text-xs text-white/60 transition hover:bg-white/[0.06] hover:text-white">Como funciona</Link><Link to="/referral-history" onClick={() => setEventOpen(false)} className="flex w-full items-center justify-center rounded-xl border border-white/10 px-3 py-3 text-center text-xs text-white/60 transition hover:bg-white/[0.06] hover:text-white">Histórico de convites</Link></div>
           </div>
         </div>
       )}

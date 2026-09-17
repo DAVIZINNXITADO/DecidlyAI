@@ -11,10 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AiTestRouteImport } from './routes/ai-test'
+import { Route as BlogRouteImport } from './routes/blog'
+import { Route as ComoFuncionaRouteImport } from './routes/como-funciona'
 import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as CreditsRouteImport } from './routes/credits'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as ReferralHistoryRouteImport } from './routes/referral-history'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TecnologiaRouteImport } from './routes/tecnologia'
@@ -41,6 +44,16 @@ const AiTestRoute = AiTestRouteImport.update({
   path: '/ai-test',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BlogRoute = BlogRouteImport.update({
+  id: '/blog',
+  path: '/blog',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ComoFuncionaRoute = ComoFuncionaRouteImport.update({
+  id: '/como-funciona',
+  path: '/como-funciona',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CookiesRoute = CookiesRouteImport.update({
   id: '/cookies',
   path: '/cookies',
@@ -59,6 +72,11 @@ const LoginRoute = LoginRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReferralHistoryRoute = ReferralHistoryRouteImport.update({
+  id: '/referral-history',
+  path: '/referral-history',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -140,10 +158,13 @@ const SettingsLanguageRoute = SettingsLanguageRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai-test': typeof AiTestRoute
+  '/blog': typeof BlogRoute
+  '/como-funciona': typeof ComoFuncionaRoute
   '/cookies': typeof CookiesRoute
   '/credits': typeof CreditsRouteWithChildren
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
+  '/referral-history': typeof ReferralHistoryRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRouteWithChildren
   '/tecnologia': typeof TecnologiaRoute
@@ -163,10 +184,13 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai-test': typeof AiTestRoute
+  '/blog': typeof BlogRoute
+  '/como-funciona': typeof ComoFuncionaRoute
   '/cookies': typeof CookiesRoute
   '/credits': typeof CreditsRouteWithChildren
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
+  '/referral-history': typeof ReferralHistoryRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRouteWithChildren
   '/tecnologia': typeof TecnologiaRoute
@@ -187,10 +211,13 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/ai-test': typeof AiTestRoute
+  '/blog': typeof BlogRoute
+  '/como-funciona': typeof ComoFuncionaRoute
   '/cookies': typeof CookiesRoute
   '/credits': typeof CreditsRouteWithChildren
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
+  '/referral-history': typeof ReferralHistoryRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRouteWithChildren
   '/tecnologia': typeof TecnologiaRoute
@@ -212,10 +239,13 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/ai-test'
+    | '/blog'
+    | '/como-funciona'
     | '/cookies'
     | '/credits'
     | '/login'
     | '/privacy'
+    | '/referral-history'
     | '/reset-password'
     | '/settings'
     | '/tecnologia'
@@ -235,10 +265,13 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/ai-test'
+    | '/blog'
+    | '/como-funciona'
     | '/cookies'
     | '/credits'
     | '/login'
     | '/privacy'
+    | '/referral-history'
     | '/reset-password'
     | '/settings'
     | '/tecnologia'
@@ -258,10 +291,13 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/ai-test'
+    | '/blog'
+    | '/como-funciona'
     | '/cookies'
     | '/credits'
     | '/login'
     | '/privacy'
+    | '/referral-history'
     | '/reset-password'
     | '/settings'
     | '/tecnologia'
@@ -282,10 +318,13 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiTestRoute: typeof AiTestRoute
+  BlogRoute: typeof BlogRoute
+  ComoFuncionaRoute: typeof ComoFuncionaRoute
   CookiesRoute: typeof CookiesRoute
   CreditsRoute: typeof CreditsRouteWithChildren
   LoginRoute: typeof LoginRoute
   PrivacyRoute: typeof PrivacyRoute
+  ReferralHistoryRoute: typeof ReferralHistoryRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   TecnologiaRoute: typeof TecnologiaRoute
@@ -311,6 +350,20 @@ declare module '@tanstack/react-router' {
       path: '/ai-test'
       fullPath: '/ai-test'
       preLoaderRoute: typeof AiTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/blog': {
+      id: '/blog'
+      path: '/blog'
+      fullPath: '/blog'
+      preLoaderRoute: typeof BlogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/como-funciona': {
+      id: '/como-funciona'
+      path: '/como-funciona'
+      fullPath: '/como-funciona'
+      preLoaderRoute: typeof ComoFuncionaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cookies': {
@@ -339,6 +392,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/referral-history': {
+      id: '/referral-history'
+      path: '/referral-history'
+      fullPath: '/referral-history'
+      preLoaderRoute: typeof ReferralHistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -483,10 +543,13 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AiTestRoute: AiTestRoute,
+  BlogRoute: BlogRoute,
+  ComoFuncionaRoute: ComoFuncionaRoute,
   CookiesRoute: CookiesRoute,
   CreditsRoute: CreditsRouteWithChildren,
   LoginRoute: LoginRoute,
   PrivacyRoute: PrivacyRoute,
+  ReferralHistoryRoute: ReferralHistoryRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRouteWithChildren,
   TecnologiaRoute: TecnologiaRoute,
