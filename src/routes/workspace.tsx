@@ -2978,7 +2978,7 @@ function Workspace() {
             )}
             {attachedFiles.length > 0 && <div className="mb-2 flex flex-wrap gap-2">{attachedFiles.map((file) => <span key={file} className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] text-white/60">{file}</span>)}</div>}
             <div
-              className="rounded-[30px] bg-[#17101f] px-3 py-2 shadow-2xl"
+              className="rounded-[26px] bg-[#17101f] px-2.5 py-1.5 shadow-2xl"
               style={{
                 border: "none",
                 outline: "none",
@@ -2986,9 +2986,12 @@ function Workspace() {
                   "0 20px 45px rgba(0,0,0,.25)",
               }}
             >
-              <div className="flex items-end gap-2">
-                <button type="button" onClick={() => setToolsOpen((open) => !open)} className={`mb-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition ${toolsOpen ? "bg-violet-400/15 text-violet-200" : "text-white/45 hover:bg-white/5 hover:text-white"}`} aria-label="Abrir ferramentas"><Plus size={19} strokeWidth={2.2} className={toolsOpen ? "rotate-45 transition-transform" : "transition-transform"} /></button>
-                  <textarea
+              <div className="flex items-end gap-1.5">
+                <div className="mb-0.5 flex shrink-0 items-center gap-0.5">
+                  <button type="button" onClick={() => setToolsOpen((open) => !open)} className={`flex h-8 w-8 items-center justify-center rounded-full transition ${toolsOpen ? "bg-violet-400/15 text-violet-200" : "text-white/45 hover:bg-white/5 hover:text-white"}`} aria-label="Abrir ferramentas"><Plus size={17} strokeWidth={2.2} className={toolsOpen ? "rotate-45 transition-transform" : "transition-transform"} /></button>
+                  <button type="button" onClick={toggleListening} className={`flex h-8 w-8 items-center justify-center rounded-full transition ${listening ? "bg-[#8B5CF6]/20 text-[#A78BFA]" : "text-white/45 hover:bg-white/5 hover:text-white"}`} aria-label={listening ? "Parar microfone" : "Usar microfone"}>{listening ? <MicOff size={16} /> : <Mic size={16} />}</button>
+                </div>
+                <textarea
                     ref={textareaRef}
                     value={input}
                     onChange={(event) => setInput(event.target.value)}
@@ -2996,37 +2999,18 @@ function Workspace() {
                     onFocus={handleTextareaFocus}
                     placeholder="Escreva sua decisão..."
                     rows={1}
-                    className="min-h-[58px] max-h-[140px] flex-1 resize-none overflow-y-auto bg-transparent px-2 py-3 text-[15px] leading-6 text-white placeholder:text-white/35 focus:outline-none focus:ring-0"
+                    className="min-h-[48px] max-h-[128px] flex-1 resize-none overflow-y-auto bg-transparent px-2 py-2.5 text-[15px] leading-6 text-white placeholder:text-white/35 focus:outline-none focus:ring-0"
                     style={{ border: "none", outline: "none", boxShadow: "none", appearance: "none", WebkitAppearance: "none" }}
                   />
 
                 <button
                   type="button"
-                  onClick={
-                    toggleListening
-                  }
-                  className={`mb-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${
-                    listening
-                      ? "bg-[#8B5CF6]/20 text-[#A78BFA]"
-                      : "text-white/45 hover:bg-white/5 hover:text-white"
-                  }`}
-                  aria-label={
-                    listening
-                      ? "Parar microfone"
-                      : "Usar microfone"
-                  }
-                >
-                  {listening ? <MicOff size={19} /> : <Mic size={19} />}
-                </button>
-
-                <button
-                  type="button"
                   onClick={() => void sendMessage()}
                   disabled={!input.trim() || isLoading}
-                  className="mb-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#8B5CF6] text-white transition hover:bg-[#9B6AF7] disabled:cursor-not-allowed disabled:opacity-30"
+                  className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#8B5CF6] text-white transition hover:bg-[#9B6AF7] disabled:cursor-not-allowed disabled:opacity-30"
                   aria-label="Enviar"
                 >
-                  <ArrowUp size={20} />
+                  <ArrowUp size={17} />
                 </button>
               </div>
             </div>
