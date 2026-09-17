@@ -142,7 +142,6 @@ function Workspace() {
   const [referralCode, setReferralCode] = useState("");
   const [referralCopied, setReferralCopied] = useState(false);
   const [creditRewardNotice, setCreditRewardNotice] = useState<number | null>(null);
-  const referralEventsInitializedRef = useRef(false);
   const [creditsOpen, setCreditsOpen] = useState(false);
   const [creditWallet, setCreditWallet] = useState<CreditWallet>({
     free_credits: 0,
@@ -264,16 +263,14 @@ function Workspace() {
     if (!userId) return;
     let active = true;
     const checkReferralRewards = async () => {
-      const { data } = await supabase.from("referral_events").select("id,reward_credits,status").eq("inviter_user_id", userId).eq("status", "qualified").order("qualified_at", { ascending: false }).limit(25);
+      const { data } = await supabase.from("referral_events").select("id,reward_credits,status,created_at,qualified_at").eq("inviter_user_id", userId).eq("status", "qualified").order("qualified_at", { ascending: false }).limit(25);
       if (!active || !data) return;
       const storageKey = `decidly-seen-referrals-${userId}`;
-      const seen = new Set(JSON.parse(window.localStorage.getItem(storageKey) || "[]") as string[]);
-      const ids = data.map((item) => String(item.id));
-      if (!referralEventsInitializedRef.current) {
-        ids.forEach((id) => seen.add(id));
-        referralEventsInitializedRef.current = true;
-        window.localStorage.setItem(storageKey, JSON.stringify([...seen]));
-        return;
+      const storedSeen = window.localStorage.getItem(storageKey);
+      const seen = new Set(JSON.parse(storedSeen || "[]") as string[]);
+      if (!storedSeen) {
+        const recentCutoff = Date.now() - 2 * 60 * 1000;
+        data.filter((item) => new Date(item.qualified_at || item.created_at).getTime() < recentCutoff).forEach((item) => seen.add(String(item.id)));
       }
       const fresh = data.find((item) => !seen.has(String(item.id)));
       if (fresh) {
