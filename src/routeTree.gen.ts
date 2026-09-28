@@ -26,6 +26,7 @@ import { Route as WorkspaceRouteImport } from './routes/workspace'
 import { Route as CreditsBuyRouteImport } from './routes/credits/buy'
 import { Route as CreditsFreeRouteImport } from './routes/credits/free'
 import { Route as CreditsHistoryRouteImport } from './routes/credits/history'
+import { Route as CreditsSponsoredRouteImport } from './routes/credits/sponsored'
 import { Route as PtBrCreditsRouteImport } from './routes/pt-br.credits'
 import { Route as PtBrLoginRouteImport } from './routes/pt-br.login'
 import { Route as PtBrSettingsRouteImport } from './routes/pt-br.settings'
@@ -119,6 +120,11 @@ const CreditsHistoryRoute = CreditsHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => CreditsRoute,
 } as any)
+const CreditsSponsoredRoute = CreditsSponsoredRouteImport.update({
+  id: '/sponsored',
+  path: '/sponsored',
+  getParentRoute: () => CreditsRoute,
+} as any)
 const PtBrCreditsRoute = PtBrCreditsRouteImport.update({
   id: '/pt-br/credits',
   path: '/pt-br/credits',
@@ -173,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/credits/buy': typeof CreditsBuyRoute
   '/credits/free': typeof CreditsFreeRoute
   '/credits/history': typeof CreditsHistoryRoute
+  '/credits/sponsored': typeof CreditsSponsoredRoute
   '/pt-br/credits': typeof PtBrCreditsRoute
   '/pt-br/login': typeof PtBrLoginRoute
   '/pt-br/settings': typeof PtBrSettingsRoute
@@ -199,6 +206,7 @@ export interface FileRoutesByTo {
   '/credits/buy': typeof CreditsBuyRoute
   '/credits/free': typeof CreditsFreeRoute
   '/credits/history': typeof CreditsHistoryRoute
+  '/credits/sponsored': typeof CreditsSponsoredRoute
   '/pt-br/credits': typeof PtBrCreditsRoute
   '/pt-br/login': typeof PtBrLoginRoute
   '/pt-br/settings': typeof PtBrSettingsRoute
@@ -226,6 +234,7 @@ export interface FileRoutesById {
   '/credits/buy': typeof CreditsBuyRoute
   '/credits/free': typeof CreditsFreeRoute
   '/credits/history': typeof CreditsHistoryRoute
+  '/credits/sponsored': typeof CreditsSponsoredRoute
   '/pt-br/credits': typeof PtBrCreditsRoute
   '/pt-br/login': typeof PtBrLoginRoute
   '/pt-br/settings': typeof PtBrSettingsRoute
@@ -254,6 +263,7 @@ export interface FileRouteTypes {
     | '/credits/buy'
     | '/credits/free'
     | '/credits/history'
+    | '/credits/sponsored'
     | '/pt-br/credits'
     | '/pt-br/login'
     | '/pt-br/settings'
@@ -280,6 +290,7 @@ export interface FileRouteTypes {
     | '/credits/buy'
     | '/credits/free'
     | '/credits/history'
+    | '/credits/sponsored'
     | '/pt-br/credits'
     | '/pt-br/login'
     | '/pt-br/settings'
@@ -306,6 +317,7 @@ export interface FileRouteTypes {
     | '/credits/buy'
     | '/credits/free'
     | '/credits/history'
+    | '/credits/sponsored'
     | '/pt-br/credits'
     | '/pt-br/login'
     | '/pt-br/settings'
@@ -457,6 +469,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CreditsHistoryRouteImport
       parentRoute: typeof CreditsRoute
     }
+    '/credits/sponsored': {
+      id: '/credits/sponsored'
+      path: '/sponsored'
+      fullPath: '/credits/sponsored'
+      preLoaderRoute: typeof CreditsSponsoredRouteImport
+      parentRoute: typeof CreditsRoute
+    }
     '/pt-br/credits': {
       id: '/pt-br/credits'
       path: '/pt-br/credits'
@@ -513,12 +532,14 @@ interface CreditsRouteChildren {
   CreditsBuyRoute: typeof CreditsBuyRoute
   CreditsFreeRoute: typeof CreditsFreeRoute
   CreditsHistoryRoute: typeof CreditsHistoryRoute
+  CreditsSponsoredRoute: typeof CreditsSponsoredRoute
 }
 
 const CreditsRouteChildren: CreditsRouteChildren = {
   CreditsBuyRoute: CreditsBuyRoute,
   CreditsFreeRoute: CreditsFreeRoute,
   CreditsHistoryRoute: CreditsHistoryRoute,
+  CreditsSponsoredRoute: CreditsSponsoredRoute,
 }
 
 const CreditsRouteWithChildren =
