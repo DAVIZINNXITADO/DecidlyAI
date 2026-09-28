@@ -7,7 +7,7 @@ import { supabase } from "../../lib/supabase";
 export const Route = createFileRoute("/credits/sponsored")({ component: SponsoredRewardPage });
 
 const ADSTERRA_LINK = "https://www.profitableratecpmnetwork.com/gkzxy1pm?key=a82971907b704a012d52b90c74403a38";
-const WAIT_SECONDS = 15;
+const WAIT_SECONDS = 5;
 
 function SponsoredRewardPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -35,7 +35,7 @@ function SponsoredRewardPage() {
       return;
     }
     setSessionId(data);
-    setStatus("A oferta foi aberta em outra aba. Aguarde 15 segundos e volte para resgatar.");
+    setStatus("A oferta foi aberta em outra aba. Aguarde 5 segundos e volte para resgatar.");
   };
 
   const claim = async () => {
