@@ -41,12 +41,19 @@ function normalizeLegacyMarkup(content: string) {
     .replace(/<span\s+style=["'][^"']*color\s*:\s*(#[0-9a-f]{3,8}|[a-z]+)[^"']*["']\s*>([\s\S]*?)<\/span>/gi, '[color color="$1"]$2[/color]');
 }
 
+function keepOnlyRequestedAction(content: string) {
+  const action = content.match(/\[action(?:\s+[^\]]*)?\][\s\S]*?\[\/action\]/i);
+  if (!action) return content;
+  const isCreation = /type\s*=\s*["']?(create_image|create_pdf|create_file|create_text)["']?/i.test(action[0]) || /criar|create|imagem|image|pdf|arquivo|file/i.test(action[0]);
+  return isCreation ? action[0] : content;
+}
+
 function attributes(raw: string | undefined) {
   return Object.fromEntries(Array.from(raw?.matchAll(/(variant|color|title|language|href|label|type|description)=(?:"([^"]*)"|'([^']*)'|([^\s]+))/gi) ?? []).map((item) => [item[1]?.toLowerCase(), item[2] ?? item[3] ?? item[4] ?? ""]));
 }
 
 export function parseBlocks(content: string): Block[] {
-  content = normalizeLegacyMarkup(content);
+  content = normalizeLegacyMarkup(keepOnlyRequestedAction(content));
   const blocks: Block[] = [];
   const pattern = /\[(callout|highlight|copy_block|link|action|question|color)(?:\s+([^\]]+))?\]([\s\S]*?)\[\/(callout|highlight|copy_block|link|action|question|color)\]/gi;
   let cursor = 0;
