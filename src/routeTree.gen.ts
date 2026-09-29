@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AiTestRouteImport } from './routes/ai-test'
+import { Route as AnuncioRouteImport } from './routes/anuncio'
 import { Route as BlogRouteImport } from './routes/blog'
 import { Route as ComoFuncionaRouteImport } from './routes/como-funciona'
 import { Route as CookiesRouteImport } from './routes/cookies'
@@ -43,6 +44,11 @@ const IndexRoute = IndexRouteImport.update({
 const AiTestRoute = AiTestRouteImport.update({
   id: '/ai-test',
   path: '/ai-test',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnuncioRoute = AnuncioRouteImport.update({
+  id: '/anuncio',
+  path: '/anuncio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BlogRoute = BlogRouteImport.update({
@@ -164,6 +170,7 @@ const SettingsLanguageRoute = SettingsLanguageRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai-test': typeof AiTestRoute
+  '/anuncio': typeof AnuncioRoute
   '/blog': typeof BlogRoute
   '/como-funciona': typeof ComoFuncionaRoute
   '/cookies': typeof CookiesRoute
@@ -191,6 +198,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai-test': typeof AiTestRoute
+  '/anuncio': typeof AnuncioRoute
   '/blog': typeof BlogRoute
   '/como-funciona': typeof ComoFuncionaRoute
   '/cookies': typeof CookiesRoute
@@ -219,6 +227,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/ai-test': typeof AiTestRoute
+  '/anuncio': typeof AnuncioRoute
   '/blog': typeof BlogRoute
   '/como-funciona': typeof ComoFuncionaRoute
   '/cookies': typeof CookiesRoute
@@ -248,6 +257,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/ai-test'
+    | '/anuncio'
     | '/blog'
     | '/como-funciona'
     | '/cookies'
@@ -275,6 +285,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/ai-test'
+    | '/anuncio'
     | '/blog'
     | '/como-funciona'
     | '/cookies'
@@ -302,6 +313,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/ai-test'
+    | '/anuncio'
     | '/blog'
     | '/como-funciona'
     | '/cookies'
@@ -330,6 +342,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiTestRoute: typeof AiTestRoute
+  AnuncioRoute: typeof AnuncioRoute
   BlogRoute: typeof BlogRoute
   ComoFuncionaRoute: typeof ComoFuncionaRoute
   CookiesRoute: typeof CookiesRoute
@@ -362,6 +375,13 @@ declare module '@tanstack/react-router' {
       path: '/ai-test'
       fullPath: '/ai-test'
       preLoaderRoute: typeof AiTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/anuncio': {
+      id: '/anuncio'
+      path: '/anuncio'
+      fullPath: '/anuncio'
+      preLoaderRoute: typeof AnuncioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/blog': {
@@ -564,6 +584,7 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AiTestRoute: AiTestRoute,
+  AnuncioRoute: AnuncioRoute,
   BlogRoute: BlogRoute,
   ComoFuncionaRoute: ComoFuncionaRoute,
   CookiesRoute: CookiesRoute,

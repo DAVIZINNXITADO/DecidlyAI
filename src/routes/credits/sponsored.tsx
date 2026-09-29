@@ -9,7 +9,7 @@ export const Route = createFileRoute("/credits/sponsored")({ component: Sponsore
 const AD_SCRIPT_URL = "https://pl31556591.profitableratecpmnetwork.com/47/22/20/4722201050555ac91066f4314c7f7b0f.js";
 const WAIT_SECONDS = 15;
 
-function SponsoredRewardPage() {
+export function SponsoredRewardPage() {
   const navigate = useNavigate();
   const adContainerRef = useRef<HTMLDivElement>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
