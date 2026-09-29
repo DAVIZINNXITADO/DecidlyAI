@@ -1216,6 +1216,9 @@ function Workspace() {
       setInput("");
       setExtraGuidance("");
       setToolsOpen(false);
+      // A ferramenta selecionada vale somente para esta mensagem.
+      // Mantê-la ativa fazia a IA interpretar mensagens futuras como novos pedidos de PDF.
+      setSelectedTool(null);
 
       const userMessage: ChatMessage = {
         id: crypto.randomUUID(),
