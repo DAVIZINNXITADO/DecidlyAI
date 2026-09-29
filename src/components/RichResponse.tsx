@@ -1,10 +1,10 @@
-import { useState, type ReactNode } from "react";
+import { memo, useMemo, useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AlertTriangle, Check, Copy, ExternalLink, Info, Lightbulb, ShieldAlert, Sparkles, TriangleAlert } from "lucide-react";
 
-export type Variant = "info" | "success" | "warning" | "danger" | "tip" | "important" | "advantage" | "disadvantage";
-type Block = { kind: "markdown" | "callout" | "highlight" | "copy" | "link" | "action"; value: string; variant?: Variant; title?: string; language?: string; href?: string; actionType?: string };
+export type Variant = "info" | "success" | "warning" | "danger" | "tip" | "important" | "advantage" | "disadvantage" | "observation" | "recommendation" | "decision" | "neutral";
+type Block = { kind: "markdown" | "callout" | "highlight" | "copy" | "link" | "action" | "question"; value: string; variant?: Variant; color?: string; title?: string; language?: string; href?: string; actionType?: string };
 export type ResponseAction = { type: string; title: string; description: string };
 
 const variants: Record<Variant, { label: string; className: string; icon: ReactNode }> = {
@@ -16,6 +16,21 @@ const variants: Record<Variant, { label: string; className: string; icon: ReactN
   danger: { label: "Alerta", className: "border-rose-300/20 bg-rose-400/[0.08] text-rose-50", icon: <ShieldAlert size={16} /> },
   tip: { label: "Dica", className: "border-violet-300/20 bg-violet-400/[0.08] text-violet-50", icon: <Lightbulb size={16} /> },
   important: { label: "Importante", className: "border-fuchsia-300/20 bg-fuchsia-400/[0.08] text-fuchsia-50", icon: <Sparkles size={16} /> },
+  observation: { label: "Observação", className: "border-cyan-300/20 bg-cyan-400/[0.08] text-cyan-50", icon: <Info size={16} /> },
+  recommendation: { label: "Recomendação", className: "border-violet-300/20 bg-violet-400/[0.08] text-violet-50", icon: <Lightbulb size={16} /> },
+  decision: { label: "Decisão", className: "border-indigo-300/20 bg-indigo-400/[0.08] text-indigo-50", icon: <Sparkles size={16} /> },
+  neutral: { label: "Nota", className: "border-white/15 bg-white/[0.05] text-white/85", icon: <Info size={16} /> },
+};
+
+const highlightColors: Record<string, string> = {
+  yellow: "bg-yellow-300/25 text-yellow-50 ring-1 ring-yellow-300/30",
+  amber: "bg-amber-300/25 text-amber-50 ring-1 ring-amber-300/30",
+  green: "bg-emerald-300/25 text-emerald-50 ring-1 ring-emerald-300/30",
+  blue: "bg-sky-300/25 text-sky-50 ring-1 ring-sky-300/30",
+  cyan: "bg-cyan-300/25 text-cyan-50 ring-1 ring-cyan-300/30",
+  purple: "bg-violet-300/25 text-violet-50 ring-1 ring-violet-300/30",
+  pink: "bg-pink-300/25 text-pink-50 ring-1 ring-pink-300/30",
+  red: "bg-rose-300/25 text-rose-50 ring-1 ring-rose-300/30",
 };
 
 function attributes(raw: string | undefined) {
@@ -24,7 +39,7 @@ function attributes(raw: string | undefined) {
 
 export function parseBlocks(content: string): Block[] {
   const blocks: Block[] = [];
-  const pattern = /\[(callout|highlight|copy_block|link|action)(?:\s+([^\]]+))?\]([\s\S]*?)\[\/(callout|highlight|copy_block|link|action)\]/gi;
+  const pattern = /\[(callout|highlight|copy_block|link|action|question)(?:\s+([^\]]+))?\]([\s\S]*?)\[\/(callout|highlight|copy_block|link|action|question)\]/gi;
   let cursor = 0;
   for (const match of content.matchAll(pattern)) {
     const start = match.index ?? 0;
@@ -33,7 +48,7 @@ export function parseBlocks(content: string): Block[] {
     const attr = attributes(match[2]);
     const value = (match[3] ?? "").trim();
     const variant = attr.variant as Variant | undefined;
-    const block: Block = { kind: rawKind === "copy_block" ? "copy" : rawKind as Block["kind"], value, variant: variant && variant in variants ? variant : "info" };
+    const block: Block = { kind: rawKind === "copy_block" ? "copy" : rawKind as Block["kind"], value, variant: variant && variant in variants ? variant : "info", color: attr.color?.toLowerCase() };
     if (attr.title) block.title = attr.title;
     if (attr.language) block.language = attr.language;
     if (attr.href) block.href = attr.href;
@@ -73,25 +88,28 @@ function LinkBlock({ block }: { block: Block }) {
   return <a href={block.href || "#"} target="_blank" rel="noreferrer" className="my-3 flex items-center gap-3 rounded-2xl border border-sky-300/15 bg-sky-400/[0.06] px-4 py-3 transition hover:border-sky-300/35 hover:bg-sky-400/[0.12]"><ExternalLink size={17} className="shrink-0 text-sky-300" /><span className="min-w-0 flex-1"><strong className="block truncate text-sm text-sky-100">{block.title || "Abrir link"}</strong><span className="mt-0.5 block truncate text-xs text-white/40">{block.href}</span></span><span className="text-[10px] text-amber-200/75">Atenção: site externo</span></a>;
 }
 
-function ActionBlock({ block, onActionRequest }: { block: Block; onActionRequest?: (action: ResponseAction) => void }) {
+function ActionBlock({ block, onActionRequest }: { block: Block; onActionRequest?: ((action: ResponseAction) => void) | undefined }) {
   const [requested, setRequested] = useState(false);
   const action = { type: block.actionType || "tool", title: block.title || "Ação da IA", description: block.value };
   return <div className="my-4 rounded-2xl border border-violet-300/20 bg-violet-400/[0.08] px-4 py-3"><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-violet-100"><Sparkles size={16} />Permissão necessária</div><p className="mt-2 text-sm text-white/80">{action.description}</p><button type="button" disabled={requested} onClick={() => { setRequested(true); onActionRequest?.(action); }} className="mt-3 rounded-xl bg-violet-500 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-400 disabled:opacity-60">{requested ? "Autorizado" : `Permitir ${action.title}`}</button></div>;
 }
 
-export function RichResponse({ content, onActionRequest }: { content: string; onActionRequest?: (action: ResponseAction) => void }) {
-  return <div className="text-[15px] leading-7 text-white/90">{parseBlocks(content).map((block, index) => {
+export const RichResponse = memo(function RichResponse({ content, onActionRequest }: { content: string; onActionRequest?: (action: ResponseAction) => void }) {
+  const blocks = useMemo(() => parseBlocks(content), [content]);
+  return <div className="text-[15px] leading-7 text-white/90">{blocks.map((block, index) => {
     if (block.kind === "markdown") return <Markdown key={index}>{block.value}</Markdown>;
     if (block.kind === "copy") return <CopyBlock key={index} block={block} />;
     if (block.kind === "link") return <LinkBlock key={index} block={block} />;
     if (block.kind === "action") return <ActionBlock key={index} block={block} onActionRequest={onActionRequest} />;
+    if (block.kind === "question") return null;
     const style = variants[block.variant || "info"];
-    return <div key={index} className={`my-4 rounded-2xl border px-4 py-3 ${style.className}`}><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em]">{style.icon}<span>{block.title || style.label}</span></div><div className="mt-1 text-sm leading-6"><Markdown>{block.value}</Markdown></div></div>;
+    const highlightClass = block.kind === "highlight" && block.color ? highlightColors[block.color] : "";
+    return <div key={index} className={`my-4 rounded-2xl border px-4 py-3 ${style.className} ${highlightClass}`}><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em]">{style.icon}<span>{block.title || style.label}</span></div><div className="mt-1 text-sm leading-6"><Markdown>{block.value}</Markdown></div></div>;
   })}</div>;
-}
+});
 
 export function responseProtocolInstructions() {
-  return "Você tem autonomia para perguntar quando uma informação realmente mudar a qualidade da resposta: [question id=clarify]sua pergunta[/question]. Você pode usar emojis com moderação. Para visual, use somente: [callout variant=advantage title=Vantagens]texto[/callout], [callout variant=disadvantage title=Desvantagens]texto[/callout], [highlight variant=warning]trecho importante[/highlight], ou marcações personalizadas seguras [highlight variant=info title=Observação]texto[/highlight]. Para links, use [link href=\"https://exemplo.com\" label=\"Abrir página\"]https://exemplo.com[/link]. Antes de criar algo ou executar uma ação externa, peça autorização: [action type=create_image title=\"criar a imagem\"]Posso criar esta imagem para você?[/action], ou use create_pdf, create_file. Para reutilização, use [copy_block language=text]conteúdo[/copy_block]. Não gere HTML, CSS ou JavaScript.";
+  return "Você tem autonomia para perguntar quando uma informação realmente mudar a qualidade da resposta: [question id=clarify]sua pergunta[/question]. Você pode usar emojis com moderação. Use somente estes blocos visuais quando ajudarem: [callout variant=advantage title=Vantagens]texto[/callout], [callout variant=disadvantage title=Desvantagens]texto[/callout], [callout variant=observation title=Observação]texto[/callout], [callout variant=recommendation title=Recomendação]texto[/callout], [callout variant=decision title=Decisão]texto[/callout], [highlight variant=warning color=yellow]trecho importante[/highlight], ou cores seguras yellow, amber, green, blue, cyan, purple, pink, red. Escolha a cor de forma semântica e não marque cada frase. Para links, use [link href=\"https://exemplo.com\" label=\"Abrir página\"]https://exemplo.com[/link]. Antes de criar algo ou executar uma ação externa, peça autorização: [action type=create_image title=\"criar a imagem\"]Posso criar esta imagem para você?[/action], ou use create_pdf, create_file. Para reutilização, use [copy_block language=text]conteúdo[/copy_block]. Não gere HTML, CSS ou JavaScript.";
 }
 
 export function flattenResponse(content: string) { return parseBlocks(content).map((block) => block.value).join("\n\n"); }

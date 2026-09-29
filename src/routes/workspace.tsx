@@ -247,6 +247,11 @@ function Workspace() {
     setPendingQuestion(null);
   }, [pendingQuestion]);
 
+  const handleResponseAction = useCallback((action: { type: string; title: string; description: string }) => {
+    setSelectedTool({ id: action.type as SelectedTool["id"], label: action.title });
+    setError(`Autorizado: ${action.title}. A ferramenta está selecionada e aguardando sua solicitação no próximo envio.`);
+  }, []);
+
   const loadCreditWallet = useCallback(async () => {
     if (!userId) return;
     setCreditsLoading(true);
@@ -1297,10 +1302,6 @@ function Workspace() {
           history,
           signal: abortController.signal,
           onDelta: (_delta, accumulated) => {
-            if (requestPhase !== "thinking") {
-              setRequestPhase("thinking");
-              requestStartedAtRef.current = requestStartedAtRef.current || Date.now();
-            }
             latestAccumulated = accumulated;
             if (chatRef.current) {
               const distanceFromBottom = chatRef.current.scrollHeight - chatRef.current.scrollTop - chatRef.current.clientHeight;
@@ -1406,7 +1407,6 @@ function Workspace() {
       activeConversationId,
       userName,
       preferredName,
-      requestPhase,
       extraGuidance,
       selectedTool,
       attachedFiles,
@@ -2807,10 +2807,7 @@ function Workspace() {
                                       readingCharIndex,
                                     )}
                                   </div>
-                                ) : <RichResponse content={message.content} onActionRequest={(action) => {
-                                  setSelectedTool({ id: action.type as SelectedTool["id"], label: action.title });
-                                  setError(`Autorizado: ${action.title}. A ferramenta está selecionada e aguardando sua solicitação no próximo envio.`);
-                                }} />}
+                                ) : <RichResponse content={message.content} onActionRequest={handleResponseAction} />}
                               </div>
 
                               <div className="mt-3 flex items-center gap-1 text-white/35">
@@ -2989,7 +2986,6 @@ function Workspace() {
               <div className="flex items-end gap-1.5">
                 <div className="mb-0.5 flex shrink-0 items-center gap-0.5">
                   <button type="button" onClick={() => setToolsOpen((open) => !open)} className={`flex h-8 w-8 items-center justify-center rounded-full transition ${toolsOpen ? "bg-violet-400/15 text-violet-200" : "text-white/45 hover:bg-white/5 hover:text-white"}`} aria-label="Abrir ferramentas"><Plus size={17} strokeWidth={2.2} className={toolsOpen ? "rotate-45 transition-transform" : "transition-transform"} /></button>
-                  <button type="button" onClick={toggleListening} className={`flex h-8 w-8 items-center justify-center rounded-full transition ${listening ? "bg-[#8B5CF6]/20 text-[#A78BFA]" : "text-white/45 hover:bg-white/5 hover:text-white"}`} aria-label={listening ? "Parar microfone" : "Usar microfone"}>{listening ? <MicOff size={16} /> : <Mic size={16} />}</button>
                 </div>
                 <textarea
                     ref={textareaRef}
@@ -3002,6 +2998,8 @@ function Workspace() {
                     className="min-h-[48px] max-h-[128px] flex-1 resize-none overflow-y-auto bg-transparent px-2 py-2.5 text-[15px] leading-6 text-white placeholder:text-white/35 focus:outline-none focus:ring-0"
                     style={{ border: "none", outline: "none", boxShadow: "none", appearance: "none", WebkitAppearance: "none" }}
                   />
+
+                <button type="button" onClick={toggleListening} className={`mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition ${listening ? "bg-[#8B5CF6]/20 text-[#A78BFA]" : "text-white/45 hover:bg-white/5 hover:text-white"}`} aria-label={listening ? "Parar microfone" : "Usar microfone"}>{listening ? <MicOff size={16} /> : <Mic size={16} />}</button>
 
                 <button
                   type="button"
