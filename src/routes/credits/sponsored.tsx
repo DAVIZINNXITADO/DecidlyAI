@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Check, Gift, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { InnerPage } from "../../components/InnerPage";
@@ -10,6 +10,7 @@ const AD_SCRIPT_URL = "https://pl31556591.profitableratecpmnetwork.com/47/22/20/
 const WAIT_SECONDS = 15;
 
 function SponsoredRewardPage() {
+  const navigate = useNavigate();
   const adContainerRef = useRef<HTMLDivElement>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(WAIT_SECONDS);
@@ -41,6 +42,13 @@ function SponsoredRewardPage() {
   const start = async () => {
     if (starting || sessionId) return;
     setStarting(true);
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) {
+      setStarting(false);
+      setStatus("Entre na sua conta para receber créditos.");
+      await navigate({ to: "/login" });
+      return;
+    }
     const { data, error } = await supabase.rpc("start_sponsored_reward");
     setStarting(false);
     if (error || typeof data !== "string") {
