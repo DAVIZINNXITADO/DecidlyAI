@@ -4,7 +4,7 @@ import remarkGfm from "remark-gfm";
 import { AlertTriangle, Check, Copy, ExternalLink, Info, Lightbulb, ShieldAlert, Sparkles, TriangleAlert } from "lucide-react";
 
 export type Variant = "info" | "success" | "warning" | "danger" | "tip" | "important" | "advantage" | "disadvantage" | "observation" | "recommendation" | "decision" | "neutral";
-type Block = { kind: "markdown" | "callout" | "highlight" | "copy" | "link" | "action" | "question"; value: string; variant?: Variant; color?: string; title?: string; language?: string; href?: string; actionType?: string };
+type Block = { kind: "markdown" | "callout" | "highlight" | "copy" | "link" | "action" | "question" | "color"; value: string; variant?: Variant; color?: string; title?: string; language?: string; href?: string; actionType?: string };
 export type ResponseAction = { type: string; title: string; description: string };
 
 const variants: Record<Variant, { label: string; className: string; icon: ReactNode }> = {
@@ -33,13 +33,22 @@ const highlightColors: Record<string, string> = {
   red: "bg-rose-300/25 text-rose-50 ring-1 ring-rose-300/30",
 };
 
+const safeTextColors: Record<string, string> = { red: "#fb7185", orange: "#fb923c", yellow: "#fde047", green: "#86efac", blue: "#7dd3fc", cyan: "#67e8f9", purple: "#c4b5fd", pink: "#f9a8d4", white: "#ffffff" };
+
+function normalizeLegacyMarkup(content: string) {
+  return content
+    .replace(/<font\s+color=["'](#[0-9a-f]{3,8}|[a-z]+)["']\s*>([\s\S]*?)<\/font>/gi, '[color color="$1"]$2[/color]')
+    .replace(/<span\s+style=["'][^"']*color\s*:\s*(#[0-9a-f]{3,8}|[a-z]+)[^"']*["']\s*>([\s\S]*?)<\/span>/gi, '[color color="$1"]$2[/color]');
+}
+
 function attributes(raw: string | undefined) {
   return Object.fromEntries(Array.from(raw?.matchAll(/(variant|color|title|language|href|label|type|description)=(?:"([^"]*)"|'([^']*)'|([^\s]+))/gi) ?? []).map((item) => [item[1]?.toLowerCase(), item[2] ?? item[3] ?? item[4] ?? ""]));
 }
 
 export function parseBlocks(content: string): Block[] {
+  content = normalizeLegacyMarkup(content);
   const blocks: Block[] = [];
-  const pattern = /\[(callout|highlight|copy_block|link|action|question)(?:\s+([^\]]+))?\]([\s\S]*?)\[\/(callout|highlight|copy_block|link|action|question)\]/gi;
+  const pattern = /\[(callout|highlight|copy_block|link|action|question|color)(?:\s+([^\]]+))?\]([\s\S]*?)\[\/(callout|highlight|copy_block|link|action|question|color)\]/gi;
   let cursor = 0;
   for (const match of content.matchAll(pattern)) {
     const start = match.index ?? 0;
@@ -102,6 +111,11 @@ export const RichResponse = memo(function RichResponse({ content, onActionReques
     if (block.kind === "link") return <LinkBlock key={index} block={block} />;
     if (block.kind === "action") return <ActionBlock key={index} block={block} onActionRequest={onActionRequest} />;
     if (block.kind === "question") return null;
+    if (block.kind === "color") {
+      const rawColor = block.color || "white";
+      const color = safeTextColors[rawColor] || (/^#[0-9a-f]{3,8}$/i.test(rawColor) ? rawColor : safeTextColors.white);
+      return <span key={index} style={{ color }}><Markdown>{block.value}</Markdown></span>;
+    }
     const style = variants[block.variant || "info"];
     const highlightClass = block.kind === "highlight" && block.color ? highlightColors[block.color] : "";
     return <div key={index} className={`my-4 rounded-2xl border px-4 py-3 ${style.className} ${highlightClass}`}><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em]">{style.icon}<span>{block.title || style.label}</span></div><div className="mt-1 text-sm leading-6"><Markdown>{block.value}</Markdown></div></div>;
@@ -109,7 +123,7 @@ export const RichResponse = memo(function RichResponse({ content, onActionReques
 });
 
 export function responseProtocolInstructions() {
-  return "Você tem autonomia para perguntar quando uma informação realmente mudar a qualidade da resposta: [question id=clarify]sua pergunta[/question]. Você pode usar emojis com moderação. Use somente estes blocos visuais quando ajudarem: [callout variant=advantage title=Vantagens]texto[/callout], [callout variant=disadvantage title=Desvantagens]texto[/callout], [callout variant=observation title=Observação]texto[/callout], [callout variant=recommendation title=Recomendação]texto[/callout], [callout variant=decision title=Decisão]texto[/callout], [highlight variant=warning color=yellow]trecho importante[/highlight], ou cores seguras yellow, amber, green, blue, cyan, purple, pink, red. Escolha a cor de forma semântica e não marque cada frase. Para links, use [link href=\"https://exemplo.com\" label=\"Abrir página\"]https://exemplo.com[/link]. Antes de criar algo ou executar uma ação externa, peça autorização: [action type=create_image title=\"criar a imagem\"]Posso criar esta imagem para você?[/action], ou use create_pdf, create_file. Para reutilização, use [copy_block language=text]conteúdo[/copy_block]. Não gere HTML, CSS ou JavaScript.";
+  return "Você tem autonomia para perguntar quando uma informação realmente mudar a qualidade da resposta: [question id=clarify]sua pergunta[/question]. Você pode usar emojis com moderação. Use callout para Vantagens, Desvantagens, Observação, Recomendação e Decisão; use [highlight variant=warning color=yellow]trecho importante[/highlight] e [color color=red]texto colorido[/color] somente quando fizer sentido. NUNCA use HTML, <font>, <span>, CSS ou JavaScript. Antes de criar algo, peça autorização e gere no máximo um bloco [action] para a ação necessária. Para links, use [link href=\"https://exemplo.com\" label=\"Abrir página\"]https://exemplo.com[/link]. Para reutilização, use [copy_block language=text]conteúdo[/copy_block].";
 }
 
 export function flattenResponse(content: string) { return parseBlocks(content).map((block) => block.value).join("\n\n"); }
