@@ -6,7 +6,8 @@ import { supabase } from "../../lib/supabase";
 
 export const Route = createFileRoute("/credits/sponsored")({ component: SponsoredRewardPage });
 
-const AD_SCRIPT_URL = "https://pl31556591.profitableratecpmnetwork.com/47/22/20/4722201050555ac91066f4314c7f7b0f.js";
+const AD_SCRIPT_URL = "https://pl31554061.profitableratecpmnetwork.com/0808b976d18733b256b1229ba2178907/invoke.js";
+const AD_CONTAINER_ID = "container-0808b976d18733b256b1229ba2178907";
 const WAIT_SECONDS = 15;
 
 export function SponsoredRewardPage() {
@@ -23,13 +24,17 @@ export function SponsoredRewardPage() {
     if (!sessionId || !adContainerRef.current) return;
     const container = adContainerRef.current;
     container.replaceChildren();
+    const nativeContainer = document.createElement("div");
+    nativeContainer.id = AD_CONTAINER_ID;
+    nativeContainer.className = "flex min-h-[250px] w-full items-center justify-center overflow-hidden rounded-xl";
+    container.appendChild(nativeContainer);
     const script = document.createElement("script");
     script.async = true;
     script.setAttribute("data-cfasync", "false");
     script.src = AD_SCRIPT_URL;
     script.onload = () => setStatus("Oferta carregada. Aguarde 15 segundos e depois resgate sua recompensa.");
     script.onerror = () => setStatus("A oferta não carregou. Aguarde o contador e tente novamente.");
-    container.appendChild(script);
+    nativeContainer.appendChild(script);
     return () => container.replaceChildren();
   }, [sessionId]);
 
