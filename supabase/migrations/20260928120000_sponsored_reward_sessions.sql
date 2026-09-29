@@ -43,7 +43,7 @@ begin
   select * into session_row from public.sponsored_reward_sessions where id = session_id and user_id = auth.uid() for update;
   if session_row.id is null then raise exception 'SESSION_NOT_FOUND'; end if;
   if session_row.claimed_at is not null then raise exception 'SESSION_ALREADY_CLAIMED'; end if;
-  if extract(epoch from (now() - session_row.started_at)) < 5 then raise exception 'WAIT_REQUIRED'; end if;
+  if extract(epoch from (now() - session_row.started_at)) < 15 then raise exception 'WAIT_REQUIRED'; end if;
   select count(*) into claimed_count from public.sponsored_reward_sessions where user_id = auth.uid() and claimed_at is not null and (created_at at time zone 'America/Sao_Paulo')::date = (now() at time zone 'America/Sao_Paulo')::date;
   if claimed_count >= 2 then raise exception 'DAILY_SPONSORED_LIMIT'; end if;
   update public.sponsored_reward_sessions set claimed_at = now() where id = session_id;
