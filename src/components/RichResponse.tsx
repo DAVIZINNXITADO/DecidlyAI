@@ -34,7 +34,7 @@ const highlightColors: Record<string, string> = {
 };
 
 function attributes(raw: string | undefined) {
-  return Object.fromEntries(Array.from(raw?.matchAll(/(variant|title|language|href|label|type|description)=(?:"([^"]*)"|'([^']*)'|([^\s]+))/gi) ?? []).map((item) => [item[1]?.toLowerCase(), item[2] ?? item[3] ?? item[4] ?? ""]));
+  return Object.fromEntries(Array.from(raw?.matchAll(/(variant|color|title|language|href|label|type|description)=(?:"([^"]*)"|'([^']*)'|([^\s]+))/gi) ?? []).map((item) => [item[1]?.toLowerCase(), item[2] ?? item[3] ?? item[4] ?? ""]));
 }
 
 export function parseBlocks(content: string): Block[] {
