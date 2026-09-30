@@ -1,27 +1,18 @@
-# Política atual de anúncios do DecidlyAI
+# Configuração atual de anúncios do DecidlyAI
 
-## Provedores ativos
+## Zonas ativas
 
-- **NewClick**, website ID `13525`: único Native Banner usado em `/credits` e `/como-funciona`.
-- **Adsterra Social Bar**: carregado pela raiz da aplicação uma única vez por atualização completa da página, após 8 segundos.
+- **Adsterra Banner**, zona `0808b976d18733b256b1229ba2178907`: usado nos espaços de Publicidade de `/credits` e `/como-funciona`.
+- **Adsterra Social Bar**: carregado no workspace depois de 8 segundos, no máximo uma vez por sessão.
 
-## Native Banner
+O slot de banner anterior do NewClick foi removido dessas páginas. Os antigos formatos Monetag, Popunder, Direct Link, Smartlink e anúncio recompensado também não são usados.
 
-O mesmo bloco NewClick é usado nas páginas de créditos e Como funciona. Não há rotação entre provedores e não há dois scripts disputando o mesmo espaço.
+## Banner responsivo
 
-O componente valida a imagem retornada pela API e tenta até oito banners quando algum arquivo está indisponível. Enquanto procura uma imagem válida, mostra como fallback textual o `alt_text` e o link de clique fornecidos pelo próprio NewClick; quando uma imagem carrega, ela substitui o texto. O banner VIP do DecidlyAI permanece como fallback final somente se a API não fornecer nenhum banner utilizável.
+O script Adsterra é carregado de forma assíncrona e apenas enquanto o slot da página está montado. O espaço ocupa até 728 px no desktop e acompanha a largura disponível em telas menores; imagens e iframes injetados ficam limitados à largura do espaço. Não é fixada uma altura de criativo: o conteúdo pode determinar a altura final. O criativo VIP próprio aparece enquanto a rede ainda não inseriu um anúncio.
 
-## Social Bar
+O CSS evita que o elemento injetado ultrapasse horizontalmente o layout, mas não consegue redimensionar o conteúdo interno de um iframe entre domínios. Para formatos que mudam de tamanho por dispositivo, a própria zona também precisa estar configurada como responsiva no painel da Adsterra.
 
-O Social Bar é montado no componente raiz. Uma atualização completa da página cria no máximo um script, depois de uma espera curta. Navegações internas não reinjetam outro Social Bar.
+## Filtros de conteúdo
 
-## Provedores removidos
-
-- Monetag Vignette;
-- Monetag Direct Link;
-- Smartlink;
-- Popunder;
-- anúncio recompensado;
-- rota de teste `/anuncio`.
-
-Não há recompensa por impressão, visita ou clique em anúncio.
+Bloqueios de apostas, cassinos, conteúdo adulto e outras categorias são configurações da zona/conta da Adsterra; o componente visual não filtra nem garante quais anúncios a rede vai servir. A confirmação desses bloqueios deve vir da Adsterra. Se a zona continuar exibindo categorias que deveriam estar bloqueadas, ela deve ser pausada no painel enquanto o suporte investiga.

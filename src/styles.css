@@ -491,3 +491,65 @@ html[data-theme="light"] .workspace-shell [class*="text-white"] {
 html[data-theme="light"] .workspace-shell [class*="border-white/"] {
   border-color: #ded7eb !important;
 }
+
+
+/* Adsterra banner: responsive width with a local fallback while the zone fills. */
+.adsterra-banner-frame {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 728px;
+  min-height: 250px;
+  margin-inline: auto;
+  align-items: center;
+  justify-content: center;
+}
+
+.adsterra-banner-frame.has-ad {
+  min-height: 90px;
+}
+
+.adsterra-banner-fallback {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  width: min(100%, 300px);
+  max-height: 250px;
+  margin: auto;
+  object-fit: contain;
+}
+
+.adsterra-banner-slot {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  min-height: 90px;
+  align-items: center;
+  justify-content: center;
+  overflow-x: clip;
+}
+
+.adsterra-banner-slot > * {
+  box-sizing: border-box;
+  max-width: 100% !important;
+}
+
+.adsterra-banner-slot iframe,
+.adsterra-banner-slot img,
+.adsterra-banner-slot video,
+.adsterra-banner-slot canvas,
+.adsterra-banner-slot object,
+.adsterra-banner-slot embed {
+  display: block;
+  max-width: 100% !important;
+  margin-inline: auto;
+}
+
+.adsterra-banner-slot img,
+.adsterra-banner-slot video {
+  height: auto !important;
+  object-fit: contain;
+}
