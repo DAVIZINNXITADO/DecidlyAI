@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Brain, FileText, Gift, Link2, MessageCircleQuestion, ShieldCheck, Sparkles, Users, Wrench } from "lucide-react";
 import { InnerPage } from "../components/InnerPage";
+import { AdsterraNativeBanner } from "../components/AdsterraAds";
 
 export const Route = createFileRoute("/como-funciona")({ component: ComoFuncionaPage });
 
@@ -18,7 +19,7 @@ function ComoFuncionaPage() {
       <section className="rounded-3xl border border-white/10 bg-white/[0.035] p-6"><div className="flex items-start gap-4"><Users className="mt-1 text-violet-300" size={22} /><div><h2 className="text-xl font-semibold">Privacidade em primeiro lugar</h2><p className="mt-2 leading-7 text-white/50">O histórico mostra apenas informações resumidas, sem expor e-mails, nomes completos ou dados de outras pessoas.</p></div></div></section>
       <section className="rounded-3xl border border-violet-300/15 bg-violet-400/[0.06] p-6"><div className="flex items-start gap-4"><Wrench className="mt-1 text-violet-300" size={22} /><div><h2 className="text-xl font-semibold">Ferramentas quando você precisar</h2><p className="mt-2 leading-7 text-white/55">No botão “+”, você encontra Pesquisa avançada, criação de imagem, PDF, texto e arquivo, além de anexar arquivos. A IA também pode sugerir uma ferramenta, mas ações como criação pedem sua autorização antes de começar.</p></div></div></section>
       <section className="grid gap-4 md:grid-cols-2"><InfoCard icon={<MessageCircleQuestion />} title="Perguntas inteligentes" text="Se faltar uma informação importante, a IA pergunta acima da caixa de mensagem sem bloquear sua conversa. Você pode responder ou ignorar." /><InfoCard icon={<FileText />} title="Respostas visuais" text="A IA pode destacar vantagens, desvantagens e atenção, criar blocos copiáveis, resumos, etapas e comparações quando isso melhorar a compreensão." /><InfoCard icon={<Link2 />} title="Links com contexto" text="Links aparecem como cartões clicáveis e identificados como sites externos, para você saber quando está saindo do DecidlyAI." /><InfoCard icon={<ShieldCheck />} title="Você continua no controle" text="A IA pode analisar, organizar e sugerir. Ela não executa uma ação externa ou cria um arquivo sem pedir autorização antes." /></section>
-      <section className="overflow-hidden rounded-3xl border border-violet-300/15 bg-black/20 p-2"><a href="/login?campaign=ad-25" aria-label="Criar conta e receber 25 créditos"><img src="/decidlyai-promo-banner.png" alt="DecidlyAI: seu copiloto de IA para tomar decisões melhores" loading="lazy" className="h-auto w-full rounded-2xl object-cover opacity-90 transition hover:opacity-100" /></a></section>
+      <AdsterraNativeBanner />
     </div>
   </InnerPage>;
 }

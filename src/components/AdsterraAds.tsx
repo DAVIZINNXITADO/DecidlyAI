@@ -6,21 +6,27 @@ const ADSTERRA_NATIVE_CONTAINER_ID = "container-0808b976d18733b256b1229ba2178907
 const NEWCLICK_SCRIPT_SRC = "https://www.newclick.com/widget.js";
 const NEWCLICK_WEBSITE_ID = import.meta.env["VITE_NEWCLICK_WEBSITE_ID"] || "13525";
 const ROTATION_KEY = "decidly-native-ad-rotation";
+const SOCIAL_BAR_DELAY_MS = 12_000;
 
 /** Loads the Adsterra Social Bar once, only while the workspace is mounted. */
 export function AdsterraSocialBar() {
   useEffect(() => {
     if (typeof document === "undefined") return;
-    if (document.querySelector('script[data-decidly-adsterra="social-bar"]')) return;
 
-    const script = document.createElement("script");
-    script.src = SOCIAL_BAR_SRC;
-    script.async = true;
-    script.dataset.decidlyAdsterra = "social-bar";
-    document.body.appendChild(script);
+    let script: HTMLScriptElement | null = null;
+    const timer = window.setTimeout(() => {
+      if (document.querySelector('script[data-decidly-adsterra="social-bar"]')) return;
+
+      script = document.createElement("script");
+      script.src = SOCIAL_BAR_SRC;
+      script.async = true;
+      script.dataset.decidlyAdsterra = "social-bar";
+      document.body.appendChild(script);
+    }, SOCIAL_BAR_DELAY_MS);
 
     return () => {
-      script.remove();
+      window.clearTimeout(timer);
+      script?.remove();
       document.querySelectorAll("[id^=adsterra-socialbar], iframe[src*='cheflobesofficer.com']").forEach((node) => node.remove());
     };
   }, []);
