@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AiTestRouteImport } from './routes/ai-test'
-import { Route as AnuncioRouteImport } from './routes/anuncio'
 import { Route as BlogRouteImport } from './routes/blog'
 import { Route as ComoFuncionaRouteImport } from './routes/como-funciona'
 import { Route as CookiesRouteImport } from './routes/cookies'
@@ -27,7 +26,6 @@ import { Route as WorkspaceRouteImport } from './routes/workspace'
 import { Route as CreditsBuyRouteImport } from './routes/credits/buy'
 import { Route as CreditsFreeRouteImport } from './routes/credits/free'
 import { Route as CreditsHistoryRouteImport } from './routes/credits/history'
-import { Route as CreditsSponsoredRouteImport } from './routes/credits/sponsored'
 import { Route as PtBrCreditsRouteImport } from './routes/pt-br.credits'
 import { Route as PtBrLoginRouteImport } from './routes/pt-br.login'
 import { Route as PtBrSettingsRouteImport } from './routes/pt-br.settings'
@@ -44,11 +42,6 @@ const IndexRoute = IndexRouteImport.update({
 const AiTestRoute = AiTestRouteImport.update({
   id: '/ai-test',
   path: '/ai-test',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AnuncioRoute = AnuncioRouteImport.update({
-  id: '/anuncio',
-  path: '/anuncio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BlogRoute = BlogRouteImport.update({
@@ -126,11 +119,6 @@ const CreditsHistoryRoute = CreditsHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => CreditsRoute,
 } as any)
-const CreditsSponsoredRoute = CreditsSponsoredRouteImport.update({
-  id: '/sponsored',
-  path: '/sponsored',
-  getParentRoute: () => CreditsRoute,
-} as any)
 const PtBrCreditsRoute = PtBrCreditsRouteImport.update({
   id: '/pt-br/credits',
   path: '/pt-br/credits',
@@ -170,7 +158,6 @@ const SettingsLanguageRoute = SettingsLanguageRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai-test': typeof AiTestRoute
-  '/anuncio': typeof AnuncioRoute
   '/blog': typeof BlogRoute
   '/como-funciona': typeof ComoFuncionaRoute
   '/cookies': typeof CookiesRoute
@@ -186,7 +173,6 @@ export interface FileRoutesByFullPath {
   '/credits/buy': typeof CreditsBuyRoute
   '/credits/free': typeof CreditsFreeRoute
   '/credits/history': typeof CreditsHistoryRoute
-  '/credits/sponsored': typeof CreditsSponsoredRoute
   '/pt-br/credits': typeof PtBrCreditsRoute
   '/pt-br/login': typeof PtBrLoginRoute
   '/pt-br/settings': typeof PtBrSettingsRoute
@@ -198,7 +184,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai-test': typeof AiTestRoute
-  '/anuncio': typeof AnuncioRoute
   '/blog': typeof BlogRoute
   '/como-funciona': typeof ComoFuncionaRoute
   '/cookies': typeof CookiesRoute
@@ -214,7 +199,6 @@ export interface FileRoutesByTo {
   '/credits/buy': typeof CreditsBuyRoute
   '/credits/free': typeof CreditsFreeRoute
   '/credits/history': typeof CreditsHistoryRoute
-  '/credits/sponsored': typeof CreditsSponsoredRoute
   '/pt-br/credits': typeof PtBrCreditsRoute
   '/pt-br/login': typeof PtBrLoginRoute
   '/pt-br/settings': typeof PtBrSettingsRoute
@@ -227,7 +211,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/ai-test': typeof AiTestRoute
-  '/anuncio': typeof AnuncioRoute
   '/blog': typeof BlogRoute
   '/como-funciona': typeof ComoFuncionaRoute
   '/cookies': typeof CookiesRoute
@@ -243,7 +226,6 @@ export interface FileRoutesById {
   '/credits/buy': typeof CreditsBuyRoute
   '/credits/free': typeof CreditsFreeRoute
   '/credits/history': typeof CreditsHistoryRoute
-  '/credits/sponsored': typeof CreditsSponsoredRoute
   '/pt-br/credits': typeof PtBrCreditsRoute
   '/pt-br/login': typeof PtBrLoginRoute
   '/pt-br/settings': typeof PtBrSettingsRoute
@@ -257,7 +239,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/ai-test'
-    | '/anuncio'
     | '/blog'
     | '/como-funciona'
     | '/cookies'
@@ -273,7 +254,6 @@ export interface FileRouteTypes {
     | '/credits/buy'
     | '/credits/free'
     | '/credits/history'
-    | '/credits/sponsored'
     | '/pt-br/credits'
     | '/pt-br/login'
     | '/pt-br/settings'
@@ -285,7 +265,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/ai-test'
-    | '/anuncio'
     | '/blog'
     | '/como-funciona'
     | '/cookies'
@@ -301,7 +280,6 @@ export interface FileRouteTypes {
     | '/credits/buy'
     | '/credits/free'
     | '/credits/history'
-    | '/credits/sponsored'
     | '/pt-br/credits'
     | '/pt-br/login'
     | '/pt-br/settings'
@@ -313,7 +291,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/ai-test'
-    | '/anuncio'
     | '/blog'
     | '/como-funciona'
     | '/cookies'
@@ -329,7 +306,6 @@ export interface FileRouteTypes {
     | '/credits/buy'
     | '/credits/free'
     | '/credits/history'
-    | '/credits/sponsored'
     | '/pt-br/credits'
     | '/pt-br/login'
     | '/pt-br/settings'
@@ -342,7 +318,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiTestRoute: typeof AiTestRoute
-  AnuncioRoute: typeof AnuncioRoute
   BlogRoute: typeof BlogRoute
   ComoFuncionaRoute: typeof ComoFuncionaRoute
   CookiesRoute: typeof CookiesRoute
@@ -375,13 +350,6 @@ declare module '@tanstack/react-router' {
       path: '/ai-test'
       fullPath: '/ai-test'
       preLoaderRoute: typeof AiTestRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/anuncio': {
-      id: '/anuncio'
-      path: '/anuncio'
-      fullPath: '/anuncio'
-      preLoaderRoute: typeof AnuncioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/blog': {
@@ -489,13 +457,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CreditsHistoryRouteImport
       parentRoute: typeof CreditsRoute
     }
-    '/credits/sponsored': {
-      id: '/credits/sponsored'
-      path: '/sponsored'
-      fullPath: '/credits/sponsored'
-      preLoaderRoute: typeof CreditsSponsoredRouteImport
-      parentRoute: typeof CreditsRoute
-    }
     '/pt-br/credits': {
       id: '/pt-br/credits'
       path: '/pt-br/credits'
@@ -552,14 +513,12 @@ interface CreditsRouteChildren {
   CreditsBuyRoute: typeof CreditsBuyRoute
   CreditsFreeRoute: typeof CreditsFreeRoute
   CreditsHistoryRoute: typeof CreditsHistoryRoute
-  CreditsSponsoredRoute: typeof CreditsSponsoredRoute
 }
 
 const CreditsRouteChildren: CreditsRouteChildren = {
   CreditsBuyRoute: CreditsBuyRoute,
   CreditsFreeRoute: CreditsFreeRoute,
   CreditsHistoryRoute: CreditsHistoryRoute,
-  CreditsSponsoredRoute: CreditsSponsoredRoute,
 }
 
 const CreditsRouteWithChildren =
@@ -584,7 +543,6 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AiTestRoute: AiTestRoute,
-  AnuncioRoute: AnuncioRoute,
   BlogRoute: BlogRoute,
   ComoFuncionaRoute: ComoFuncionaRoute,
   CookiesRoute: CookiesRoute,

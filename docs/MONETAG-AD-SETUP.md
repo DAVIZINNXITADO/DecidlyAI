@@ -1,33 +1,34 @@
-# Configuração de anúncios Monetag
+# Política de anúncios do DecidlyAI
 
 ## Estado atual
 
-Os formatos Monetag estão **pausados no site** até confirmar no painel um bloqueio efetivo para cassino, apostas e campanhas de PIX. O código dos componentes permanece preparado, mas nenhum tag Monetag é montado nas rotas públicas neste momento.
+A integração Monetag foi removida do frontend. Também foram removidos:
 
-## Formatos preparados
+- Vignette;
+- Direct Link;
+- Popunder;
+- Smartlink;
+- anúncio recompensado;
+- página de oferta patrocinada;
+- contador que concedia créditos por visita.
 
-- **Vignette Banner**, zona `11926416`, script `https://n6wxm.com/vignette.min.js`.
-- **Direct Link**, URL `https://omg10.com/4/11926418`, usado apenas como botão claramente identificado na carteira de créditos, sem promessa de recompensa.
-- **Popunder/Onclick**, zona `11926415`, script `https://nap5k.com/tag.min.js`: não incluído.
+## Adsterra ativo
 
-## Posicionamento
+### Social Bar
 
-- Vignette: preparado para `/credits`, `/credits/free` e `/credits/buy`, atualmente desativado.
-- Direct Link: preparado para uso opcional e claramente identificado, atualmente desativado.
-- Workspace, login, cadastro, configurações e chat: sem anúncios.
+O Social Bar é carregado somente quando o usuário entra no `/workspace`, por meio de `src/components/AdsterraAds.tsx`. Ele não é carregado no chat público, nas páginas institucionais ou nas páginas de créditos.
 
-## Limites de experiência
+### Native Banner 1:1
 
-- Vignette carregado no máximo uma vez por sessão usando `sessionStorage`.
-- Nenhum anúncio é carregado no campo de conversa ou durante a geração da IA.
-- O Direct Link abre em nova aba e é marcado com `rel="nofollow sponsored noopener noreferrer"`.
-- Adult ads devem permanecer desativados no painel Monetag.
+O Native Banner é carregado somente na visão geral de `/credits`, dentro de um cartão contido e identificado como publicidade. Ele não aparece dentro do compositor, entre mensagens ou na tela de geração.
 
-## Regra de recompensa
+## Regras de experiência
 
-A página de recompensa não usa o Direct Link nem atribui créditos a cliques, impressões ou visitas a anúncios Monetag. A Monetag declara que tráfego e cliques incentivados não são aceitos. Qualquer programa de créditos patrocinados precisa usar uma oferta/rede que autorize explicitamente recompensas e seus postbacks; não deve ser associado a um tag Monetag comum.
+- não recompensar cliques ou visitas a anúncios;
+- não usar Smartlink, Direct Link, Popunder ou redirecionamentos automáticos;
+- não inserir tags de anúncios no HTML global;
+- limitar os formatos a Social Bar e um Native Banner;
+- revisar campanhas no painel Adsterra e pausar a zona se aparecer cassino, apostas, golpes, conteúdo adulto ou notificações enganosas;
+- se a rede não oferecer controle suficiente de categorias, remover o formato novamente.
 
-Fontes oficiais consultadas:
-- https://help.monetag.com/en/articles/6725606-vignette-banners
-- https://monetag.com/formats/in-page-push-ads/
-- https://monetag.com/blog/ad-monetization/
+Os scripts são carregados client-side somente nos pontos acima. A rede de anúncios continua sendo responsável pelo conteúdo entregue; o código do DecidlyAI não controla o criativo ou o destino de cada campanha.
