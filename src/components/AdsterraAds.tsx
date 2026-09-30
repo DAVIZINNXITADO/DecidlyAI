@@ -4,7 +4,7 @@ const SOCIAL_BAR_SRC = "https://cheflobesofficer.com/47/22/20/4722201050555ac910
 const ADSTERRA_NATIVE_SRC = "https://cheflobesofficer.com/0808b976d18733b256b1229ba2178907/invoke.js";
 const ADSTERRA_NATIVE_CONTAINER_ID = "container-0808b976d18733b256b1229ba2178907";
 const NEWCLICK_SCRIPT_SRC = "https://www.newclick.com/widget.js";
-const NEWCLICK_WEBSITE_ID = import.meta.env["VITE_NEWCLICK_WEBSITE_ID"] || "";
+const NEWCLICK_WEBSITE_ID = import.meta.env["VITE_NEWCLICK_WEBSITE_ID"] || "13525";
 const ROTATION_KEY = "decidly-native-ad-rotation";
 
 /** Loads the Adsterra Social Bar once, only while the workspace is mounted. */
