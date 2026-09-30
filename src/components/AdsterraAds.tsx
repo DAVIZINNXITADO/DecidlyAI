@@ -3,10 +3,12 @@ import { useEffect, useRef, useState } from "react";
 const SOCIAL_BAR_SRC = "https://cheflobesofficer.com/47/22/20/4722201050555ac91066f4314c7f7b0f.js";
 const ADSTERRA_NATIVE_SRC = "https://cheflobesofficer.com/0808b976d18733b256b1229ba2178907/invoke.js";
 const ADSTERRA_NATIVE_CONTAINER_ID = "container-0808b976d18733b256b1229ba2178907";
+const MONETAG_VIGNETTE_SRC = "https://n6wxm.com/vignette.min.js";
+const MONETAG_VIGNETTE_ZONE = "11926416";
 const NEWCLICK_SCRIPT_SRC = "https://www.newclick.com/widget.js";
 const NEWCLICK_WEBSITE_ID = import.meta.env["VITE_NEWCLICK_WEBSITE_ID"] || "13525";
 const ROTATION_KEY = "decidly-native-ad-rotation";
-const SOCIAL_BAR_DELAY_MS = 12_000;
+const SOCIAL_BAR_DELAY_MS = 8_000;
 
 /** Loads the Adsterra Social Bar once, only while the workspace is mounted. */
 export function AdsterraSocialBar() {
@@ -20,6 +22,7 @@ export function AdsterraSocialBar() {
       script = document.createElement("script");
       script.src = SOCIAL_BAR_SRC;
       script.async = true;
+      script.setAttribute("data-cfasync", "false");
       script.dataset.decidlyAdsterra = "social-bar";
       document.body.appendChild(script);
     }, SOCIAL_BAR_DELAY_MS);
@@ -28,6 +31,28 @@ export function AdsterraSocialBar() {
       window.clearTimeout(timer);
       script?.remove();
       document.querySelectorAll("[id^=adsterra-socialbar], iframe[src*='cheflobesofficer.com']").forEach((node) => node.remove());
+    };
+  }, []);
+
+  return null;
+}
+
+/** Loads the Monetag Vignette only on the dedicated ad-test page. */
+export function MonetagVignetteTest() {
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (document.querySelector('script[data-decidly-monetag="vignette"]')) return;
+
+    const script = document.createElement("script");
+    script.dataset.zone = MONETAG_VIGNETTE_ZONE;
+    script.dataset.decidlyMonetag = "vignette";
+    script.src = MONETAG_VIGNETTE_SRC;
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      script.remove();
+      document.querySelectorAll("[data-decidly-monetag-vignette]").forEach((node) => node.remove());
     };
   }, []);
 
