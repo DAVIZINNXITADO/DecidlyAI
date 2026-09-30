@@ -37,6 +37,7 @@ type NewClickBanner = {
   width?: number;
   height?: number;
   click_url?: string;
+  textOnly?: boolean;
 };
 
 const MAX_NEWCLICK_BANNER_ATTEMPTS = 8;
@@ -79,6 +80,7 @@ function NewClickNativePlacement() {
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
+    let lastBanner: NewClickBanner | null = null;
 
     const loadUsableBanner = async () => {
       while (active && attemptsRef.current < MAX_NEWCLICK_BANNER_ATTEMPTS) {
@@ -96,16 +98,19 @@ function NewClickNativePlacement() {
               ? (payload.banner as NewClickBanner)
               : null;
           if (!nextBanner?.image_url || !nextBanner.click_url) continue;
+          lastBanner = nextBanner;
 
           const imageUrl = new URL(nextBanner.image_url, NEWCLICK_API_BASE).toString();
           if (await preloadNewClickImage(imageUrl, controller.signal)) {
             if (active) setBanner(nextBanner);
             return;
           }
+          if (active) setBanner({ ...nextBanner, textOnly: true });
         } catch {
           if (controller.signal.aborted) return;
         }
       }
+      if (active && lastBanner) setBanner({ ...lastBanner, textOnly: true });
     };
 
     void loadUsableBanner();
@@ -146,19 +151,33 @@ function NewClickNativePlacement() {
           className="absolute inset-0 z-10 flex items-center justify-center overflow-hidden rounded-2xl bg-[#11101f]"
           aria-label={banner.alt_text || "Publicidade NewClick"}
         >
-          <img
-            data-newclick-rendered
-            src={new URL(banner.image_url || "", NEWCLICK_API_BASE).toString()}
-            alt={banner.alt_text || "Publicidade"}
-            width={width}
-            height={height}
-            onError={() => {
-              setBanner(null);
-              if (attemptsRef.current < MAX_NEWCLICK_BANNER_ATTEMPTS)
-                setRetry((current) => current + 1);
-            }}
-            className="h-auto max-h-full w-auto max-w-full object-contain"
-          />
+          {banner.textOnly ? (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-8 text-center">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-300">
+                Anúncio NewClick
+              </span>
+              <span className="text-lg font-semibold text-white">
+                {banner.alt_text || "Publicidade"}
+              </span>
+              <span className="rounded-full bg-violet-500 px-4 py-2 text-xs font-semibold text-white">
+                Visitar anunciante
+              </span>
+            </div>
+          ) : (
+            <img
+              data-newclick-rendered
+              src={new URL(banner.image_url || "", NEWCLICK_API_BASE).toString()}
+              alt={banner.alt_text || "Publicidade"}
+              width={width}
+              height={height}
+              onError={() => {
+                setBanner({ ...banner, textOnly: true });
+                if (attemptsRef.current < MAX_NEWCLICK_BANNER_ATTEMPTS)
+                  setRetry((current) => current + 1);
+              }}
+              className="h-auto max-h-full w-auto max-w-full object-contain"
+            />
+          )}
         </a>
       )}
     </div>

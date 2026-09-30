@@ -9,7 +9,7 @@
 
 O mesmo bloco NewClick é usado nas páginas de créditos e Como funciona. Não há rotação entre provedores e não há dois scripts disputando o mesmo espaço.
 
-O banner VIP do DecidlyAI fica atrás do slot como fallback visual. O componente valida a imagem retornada pela API e tenta até oito banners quando algum arquivo está indisponível; só mostra o banner NewClick depois de confirmar que a imagem carregou. Se nenhum candidato funcionar, a publicidade padrão VIP continua visível.
+O componente valida a imagem retornada pela API e tenta até oito banners quando algum arquivo está indisponível. Enquanto procura uma imagem válida, mostra como fallback textual o `alt_text` e o link de clique fornecidos pelo próprio NewClick; quando uma imagem carrega, ela substitui o texto. O banner VIP do DecidlyAI permanece como fallback final somente se a API não fornecer nenhum banner utilizável.
 
 ## Social Bar
 
