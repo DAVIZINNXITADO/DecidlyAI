@@ -42,6 +42,7 @@ import remarkGfm from "remark-gfm";
 import { supabase } from "../lib/supabase";
 import { streamAi } from "../lib/ai-stream";
 import { requestTtsAudio } from "../lib/tts";
+import { downloadPdf } from "../lib/pdf";
 import { useLanguageContext } from "../lib/LanguageProvider";
 import { RichResponse, responseProtocolInstructions } from "../components/RichResponse";
 import { ToolCenter, type SelectedTool } from "../components/ToolCenter";
@@ -247,7 +248,16 @@ function Workspace() {
     setPendingQuestion(null);
   }, [pendingQuestion]);
 
-  const handleResponseAction = useCallback((action: { type: string; title: string; description: string }) => {
+  const handleResponseAction = useCallback(async (action: { type: string; title: string; description: string }) => {
+    if (action.type === "create_pdf" || /pdf/i.test(action.title)) {
+      try {
+        await downloadPdf({ title: action.title, content: action.description, fileName: action.title });
+        setError("PDF baixado com sucesso.");
+      } catch {
+        setError("Não foi possível gerar o PDF. Tente novamente.");
+      }
+      return;
+    }
     setSelectedTool({ id: action.type as SelectedTool["id"], label: action.title });
     setError(`Autorizado: ${action.title}. A ferramenta está selecionada e aguardando sua solicitação no próximo envio.`);
   }, []);

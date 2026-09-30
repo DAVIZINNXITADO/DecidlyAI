@@ -120,8 +120,8 @@ export const RichResponse = memo(function RichResponse({ content, onActionReques
     if (block.kind === "question") return null;
     if (block.kind === "color") {
       const rawColor = block.color || "white";
-      const color = safeTextColors[rawColor] || (/^#[0-9a-f]{3,8}$/i.test(rawColor) ? rawColor : safeTextColors.white);
-      return <span key={index} style={{ color }}><Markdown>{block.value}</Markdown></span>;
+      const color = safeTextColors[rawColor] || (/^#[0-9a-f]{3,8}$/i.test(rawColor) ? rawColor : safeTextColors["white"]);
+      return <span key={index} style={{ color: color || safeTextColors["white"] }}><Markdown>{block.value}</Markdown></span>;
     }
     const style = variants[block.variant || "info"];
     const highlightClass = block.kind === "highlight" && block.color ? highlightColors[block.color] : "";
