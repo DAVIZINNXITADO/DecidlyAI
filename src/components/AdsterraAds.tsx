@@ -36,7 +36,7 @@ function NewClickNativePlacement() {
 
     const slot = document.createElement("div");
     slot.id = "newclick-banner";
-    slot.className = "absolute inset-0 z-10 flex min-h-[250px] w-full items-center justify-center overflow-hidden rounded-2xl";
+    slot.className = "absolute inset-0 z-10 flex items-center justify-center overflow-hidden rounded-2xl";
     container.appendChild(slot);
 
     const config = document.createElement("script");
@@ -52,8 +52,8 @@ function NewClickNativePlacement() {
   }, []);
 
   return (
-    <div ref={containerRef} className="relative min-h-[250px] w-full overflow-hidden rounded-2xl bg-[#11101f]">
-      <img src="/decidlyai-vip-fallback.png" alt="Conheça o plano VIP do DecidlyAI" className="absolute inset-0 h-full w-full object-cover" />
+    <div ref={containerRef} className="relative mx-auto aspect-square w-full max-w-[420px] overflow-hidden rounded-2xl bg-[#11101f]">
+      <img src="/decidlyai-vip-fallback.png" alt="Conheça o plano VIP do DecidlyAI" className="absolute inset-0 h-full w-full object-contain" />
     </div>
   );
 }
