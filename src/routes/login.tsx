@@ -577,6 +577,9 @@ function LoginPage() {
             campaign: pendingReferralCampaign || null,
           });
         }
+        if (pendingReferralCampaign === "ad-25") {
+          await supabase.rpc("claim_ad_campaign_bonus", { campaign: "ad-25" });
+        }
 
         navigate({
           to: "/workspace",
@@ -952,7 +955,7 @@ function LoginPage() {
                 name:
                   cleanName,
                 ...(eligibleReferralCode ? { referral_code: eligibleReferralCode } : {}),
-                ...(eligibleReferralCode && eligibleReferralCampaign === "invite-30" ? { referral_campaign: "invite-30" } : {}),
+                ...(eligibleReferralCampaign ? { referral_campaign: eligibleReferralCampaign } : {}),
 
               },
           },
