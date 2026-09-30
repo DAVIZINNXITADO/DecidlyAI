@@ -17,6 +17,7 @@ import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as CreditsRouteImport } from './routes/credits'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as PromoRouteImport } from './routes/promo'
 import { Route as ReferralHistoryRouteImport } from './routes/referral-history'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -72,6 +73,11 @@ const LoginRoute = LoginRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PromoRoute = PromoRouteImport.update({
+  id: '/promo',
+  path: '/promo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReferralHistoryRoute = ReferralHistoryRouteImport.update({
@@ -164,6 +170,7 @@ export interface FileRoutesByFullPath {
   '/credits': typeof CreditsRouteWithChildren
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
+  '/promo': typeof PromoRoute
   '/referral-history': typeof ReferralHistoryRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -190,6 +197,7 @@ export interface FileRoutesByTo {
   '/credits': typeof CreditsRouteWithChildren
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
+  '/promo': typeof PromoRoute
   '/referral-history': typeof ReferralHistoryRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -217,6 +225,7 @@ export interface FileRoutesById {
   '/credits': typeof CreditsRouteWithChildren
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
+  '/promo': typeof PromoRoute
   '/referral-history': typeof ReferralHistoryRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -245,6 +254,7 @@ export interface FileRouteTypes {
     | '/credits'
     | '/login'
     | '/privacy'
+    | '/promo'
     | '/referral-history'
     | '/reset-password'
     | '/settings'
@@ -271,6 +281,7 @@ export interface FileRouteTypes {
     | '/credits'
     | '/login'
     | '/privacy'
+    | '/promo'
     | '/referral-history'
     | '/reset-password'
     | '/settings'
@@ -297,6 +308,7 @@ export interface FileRouteTypes {
     | '/credits'
     | '/login'
     | '/privacy'
+    | '/promo'
     | '/referral-history'
     | '/reset-password'
     | '/settings'
@@ -324,6 +336,7 @@ export interface RootRouteChildren {
   CreditsRoute: typeof CreditsRouteWithChildren
   LoginRoute: typeof LoginRoute
   PrivacyRoute: typeof PrivacyRoute
+  PromoRoute: typeof PromoRoute
   ReferralHistoryRoute: typeof ReferralHistoryRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRouteWithChildren
@@ -392,6 +405,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/promo': {
+      id: '/promo'
+      path: '/promo'
+      fullPath: '/promo'
+      preLoaderRoute: typeof PromoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/referral-history': {
@@ -549,6 +569,7 @@ const rootRouteChildren: RootRouteChildren = {
   CreditsRoute: CreditsRouteWithChildren,
   LoginRoute: LoginRoute,
   PrivacyRoute: PrivacyRoute,
+  PromoRoute: PromoRoute,
   ReferralHistoryRoute: ReferralHistoryRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRouteWithChildren,
