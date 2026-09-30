@@ -75,7 +75,6 @@ As variáveis sugeridas estão no `.env.example`. Valores reais devem ser config
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
-- `VITE_ADSENSE_CLIENT_ID`, quando o script de anúncios for conectado ao frontend
 - `VITE_PAYMENT_PROVIDER`, apenas para identificar o provedor no frontend
 - `VITE_PAYMENT_CHECKOUT_URL`, somente se for usado um checkout hospedado e público
 - `PAYMENT_SECRET_KEY`, somente como secret server-side/Edge Function
