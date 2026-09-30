@@ -28,13 +28,16 @@ export function MonetagVignette() {
 
 export function SponsoredLinkButton() {
   return (
-    <a
-      href={MONETAG_DIRECT_LINK}
-      target="_blank"
-      rel="nofollow sponsored noopener noreferrer"
-      className="mt-3 block rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-center text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
-    >
-      Conhecer patrocinador
-    </a>
+    <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+      <p className="text-xs text-white/40">Publicidade — link opcional para conhecer um patrocinador.</p>
+      <a
+        href={MONETAG_DIRECT_LINK}
+        target="_blank"
+        rel="nofollow sponsored noopener noreferrer"
+        className="mt-3 block rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-center text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
+      >
+        Conhecer patrocinador
+      </a>
+    </div>
   );
 }

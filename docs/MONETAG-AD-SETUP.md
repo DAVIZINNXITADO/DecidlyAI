@@ -3,13 +3,13 @@
 ## Formatos usados
 
 - **Vignette Banner**, zona `11926416`, script `https://n6wxm.com/vignette.min.js`.
-- **Direct Link**, URL `https://omg10.com/4/11926418`, usado apenas como botão claramente identificado.
+- **Direct Link**, URL `https://omg10.com/4/11926418`, usado apenas como botão claramente identificado na carteira de créditos, sem promessa de recompensa.
 - **Popunder/Onclick**, zona `11926415`, script `https://nap5k.com/tag.min.js`: não incluído.
 
 ## Posicionamento
 
 - Vignette: `/credits`, `/credits/free` e `/credits/buy`.
-- Direct Link: somente em `/anuncio`, com o rótulo `Conhecer patrocinador`.
+- Direct Link: somente no resumo de `/credits`, com o rótulo `Conhecer patrocinador`; não aparece no fluxo de recompensa `/anuncio`.
 - Workspace, login, cadastro, configurações e chat: sem anúncios.
 
 ## Limites de experiência
@@ -18,6 +18,10 @@
 - Nenhum anúncio é carregado no campo de conversa ou durante a geração da IA.
 - O Direct Link abre em nova aba e é marcado com `rel="nofollow sponsored noopener noreferrer"`.
 - Adult ads devem permanecer desativados no painel Monetag.
+
+## Regra de recompensa
+
+A página de recompensa não usa o Direct Link nem atribui créditos a cliques, impressões ou visitas a anúncios Monetag. A Monetag declara que tráfego e cliques incentivados não são aceitos. Qualquer programa de créditos patrocinados precisa usar uma oferta/rede que autorize explicitamente recompensas e seus postbacks; não deve ser associado a um tag Monetag comum.
 
 Fontes oficiais consultadas:
 - https://help.monetag.com/en/articles/6725606-vignette-banners
