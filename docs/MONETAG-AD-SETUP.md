@@ -1,34 +1,27 @@
-# Política de anúncios do DecidlyAI
+# Política atual de anúncios do DecidlyAI
 
-## Estado atual
+## Provedores ativos
 
-A integração Monetag foi removida do frontend. Também foram removidos:
+- **NewClick**, website ID `13525`: único Native Banner usado em `/credits` e `/como-funciona`.
+- **Adsterra Social Bar**: carregado pela raiz da aplicação uma única vez por atualização completa da página, após 8 segundos.
 
-- Vignette;
-- Direct Link;
-- Popunder;
+## Native Banner
+
+O mesmo bloco NewClick é usado nas páginas de créditos e Como funciona. Não há rotação entre provedores e não há dois scripts disputando o mesmo espaço.
+
+O banner VIP do DecidlyAI fica atrás do slot como fallback visual. Se o NewClick carregar, ele ocupa o slot; se atrasar ou falhar, a publicidade padrão VIP continua visível.
+
+## Social Bar
+
+O Social Bar é montado no componente raiz. Uma atualização completa da página cria no máximo um script, depois de uma espera curta. Navegações internas não reinjetam outro Social Bar.
+
+## Provedores removidos
+
+- Monetag Vignette;
+- Monetag Direct Link;
 - Smartlink;
+- Popunder;
 - anúncio recompensado;
-- página de oferta patrocinada;
-- contador que concedia créditos por visita.
+- rota de teste `/anuncio`.
 
-## Adsterra ativo
-
-### Social Bar
-
-O Social Bar é carregado somente quando o usuário entra no `/workspace`, por meio de `src/components/AdsterraAds.tsx`. Ele não é carregado no chat público, nas páginas institucionais ou nas páginas de créditos.
-
-### Native Banner 1:1
-
-O Native Banner é carregado somente na visão geral de `/credits`, dentro de um cartão contido e identificado como publicidade. Ele não aparece dentro do compositor, entre mensagens ou na tela de geração.
-
-## Regras de experiência
-
-- não recompensar cliques ou visitas a anúncios;
-- não usar Smartlink, Direct Link, Popunder ou redirecionamentos automáticos;
-- não inserir tags de anúncios no HTML global;
-- limitar os formatos a Social Bar e um Native Banner;
-- revisar campanhas no painel Adsterra e pausar a zona se aparecer cassino, apostas, golpes, conteúdo adulto ou notificações enganosas;
-- se a rede não oferecer controle suficiente de categorias, remover o formato novamente.
-
-Os scripts são carregados client-side somente nos pontos acima. A rede de anúncios continua sendo responsável pelo conteúdo entregue; o código do DecidlyAI não controla o criativo ou o destino de cada campanha.
+Não há recompensa por impressão, visita ou clique em anúncio.

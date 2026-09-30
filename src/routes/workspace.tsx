@@ -46,7 +46,6 @@ import { downloadPdf } from "../lib/pdf";
 import { useLanguageContext } from "../lib/LanguageProvider";
 import { RichResponse, responseProtocolInstructions } from "../components/RichResponse";
 import { ToolCenter, type SelectedTool } from "../components/ToolCenter";
-import { AdsterraSocialBar } from "../components/AdsterraAds";
 import {
   availableCredits,
   dailyCreditsBalance,
@@ -2049,7 +2048,6 @@ function Workspace() {
         }
       }}
     >
-      <AdsterraSocialBar />
       {creditRewardFlight && <div className="credit-flight" aria-hidden="true">+30</div>}
       {creditRewardNotice !== null && (
         <div className="fixed inset-0 z-[360] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm" onPointerDown={closeCreditReward}>

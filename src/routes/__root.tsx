@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "../lib/supabase";
 import { LanguageProvider } from "../lib/LanguageProvider";
+import { AdsterraSocialBar } from "../components/AdsterraAds";
 
 const SITE_URL = "https://decidlyai.lovable.app";
 
@@ -353,6 +354,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
+        <AdsterraSocialBar />
         <Outlet />
       </LanguageProvider>
     </QueryClientProvider>
