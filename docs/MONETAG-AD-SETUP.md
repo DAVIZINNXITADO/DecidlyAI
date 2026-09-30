@@ -1,6 +1,10 @@
 # Configuração de anúncios Monetag
 
-## Formatos usados
+## Estado atual
+
+Os formatos Monetag estão **pausados no site** até confirmar no painel um bloqueio efetivo para cassino, apostas e campanhas de PIX. O código dos componentes permanece preparado, mas nenhum tag Monetag é montado nas rotas públicas neste momento.
+
+## Formatos preparados
 
 - **Vignette Banner**, zona `11926416`, script `https://n6wxm.com/vignette.min.js`.
 - **Direct Link**, URL `https://omg10.com/4/11926418`, usado apenas como botão claramente identificado na carteira de créditos, sem promessa de recompensa.
@@ -8,8 +12,8 @@
 
 ## Posicionamento
 
-- Vignette: `/credits`, `/credits/free` e `/credits/buy`.
-- Direct Link: somente no resumo de `/credits`, com o rótulo `Conhecer patrocinador`; não aparece no fluxo de recompensa `/anuncio`.
+- Vignette: preparado para `/credits`, `/credits/free` e `/credits/buy`, atualmente desativado.
+- Direct Link: preparado para uso opcional e claramente identificado, atualmente desativado.
 - Workspace, login, cadastro, configurações e chat: sem anúncios.
 
 ## Limites de experiência
