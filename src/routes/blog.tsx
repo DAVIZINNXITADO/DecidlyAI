@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, BookOpen, Clock3 } from "lucide-react";
 import { InnerPage } from "../components/InnerPage";
+import { AdsterraNativeBanner } from "../components/AdsterraAds";
 
 export const Route = createFileRoute("/blog")({ component: BlogPage });
 

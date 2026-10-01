@@ -3,6 +3,7 @@ import { CheckCircle2, Clock3, Gift, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { InnerPage } from "../components/InnerPage";
 import { supabase } from "../lib/supabase";
+import { AdsterraNativeBanner } from "../components/AdsterraAds";
 
 export const Route = createFileRoute("/referral-history")({ component: ReferralHistoryPage });
 

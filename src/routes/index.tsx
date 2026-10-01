@@ -18,6 +18,7 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Navbar } from "../components/Navbar";
 import { supabase } from "../lib/supabase";
+import { AdsterraNativeBanner } from "../components/AdsterraAds";
 
 export const Route = createFileRoute("/")({
   component: Index,

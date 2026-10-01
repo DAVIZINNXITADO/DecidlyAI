@@ -2,6 +2,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Check, ShieldCheck, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Navbar } from "../components/Navbar";
+import { AdsterraNativeBanner } from "../components/AdsterraAds";
 
 export const Route = createFileRoute("/tecnologia")({
   component: Tecnologia,

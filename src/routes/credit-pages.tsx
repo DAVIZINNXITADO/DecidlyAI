@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { CreditNav, InnerPage } from "../components/InnerPage";
 import { dailyCreditsBalance, normalizeCreditWallet, type CreditWallet } from "../lib/credits";
+import { AdsterraNativeBanner } from "../components/AdsterraAds";
 
 type Event = { id: string; event_type: string; amount: number; description: string | null; created_at: string };
 type Wallet = CreditWallet;
