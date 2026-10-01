@@ -5,6 +5,8 @@ const text = {
   "en-US": { back: "Back to workspace", account: "Account", appearance: "Appearance", language: "Language", overview: "Overview", history: "History", freeCredits: "Free credits", buyCredits: "Buy credits", wallet: "Wallet", credits: "Credits", walletDescription: "Here are your account credits.", available: "Total available", dailyCredits: "Daily credits", purchased: "Purchased", historyDescription: "Your account earnings and spending", freeDescription: "Daily credits, referrals and ads", buyDescription: "Simple and affordable packages", settings: "Settings", settingsDescription: "Customize your account in separate sections.", accountDescription: "Preferred name and account details", appearanceDescription: "Light or dark theme", languageDescription: "Permanent interface language" }
 } satisfies Record<Language, Record<string, string>>;
 
+type Key = keyof (typeof text)["pt-BR"];
+
 export function tx(language: Language, key: Key): string {
   return text[language]?.[key] || text["en-US"][key];
 }

@@ -65,7 +65,7 @@ export function AdsterraSocialBar() {
         script.src = SOCIAL_BAR_SRC;
         script.async = true;
         script.setAttribute("data-cfasync", "false");
-        script.dataset.decidlyAdsterra = "social-bar";
+        script.dataset["decidlyAdsterra"] = "social-bar";
         document.body.appendChild(script);
       }, SOCIAL_BAR_DELAY_MS);
     };
@@ -129,17 +129,17 @@ export function AdsterraNativeBanner() {
     }
 
     const preloadObserver = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setNearViewport(true);
-          preloadObserver.disconnect();
-        }
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return;
+        setNearViewport(true);
+        preloadObserver.disconnect();
       },
       { rootMargin: "160px 0px", threshold: 0 },
     );
     const viewabilityObserver = new IntersectionObserver(
-      ([entry]) => {
-        setSlotIsViewable(entry.isIntersecting && entry.intersectionRatio >= 0.5);
+      (entries) => {
+        const entry = entries[0];
+        setSlotIsViewable(Boolean(entry?.isIntersecting && entry.intersectionRatio >= 0.5));
       },
       { threshold: [0, 0.5] },
     );
@@ -188,7 +188,7 @@ export function AdsterraNativeBanner() {
     script.src = ADSTERRA_BANNER_SRC;
     script.async = true;
     script.setAttribute("data-cfasync", "false");
-    script.dataset.decidlyAdsterra = "native-banner";
+    script.dataset["decidlyAdsterra"] = "native-banner";
     script.addEventListener("error", onScriptError);
 
     loadTimeoutId = window.setTimeout(stopWaiting, AD_CREATIVE_TIMEOUT_MS);

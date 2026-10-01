@@ -1988,7 +1988,7 @@ function Workspace() {
     let index = 0;
     const timer = window.setInterval(() => {
       index = (index + 1) % labels.length;
-      setThinkingLabel(labels[index]);
+      setThinkingLabel(labels[index] ?? "");
     }, 1800);
 
     return () => window.clearInterval(timer);
