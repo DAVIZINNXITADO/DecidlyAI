@@ -6,7 +6,7 @@ const SOCIAL_BAR_SRC = "https://cheflobesofficer.com/47/22/20/4722201050555ac910
 const ADSTERRA_BANNER_SRC =
   "https://cheflobesofficer.com/0808b976d18733b256b1229ba2178907/invoke.js";
 const ADSTERRA_BANNER_CONTAINER_ID = "container-0808b976d18733b256b1229ba2178907";
-const SOCIAL_BAR_DELAY_MS = 15_000;
+const SOCIAL_BAR_DELAY_MS = 90_000;
 const AD_CREATIVE_TIMEOUT_MS = 12_000;
 const MAX_MANUAL_REROLLS_PER_VIEW = 1;
 const SOCIAL_BAR_SESSION_KEY = "decidly-socialbar-loaded";

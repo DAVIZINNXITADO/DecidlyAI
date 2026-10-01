@@ -7,7 +7,7 @@
 
 ## Experiência e controles
 
-- O Social Bar espera 15 segundos com a aba visível e sem foco em um campo de texto; se a aba ficar em segundo plano, o tempo recomeça. O script é injetado no máximo uma vez por sessão da aba. A frequência de exibição recorrente do formato deve continuar sendo gerida no painel/por meio do gerente da Adsterra, não adicionando códigos duplicados.
+- O Social Bar espera 90 segundos (1 minuto e 30 segundos) com a aba visível e sem foco em um campo de texto; se a aba ficar em segundo plano, o tempo recomeça. O script é injetado no máximo uma vez por sessão da aba. A frequência de exibição recorrente do formato deve continuar sendo gerida no painel/por meio do gerente da Adsterra, não adicionando códigos duplicados.
 - Os banners são carregados quando o espaço se aproxima da área visível. Os controles ficam fora da área do criativo para reduzir cliques acidentais. Não há atualização automática do banner.
 - O visitante pode solicitar **uma** nova tentativa manual por espaço montado, somente quando o banner estiver pelo menos 50% visível. A rede escolhe o próximo criativo e pode não fornecer outro anúncio.
 - O botão de informações identifica o provedor e exibe a URL do destino somente quando o script a expõe como um link na página. Em criativos isolados em `iframe`, a página não consegue ler o destino interno; nesse caso a interface informa a limitação, sem apresentar a URL do script como se fosse a URL do anunciante.
