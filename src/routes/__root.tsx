@@ -6,6 +6,7 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  type ErrorRouteComponent,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
@@ -300,7 +301,7 @@ export const Route =
 
     notFoundComponent: NotFoundComponent,
 
-    errorComponent: ErrorComponent,
+    errorComponent: ErrorComponent as unknown as ErrorRouteComponent,
   });
 
 function RootShell({
@@ -336,10 +337,10 @@ function RootComponent() {
     const applyDocumentPreferences = (theme: string, language: string) => {
       window.localStorage.setItem("decidly-theme", theme);
       window.localStorage.setItem("decidly-language", language === "en-US" ? "en" : language);
-      document.documentElement.dataset.theme = theme;
+      document.documentElement.dataset["theme"] = theme;
       document.documentElement.classList.toggle("dark", theme === "dark");
       document.documentElement.lang = language === "en" ? "en-US" : language;
-      document.body.dataset.theme = theme;
+      document.body.dataset["theme"] = theme;
     };
 
     const localTheme = window.localStorage.getItem("decidly-theme") || "dark";

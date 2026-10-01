@@ -1,4 +1,5 @@
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { ChevronRight, Globe2, Moon, UserRound } from "lucide-react";
 import { InnerPage, SettingsNav } from "../components/InnerPage";
 import { useLanguageContext } from "../lib/LanguageProvider";

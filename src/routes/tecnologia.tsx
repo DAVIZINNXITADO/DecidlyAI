@@ -2,6 +2,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Check, ShieldCheck, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Navbar } from "../components/Navbar";
+import { AdsterraNativeBanner } from "../components/AdsterraAds";
 
 export const Route = createFileRoute("/tecnologia")({
   component: Tecnologia,
@@ -49,6 +50,9 @@ function Tecnologia() {
             </ul>
             <Link to="/login" className="interactive-lift mt-9 inline-flex items-center gap-2 rounded-xl bg-violet-500 px-6 py-4 font-semibold hover:bg-violet-400">Começar gratuitamente <ArrowRight className="h-5 w-5" /></Link>
           </section>
+          <div className="mt-20">
+            <AdsterraNativeBanner />
+          </div>
         </div>
       </main>
     </AppShell>

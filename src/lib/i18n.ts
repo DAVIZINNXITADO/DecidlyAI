@@ -32,7 +32,7 @@ export function detectBrowserLanguage(): Language {
   const language = navigator.language.toLowerCase();
   const exact = (Object.keys(LANGUAGES) as Language[]).find((item) => item.toLowerCase() === language);
   if (exact) return exact;
-  const prefix = language.split("-")[0];
+  const prefix = language.split("-")[0] ?? "";
   return (Object.keys(LANGUAGES) as Language[]).find((item) => item.toLowerCase().startsWith(prefix)) || "pt-BR";
 }
 

@@ -15,18 +15,18 @@ function textFrom(data: unknown): string {
   if (typeof data === "string") return data;
   if (!data || typeof data !== "object") return "";
   const value = data as Record<string, unknown>;
-  if (typeof value.response === "string") return value.response;
-  if (typeof value.answer === "string") return value.answer;
-  if (typeof value.delta === "string") return value.delta;
+  if (typeof value["response"] === "string") return value["response"];
+  if (typeof value["answer"] === "string") return value["answer"];
+  if (typeof value["delta"] === "string") return value["delta"];
   return "";
 }
 
 function errorFrom(data: unknown): string {
   if (!data || typeof data !== "object") return "";
   const value = data as Record<string, unknown>;
-  if (typeof value.error === "string") {
-    const details = typeof value.details === "string" ? ` — ${value.details}` : "";
-    return `${value.error}${details}`;
+  if (typeof value["error"] === "string") {
+    const details = typeof value["details"] === "string" ? ` — ${value["details"]}` : "";
+    return `${value["error"]}${details}`;
   }
   return "";
 }
@@ -52,7 +52,7 @@ export async function streamAi(functionName: string, options: Options): Promise<
         "Content-Type": "application/json",
         Accept: "text/event-stream, application/json",
       },
-      signal: options.signal,
+      signal: options.signal ?? null,
       body: JSON.stringify({
         message: options.message,
         history: options.history,
@@ -96,9 +96,9 @@ export async function streamAi(functionName: string, options: Options): Promise<
     let parsed: unknown;
     try { parsed = JSON.parse(raw); } catch { return; }
     const value = parsed as Record<string, unknown>;
-    if (typeof value.error === "string") throw new Error(errorFrom(value) || value.error);
-    if (value.complete === true) {
-      const completeText = typeof value.response === "string" ? value.response : textFrom(parsed);
+    if (typeof value["error"] === "string") throw new Error(errorFrom(value) || value["error"]);
+    if (value["complete"] === true) {
+      const completeText = typeof value["response"] === "string" ? value["response"] : textFrom(parsed);
       if (completeText && !accumulated) {
         accumulated = cleanDoneMarker(completeText);
         options.onDelta?.(completeText, accumulated);
@@ -108,11 +108,12 @@ export async function streamAi(functionName: string, options: Options): Promise<
     }
     const next = textFrom(parsed);
     if (!next) return;
-    const delta = typeof value.accumulated === "string" && value.accumulated.startsWith(accumulated)
-      ? value.accumulated.slice(accumulated.length)
-      : next;
-    accumulated = cleanDoneMarker(
-      typeof value.accumulated === "string" ? value.accumulated : accumulated + delta,
+      const delta =
+        typeof value["accumulated"] === "string" && value["accumulated"].startsWith(accumulated)
+          ? value["accumulated"].slice(accumulated.length)
+          : next;
+      accumulated = cleanDoneMarker(
+        typeof value["accumulated"] === "string" ? value["accumulated"] : accumulated + delta,
     );
     if (delta) options.onDelta?.(delta, accumulated);
   };
