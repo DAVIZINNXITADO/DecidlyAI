@@ -102,6 +102,20 @@ function maskedReferralName(value: string): string {
   return parts[0] || "Alguém";
 }
 
+function createUniqueUsername(fullName: string): string {
+  const slug = fullName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 20)
+    .replace(/_+$/g, "");
+  const suffix = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+
+  return `${slug || "usuario"}_${suffix}`;
+}
+
 const GOOGLE_CLIENT_ID =
   "895354448430-qs5ilh31kgp5qqlb0c6s6abiag9s8vti.apps.googleusercontent.com";
 
@@ -178,6 +192,8 @@ function LoginPage() {
     setCaptchaToken,
   ] = useState("");
 
+  const captchaTokenRef = useRef("");
+
   const [
     captchaLoading,
     setCaptchaLoading,
@@ -195,6 +211,10 @@ function LoginPage() {
   const [referralCampaign, setReferralCampaign] = useState("");
   const [referralBlocked, setReferralBlocked] = useState(false);
   const [referrerName, setReferrerName] = useState("");
+
+  useEffect(() => {
+    captchaTokenRef.current = captchaToken;
+  }, [captchaToken]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -222,7 +242,7 @@ function LoginPage() {
     mode === "recover";
 
   const needsCaptcha =
-    isSignUp || isRecover;
+    mode === "login" || isSignUp || isRecover;
 
   function clearFeedback() {
     setFeedback(null);
@@ -514,6 +534,17 @@ function LoginPage() {
         return;
       }
 
+      const currentCaptchaToken =
+        captchaTokenRef.current;
+
+      if (!currentCaptchaToken) {
+        showError(
+          "Conclua a verificação de segurança antes de entrar.",
+        );
+
+        return;
+      }
+
       setGoogleLoading(true);
 
       try {
@@ -522,9 +553,14 @@ function LoginPage() {
             provider: "google",
             token:
               response.credential,
+            options: {
+              captchaToken: currentCaptchaToken,
+            },
           });
 
         if (error) {
+          resetCaptcha();
+
           const errorMessage =
             error.message.toLowerCase();
 
@@ -563,6 +599,8 @@ function LoginPage() {
           to: "/workspace",
         });
       } catch {
+        resetCaptcha();
+
         showError(
           "Não foi possível concluir o login com o Google.",
         );
@@ -779,6 +817,16 @@ function LoginPage() {
       return;
     }
 
+    if (!captchaToken) {
+      showError(
+        captchaError
+          ? "A verificação de segurança expirou ou falhou. Conclua novamente para entrar."
+          : "Conclua a verificação de segurança para entrar.",
+      );
+
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -786,11 +834,24 @@ function LoginPage() {
         await supabase.auth.signInWithPassword({
           email: cleanEmail,
           password,
+          options: {
+            captchaToken,
+          },
         });
 
       if (error) {
+        resetCaptcha();
+
         const errorMessage =
           error.message.toLowerCase();
+
+        if (errorMessage.includes("captcha")) {
+          showError(
+            "A verificação de segurança expirou ou falhou. Conclua novamente e tente entrar.",
+          );
+
+          return;
+        }
 
         if (
           errorMessage.includes(
@@ -833,6 +894,8 @@ function LoginPage() {
         to: "/workspace",
       });
     } catch {
+      resetCaptcha();
+
       showError(
         "Não foi possível conectar ao servidor. Tente novamente.",
       );
@@ -908,6 +971,16 @@ function LoginPage() {
       return;
     }
 
+    if (!captchaToken) {
+      showError(
+        captchaError
+          ? "A verificação de segurança expirou ou falhou. Conclua novamente para criar sua conta."
+          : "Conclua a verificação de segurança para criar sua conta.",
+      );
+
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -915,6 +988,7 @@ function LoginPage() {
       const pendingReferralCampaign = window.sessionStorage.getItem("decidly-pending-referral-campaign") || "";
       const eligibleReferralCode = referralBlocked ? undefined : referralCode || pendingReferralCode || undefined;
       const eligibleReferralCampaign = referralCampaign || pendingReferralCampaign;
+      const username = createUniqueUsername(cleanName);
       const {
         data,
         error,
@@ -927,11 +1001,13 @@ function LoginPage() {
             emailRedirectTo:
               `${window.location.origin}/login`,
 
-            ...(captchaToken ? { captchaToken } : {}),
+            captchaToken,
 
               data: {
                 name:
                   cleanName,
+                username,
+                full_name: cleanName,
                 ...(eligibleReferralCode ? { referral_code: eligibleReferralCode } : {}),
                 ...(eligibleReferralCampaign ? { referral_campaign: eligibleReferralCampaign } : {}),
 
@@ -1310,9 +1386,11 @@ function LoginPage() {
                   <div
                     ref={googleButtonRef}
                     aria-label="Continuar com o Google"
+                    aria-disabled={!captchaToken || googleLoading}
                     className={`botao-google-real absolute inset-0 z-10 h-full w-full ${
                       googleReady &&
-                      !googleLoading
+                      !googleLoading &&
+                      captchaToken
                         ? "opacity-0"
                         : "pointer-events-none opacity-0"
                     }`}
@@ -1411,44 +1489,38 @@ function LoginPage() {
                 ) : null}
 
                 {isSignUp ? (
-                  <>
-                    <PasswordField
-                      id="confirm-password"
-                      label="Confirmar senha"
-                      value={
-                        confirmPassword
-                      }
-                      onChange={
-                        setConfirmPassword
-                      }
-                      show={
-                        showConfirmPassword
-                      }
-                      setShow={
-                        setShowConfirmPassword
-                      }
-                      autoComplete="new-password"
-                    />
-
-                    <CaptchaBox
-                      loading={
-                        captchaLoading
-                      }
-                      error={
-                        captchaError
-                      }
-                      containerRef={
-                        turnstileContainerRef
-                      }
-                    />
-                  </>
+                  <PasswordField
+                    id="confirm-password"
+                    label="Confirmar senha"
+                    value={
+                      confirmPassword
+                    }
+                    onChange={
+                      setConfirmPassword
+                    }
+                    show={
+                      showConfirmPassword
+                    }
+                    setShow={
+                      setShowConfirmPassword
+                    }
+                    autoComplete="new-password"
+                  />
                 ) : null}
+
+                <CaptchaBox
+                  loading={captchaLoading}
+                  error={captchaError}
+                  containerRef={turnstileContainerRef}
+                />
 
                 <button
                   type="submit"
                   disabled={
                     loading ||
-                    googleLoading
+                    googleLoading ||
+                    captchaLoading ||
+                    !captchaToken
                   }
                   className="interactive-lift group flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 hover:shadow-violet-950/50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
