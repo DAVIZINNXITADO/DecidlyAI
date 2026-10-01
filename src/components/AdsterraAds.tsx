@@ -234,20 +234,20 @@ export function AdsterraNativeBanner() {
   return (
     <section className="w-full" aria-label="Anúncio do provedor Adsterra">
       <div ref={frameRef} className={`adsterra-banner-frame${hasCreative ? " has-ad" : ""}`}>
-        <div className="absolute inset-x-0 top-0 z-20 flex h-7 items-center justify-between gap-1 px-1">
-          <button
-            type="button"
-            onClick={() => setInfoOpen((open) => !open)}
-            aria-label="Informações do anúncio"
-            aria-controls="adsterra-banner-details"
-            aria-expanded={infoOpen}
-            title="Informações do anúncio"
-            className="inline-flex min-h-6 items-center gap-1 rounded px-1.5 text-[10px] text-white/55 transition hover:bg-white/10 hover:text-white sm:text-xs"
-          >
-            <Info size={13} />
-            <span>Adsterra</span>
-          </button>
-          <div className="flex items-center gap-0.5">
+        <div className="pointer-events-none absolute right-1 top-1 z-20">
+          <div className="pointer-events-auto flex items-center gap-0.5 rounded-lg bg-black/60 px-1 py-0.5 shadow-sm backdrop-blur-sm">
+            <button
+              type="button"
+              onClick={() => setInfoOpen((open) => !open)}
+              aria-label="Informações do anúncio"
+              aria-controls="adsterra-banner-details"
+              aria-expanded={infoOpen}
+              title="Informações do anúncio"
+              className="inline-flex min-h-6 items-center gap-1 rounded px-1.5 text-[10px] text-white/70 transition hover:bg-white/15 hover:text-white sm:text-xs"
+            >
+              <Info size={13} />
+              <span>Adsterra</span>
+            </button>
             <button
               type="button"
               onClick={requestAnotherCreative}
@@ -259,7 +259,7 @@ export function AdsterraNativeBanner() {
                     ? "Já foi solicitada outra opção neste espaço."
                     : "Solicitar outro criativo da Adsterra."
               }
-              className="inline-flex min-h-6 items-center gap-1 rounded px-1.5 text-[10px] text-white/55 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-35 sm:text-xs"
+              className="inline-flex min-h-6 items-center gap-1 rounded px-1.5 text-[10px] text-white/70 transition hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-35 sm:text-xs"
             >
               <RotateCw size={12} className={isLoading ? "animate-spin" : ""} />
               <span>{refreshLabel === "Outro anúncio" ? "Outro" : refreshLabel}</span>
@@ -267,7 +267,7 @@ export function AdsterraNativeBanner() {
             <Link
               to="/vip"
               title="Plano VIP sem anúncios — em breve"
-              className="inline-flex min-h-6 items-center gap-1 rounded px-1.5 text-[10px] text-white/55 transition hover:bg-white/10 hover:text-white sm:text-xs"
+              className="inline-flex min-h-6 items-center gap-1 rounded px-1.5 text-[10px] text-white/70 transition hover:bg-white/15 hover:text-white sm:text-xs"
             >
               <Crown size={12} className="text-violet-300/80" />
               <span>Remover anúncios</span>

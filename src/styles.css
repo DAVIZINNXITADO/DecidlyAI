@@ -500,23 +500,22 @@ html[data-theme="light"] .workspace-shell [class*="border-white/"] {
   width: 100%;
   max-width: 728px;
   min-height: 250px;
-  padding-top: 28px;
   margin-inline: auto;
   align-items: center;
   justify-content: center;
 }
 
 .adsterra-banner-frame.has-ad {
-  min-height: 118px;
+  min-height: 90px;
 }
 
 .adsterra-banner-fallback {
   position: absolute;
-  inset: 28px 0 0;
+  inset: 0;
   z-index: 0;
   display: block;
   width: min(100%, 300px);
-  max-height: calc(100% - 28px);
+  max-height: 250px;
   margin: auto;
   object-fit: contain;
 }
