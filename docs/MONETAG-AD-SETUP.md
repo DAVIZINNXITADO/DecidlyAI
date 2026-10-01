@@ -2,7 +2,7 @@
 
 ## Zonas ativas
 
-- **Adsterra Banner**, zona `0808b976d18733b256b1229ba2178907`, nos espaços de `/credits` e `/como-funciona`.
+- **Adsterra Banner**, zona `0808b976d18733b256b1229ba2178907`, montada em `/credits`, `/credits/free`, `/credits/history`, `/credits/buy`, `/blog` (entre os textos), `/tecnologia`, `/como-funciona`, na home (depois da seção de planos, antes das dúvidas frequentes) e no estado vazio de `/referral-history`.
 - **Adsterra Social Bar**, montado apenas no workspace.
 
 ## Experiência e controles

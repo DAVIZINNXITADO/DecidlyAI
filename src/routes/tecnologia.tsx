@@ -49,6 +49,9 @@ function Tecnologia() {
             </ul>
             <Link to="/login" className="interactive-lift mt-9 inline-flex items-center gap-2 rounded-xl bg-violet-500 px-6 py-4 font-semibold hover:bg-violet-400">Começar gratuitamente <ArrowRight className="h-5 w-5" /></Link>
           </section>
+          <div className="mt-20">
+            <AdsterraNativeBanner />
+          </div>
         </div>
       </main>
     </AppShell>

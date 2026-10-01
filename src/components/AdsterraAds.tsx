@@ -322,6 +322,7 @@ export function AdsterraNativeBanner() {
             className="adsterra-banner-fallback"
           />
         )}
+        {hasCreative && <p className="adsterra-banner-label">Anúncio</p>}
         <div id={ADSTERRA_BANNER_CONTAINER_ID} ref={slotRef} className="adsterra-banner-slot" />
       </div>
     </section>

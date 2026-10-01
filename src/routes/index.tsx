@@ -156,6 +156,10 @@ function Index() {
             </div>
           </section>
 
+          <div className="mx-auto max-w-3xl px-6 pb-12">
+            <AdsterraNativeBanner />
+          </div>
+
           <FaqSection />
 
           <section className="mx-auto max-w-7xl px-6 py-24 md:px-8 md:py-32"><div className="relative overflow-hidden rounded-[2rem] border border-violet-300/25 bg-gradient-to-br from-violet-500/20 via-[#17132b] to-[#0e0d1c] px-6 py-16 text-center md:px-12 md:py-20"><div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(196,181,253,.18),transparent_55%)]" /><div className="relative"><p className="text-sm font-semibold uppercase tracking-[0.18em] text-violet-200">A próxima decisão começa aqui</p><h2 className="mx-auto mt-5 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">Você não precisa ter todas as respostas para começar.</h2><p className="mx-auto mt-5 max-w-xl leading-7 text-slate-300">Dê forma à sua dúvida. O DecidlyAI ajuda você a encontrar clareza no caminho.</p><Link to="/login" className="interactive-lift mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-7 py-4 font-semibold text-[#151322] hover:bg-violet-100">Começar gratuitamente <ArrowRight className="h-5 w-5" /></Link></div></div></section>
