@@ -60,6 +60,8 @@ function ComoFuncionaPage() {
           </article>
         ))}
 
+        <AdsterraNativeBanner placement="in-content" />
+
         <section className="rounded-3xl border border-amber-300/15 bg-amber-300/[0.06] p-6">
           <div className="flex items-start gap-4">
             <Gift className="mt-1 text-amber-300" size={22} />

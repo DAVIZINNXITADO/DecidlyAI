@@ -2,14 +2,14 @@
 
 ## Zonas ativas
 
-- **Adsterra Banner** em páginas de conteúdo: formato horizontal `728×90` (`96c171164990377ba9d624d04a3b4661`) alinhado ao canto superior direito no desktop e `320×50` (`22b5e40106fd1d27fef246e09217fecc`) em telas estreitas. O quadrado `300×250` (`0aca9c0b2c938bb6bb53743898fe773e`) não é usado nesse posicionamento. Os slots ficam somente em `/blog`, `/tecnologia` e `/como-funciona`.
+- **Adsterra Banner** em páginas de conteúdo: uma faixa horizontal `728×90` (`96c171164990377ba9d624d04a3b4661`) no canto superior direito no desktop (`320×50` em telas estreitas) e um segundo anúncio integrado entre os blocos de conteúdo (`300×250` no desktop e `320×50` quando a coluna não comporta o retângulo). Os dois slots ficam somente em `/blog`, `/tecnologia` e `/como-funciona`.
 - **Sem banner em páginas funcionais**: carteira (`/credits`, `/credits/free`, `/credits/history`, `/credits/buy`), home e histórico de convites.
 - **Adsterra Social Bar**, montado apenas no workspace.
 
 ## Experiência e controles
 
 - O Social Bar espera 90 segundos (1 minuto e 30 segundos) com a aba visível e sem foco em um campo de texto; se a aba ficar em segundo plano, o tempo recomeça. O script é injetado no máximo uma vez por sessão da aba. A frequência recorrente deve ser gerida pela configuração da Adsterra.
-- Os banners carregam quando o espaço se aproxima da área visível. No modo superior-direito, o desktop usa `728×90` quando o espaço comporta a zona; em larguras menores usa `320×50`. O criativo não é esticado; frame e criativo ficam alinhados à direita no desktop e centralizados em telas estreitas.
+- Os banners carregam quando o espaço se aproxima da área visível. O script de cada zona é enfileirado para serializar o uso de `window.atOptions` e evitar que dois slots sobrescrevam a configuração um do outro. No modo superior-direito, o desktop usa `728×90`; a inserção no conteúdo usa `300×250` no desktop e `320×50` em telas estreitas. O criativo não é esticado; o banner superior fica à direita e o anúncio dentro do conteúdo fica centralizado.
 - Os controles ficam à direita dentro do frame, como ícones compactos de informação e VIP; em viewport móvel (até 639 px), ficam ocultos para não cobrir o criativo. A etiqueta “Anúncio” permanece visível, mas menor no celular.
 - O reroll foi removido: repetir o mesmo `invoke.js` não é uma API oficial de troca e pode criar requisições/criativos duplicados. Não há refresh automático.
 - O botão de informações identifica o provedor e exibe a URL de destino somente quando o criativo a expõe à página. Em `iframe` isolado, a página não consegue ler o destino interno. Os scripts da zona são inseridos dentro do slot para que o iframe gerado respeite o tamanho responsivo.

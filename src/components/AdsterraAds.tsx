@@ -9,9 +9,98 @@ const ADSTERRA_BANNER_ZONES = {
   desktop: { key: "96c171164990377ba9d624d04a3b4661", width: 728, height: 90 },
 } as const;
 type AdsterraBannerZone = (typeof ADSTERRA_BANNER_ZONES)[keyof typeof ADSTERRA_BANNER_ZONES];
-type AdsterraBannerPlacement = "standard" | "top-right";
+type AdsterraBannerPlacement = "standard" | "top-right" | "in-content";
 const SOCIAL_BAR_DELAY_MS = 90_000;
 const SOCIAL_BAR_SESSION_KEY = "decidly-socialbar-loaded";
+
+type AdsterraBannerRequest = {
+  slot: HTMLDivElement;
+  zone: AdsterraBannerZone;
+  isActive: () => boolean;
+  updateCreative: () => void;
+  cancelled?: boolean;
+  optionsScript?: HTMLScriptElement;
+  script?: HTMLScriptElement;
+};
+
+const adsterraBannerQueue: AdsterraBannerRequest[] = [];
+let adsterraBannerQueueBusy = false;
+
+function processAdsterraBannerQueue() {
+  if (adsterraBannerQueueBusy) return;
+
+  let request = adsterraBannerQueue.shift();
+  while (request && (request.cancelled || !request.isActive() || !request.slot.isConnected)) {
+    request = adsterraBannerQueue.shift();
+  }
+  if (!request) return;
+
+  const existingScript = document.querySelector(
+    `script[data-decidly-adsterra="native-banner"][data-decidly-adsterra-key="${request.zone.key}"]`,
+  );
+  if (existingScript) {
+    request.updateCreative();
+    processAdsterraBannerQueue();
+    return;
+  }
+
+  adsterraBannerQueueBusy = true;
+  let completed = false;
+  const finish = () => {
+    if (completed) return;
+    completed = true;
+    adsterraBannerQueueBusy = false;
+    processAdsterraBannerQueue();
+  };
+
+  const optionsScript = document.createElement("script");
+  optionsScript.textContent = `window.atOptions = ${JSON.stringify({
+    key: request.zone.key,
+    format: "iframe",
+    height: request.zone.height,
+    width: request.zone.width,
+    params: {},
+  })};`;
+
+  const script = document.createElement("script");
+  script.src = `https://cheflobesofficer.com/${request.zone.key}/invoke.js`;
+  script.async = true;
+  script.setAttribute("data-cfasync", "false");
+  script.dataset["decidlyAdsterra"] = "native-banner";
+  script.dataset["decidlyAdsterraKey"] = request.zone.key;
+  script.addEventListener(
+    "load",
+    () => {
+      request.updateCreative();
+      finish();
+    },
+    { once: true },
+  );
+  script.addEventListener("error", finish, { once: true });
+  window.setTimeout(() => {
+    request.updateCreative();
+    finish();
+  }, 15_000);
+
+  request.optionsScript = optionsScript;
+  request.script = script;
+  request.slot.append(optionsScript, script);
+  request.updateCreative();
+}
+
+function enqueueAdsterraBanner(request: Omit<AdsterraBannerRequest, "cancelled">) {
+  const queuedRequest: AdsterraBannerRequest = { ...request };
+  adsterraBannerQueue.push(queuedRequest);
+  processAdsterraBannerQueue();
+
+  return () => {
+    queuedRequest.cancelled = true;
+    const queuedIndex = adsterraBannerQueue.indexOf(queuedRequest);
+    if (queuedIndex >= 0) adsterraBannerQueue.splice(queuedIndex, 1);
+    queuedRequest.optionsScript?.remove();
+    queuedRequest.script?.remove();
+  };
+}
 
 function selectAdsterraBannerZone(
   frameWidth: number,
@@ -143,11 +232,16 @@ export function AdsterraNativeBanner({
       placement === "top-right"
         ? viewportWidth >= 768 && frameWidth >= ADSTERRA_BANNER_ZONES.desktop.width
           ? ADSTERRA_BANNER_ZONES.desktop
-          : viewportWidth >= ADSTERRA_BANNER_ZONES.mobile.width &&
-              frameWidth >= ADSTERRA_BANNER_ZONES.mobile.width
+          : frameWidth >= ADSTERRA_BANNER_ZONES.mobile.width
             ? ADSTERRA_BANNER_ZONES.mobile
             : null
-        : selectAdsterraBannerZone(frameWidth, viewportWidth);
+        : placement === "in-content"
+          ? viewportWidth >= 768 && frameWidth >= ADSTERRA_BANNER_ZONES.rectangle.width
+            ? ADSTERRA_BANNER_ZONES.rectangle
+            : frameWidth >= ADSTERRA_BANNER_ZONES.mobile.width
+              ? ADSTERRA_BANNER_ZONES.mobile
+              : null
+          : selectAdsterraBannerZone(frameWidth, viewportWidth);
     setZone(zone);
   }, [placement]);
 
@@ -178,8 +272,6 @@ export function AdsterraNativeBanner({
     if (!slot) return;
 
     let active = true;
-    let optionsScript: HTMLScriptElement | null = null;
-    let script: HTMLScriptElement | null = null;
     const updateCreative = () => {
       if (!active) return;
       const creative = slot.querySelector("iframe, img, video, canvas, object, embed, a[href]");
@@ -194,36 +286,18 @@ export function AdsterraNativeBanner({
       attributeFilter: ["height", "style", "width"],
     });
 
-    // Defer insertion so React StrictMode's setup/cleanup cycle cannot request the ad twice.
-    const injectTimer = window.setTimeout(() => {
-      if (!active) return;
-      if (document.querySelector('script[data-decidly-adsterra="native-banner"]')) return;
-
-      optionsScript = document.createElement("script");
-      optionsScript.textContent = `window.atOptions = ${JSON.stringify({
-        key: zone.key,
-        format: "iframe",
-        height: zone.height,
-        width: zone.width,
-        params: {},
-      })};`;
-
-      script = document.createElement("script");
-      script.src = `https://cheflobesofficer.com/${zone.key}/invoke.js`;
-      script.async = true;
-      script.setAttribute("data-cfasync", "false");
-      script.dataset["decidlyAdsterra"] = "native-banner";
-      script.dataset["decidlyAdsterraKey"] = zone.key;
-      slot.append(optionsScript, script);
-      updateCreative();
-    }, 0);
+    // Serialize units because Adsterra's invoke.js reads shared window.atOptions.
+    const cancelQueuedInjection = enqueueAdsterraBanner({
+      slot,
+      zone,
+      isActive: () => active,
+      updateCreative,
+    });
 
     return () => {
       active = false;
-      window.clearTimeout(injectTimer);
       observer.disconnect();
-      optionsScript?.remove();
-      script?.remove();
+      cancelQueuedInjection();
       slot.replaceChildren();
     };
   }, [nearViewport, zone]);

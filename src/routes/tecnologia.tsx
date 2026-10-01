@@ -57,6 +57,10 @@ function Tecnologia() {
             />
           </div>
 
+          <div className="mt-8">
+            <AdsterraNativeBanner placement="in-content" />
+          </div>
+
           <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.025] p-7 md:p-10">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-violet-300">
               ROTA DO PLANO FREE
