@@ -40,6 +40,7 @@ function ComoFuncionaPage() {
       eyebrow="DecidlyAI"
       title="Como funciona"
       description="Uma forma mais clara e consciente de organizar decisões importantes."
+      headerAside={<AdsterraNativeBanner placement="top-right" />}
     >
       <div className="space-y-4">
         {steps.map(({ icon: Icon, title, text }, index) => (
@@ -90,10 +91,6 @@ function ComoFuncionaPage() {
             </div>
           </div>
         </section>
-
-        <div className="my-6 md:my-8">
-          <AdsterraNativeBanner />
-        </div>
 
         <section className="rounded-3xl border border-violet-300/15 bg-violet-400/[0.06] p-6">
           <div className="flex items-start gap-4">

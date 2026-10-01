@@ -9,6 +9,7 @@ const ADSTERRA_BANNER_ZONES = {
   desktop: { key: "96c171164990377ba9d624d04a3b4661", width: 728, height: 90 },
 } as const;
 type AdsterraBannerZone = (typeof ADSTERRA_BANNER_ZONES)[keyof typeof ADSTERRA_BANNER_ZONES];
+type AdsterraBannerPlacement = "standard" | "top-right";
 const SOCIAL_BAR_DELAY_MS = 90_000;
 const SOCIAL_BAR_SESSION_KEY = "decidly-socialbar-loaded";
 
@@ -122,7 +123,9 @@ function getExposedDestination(slot: HTMLDivElement) {
   }
 }
 
-export function AdsterraNativeBanner() {
+export function AdsterraNativeBanner({
+  placement = "standard",
+}: { placement?: AdsterraBannerPlacement } = {}) {
   const frameRef = useRef<HTMLDivElement>(null);
   const slotRef = useRef<HTMLDivElement>(null);
   const [zone, setZone] = useState<AdsterraBannerZone | null>(null);
@@ -135,8 +138,18 @@ export function AdsterraNativeBanner() {
     const frame = frameRef.current;
     if (!frame) return;
     const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
-    setZone(selectAdsterraBannerZone(frame.getBoundingClientRect().width, viewportWidth));
-  }, []);
+    const frameWidth = frame.getBoundingClientRect().width;
+    const zone =
+      placement === "top-right"
+        ? viewportWidth >= 768 && frameWidth >= ADSTERRA_BANNER_ZONES.desktop.width
+          ? ADSTERRA_BANNER_ZONES.desktop
+          : viewportWidth >= ADSTERRA_BANNER_ZONES.mobile.width &&
+              frameWidth >= ADSTERRA_BANNER_ZONES.mobile.width
+            ? ADSTERRA_BANNER_ZONES.mobile
+            : null
+        : selectAdsterraBannerZone(frameWidth, viewportWidth);
+    setZone(zone);
+  }, [placement]);
 
   useEffect(() => {
     const frame = frameRef.current;
@@ -163,8 +176,6 @@ export function AdsterraNativeBanner() {
     if (!nearViewport || !zone) return;
     const slot = slotRef.current;
     if (!slot) return;
-    const parent = slot.parentElement;
-    if (!parent) return;
 
     let active = true;
     let optionsScript: HTMLScriptElement | null = null;
@@ -203,8 +214,7 @@ export function AdsterraNativeBanner() {
       script.setAttribute("data-cfasync", "false");
       script.dataset["decidlyAdsterra"] = "native-banner";
       script.dataset["decidlyAdsterraKey"] = zone.key;
-      parent.insertBefore(optionsScript, slot);
-      parent.insertBefore(script, slot);
+      slot.append(optionsScript, script);
       updateCreative();
     }, 0);
 
@@ -232,6 +242,7 @@ export function AdsterraNativeBanner() {
       <div
         ref={frameRef}
         data-zone-size={zone ? `${zone.width}x${zone.height}` : "unselected"}
+        data-placement={placement}
         className={`adsterra-banner-frame${hasCreative ? " has-ad" : ""}`}
         style={{ minHeight: `${zone?.height ?? 250}px` }}
       >
