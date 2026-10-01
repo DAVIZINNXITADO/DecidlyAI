@@ -1,5 +1,7 @@
 # Onde e que tipo de anúncio faz sentido no DecidlyAI
 
+> **Estado atual após revisão de UX (01/10/2026):** os banners ficam apenas em `/blog`, `/como-funciona` e `/tecnologia`; não aparecem na home, carteira, compra nem histórico de convites. A zona é escolhida pelo viewport visual, os controles são apenas ícones compactos, e o reroll foi removido até existir uma forma segura de refresh fornecida pela Adsterra. O Social Bar continua apenas no workspace com 90 s de espera.
+
 ## Recomendação em resumo
 
 - Manter o workspace visualmente limpo: só o Social Bar que já existe, com a espera de 90 segundos. Nada de banner dentro da conversa.

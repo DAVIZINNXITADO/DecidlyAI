@@ -18,7 +18,6 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Navbar } from "../components/Navbar";
 import { supabase } from "../lib/supabase";
-import { AdsterraNativeBanner } from "../components/AdsterraAds";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -156,10 +155,6 @@ function Index() {
               </div>
             </div>
           </section>
-
-          <div className="mx-auto max-w-3xl px-6 pb-12">
-            <AdsterraNativeBanner />
-          </div>
 
           <FaqSection />
 

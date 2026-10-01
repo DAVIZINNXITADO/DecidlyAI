@@ -91,7 +91,9 @@ function ComoFuncionaPage() {
           </div>
         </section>
 
-        <AdsterraNativeBanner />
+        <div className="my-6 md:my-8">
+          <AdsterraNativeBanner />
+        </div>
 
         <section className="rounded-3xl border border-violet-300/15 bg-violet-400/[0.06] p-6">
           <div className="flex items-start gap-4">

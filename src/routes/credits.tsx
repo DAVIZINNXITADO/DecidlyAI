@@ -3,7 +3,6 @@ import { ChevronRight, Gift, History, ShoppingBag } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { CreditNav, InnerPage } from "../components/InnerPage";
-import { AdsterraNativeBanner } from "../components/AdsterraAds";
 import {
   availableCredits,
   effectiveDailyUsed,
@@ -77,10 +76,6 @@ function Credits() {
           </div>
         </div>
       </section>
-
-      <div className="my-5">
-        <AdsterraNativeBanner />
-      </div>
 
       <div className="space-y-3">
         <CreditCard

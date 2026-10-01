@@ -36,7 +36,7 @@ function Tecnologia() {
             <p className="mt-3 max-w-3xl leading-7 text-slate-400">A experiência é uma só. Por trás dela, o DecidlyAI começa pelo Gemini Flash; quando necessário, passa pelo Groq com uma IA baseada em GPT-4; e usa o Claude AI como último fallback. Essa alternância é controlada pela plataforma para manter o serviço disponível.</p>
           </section>
 
-          <div className="my-12">
+          <div className="my-6 md:my-8">
             <AdsterraNativeBanner />
           </div>
 

@@ -1,7 +1,6 @@
 import { Check, Copy, Gift, History, ShoppingBag } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { CreditNav, InnerPage } from "../components/InnerPage";
-import { AdsterraNativeBanner } from "../components/AdsterraAds";
 import { dailyCreditsBalance, normalizeCreditWallet, type CreditWallet } from "../lib/credits";
 import { supabase } from "../lib/supabase";
 
@@ -80,9 +79,6 @@ export function HistoryPage() {
       description="Veja todos os ganhos e gastos da sua carteira."
     >
       <CreditNav active="History" />
-      <div className="my-6">
-        <AdsterraNativeBanner />
-      </div>
       <div className="rounded-3xl border border-white/10 bg-white/[0.035] p-5">
         {events.length ? (
           events.map((event) => (
@@ -141,8 +137,6 @@ export function FreePage() {
             {wallet.daily_credits_limit >= 9999 ? "♾" : wallet.daily_credits_limit}
           </p>
         </div>
-
-        <AdsterraNativeBanner />
 
         <div className="rounded-3xl border border-white/10 bg-white/[0.035] p-6">
           <h2 className="text-xl font-semibold">Referral program</h2>
