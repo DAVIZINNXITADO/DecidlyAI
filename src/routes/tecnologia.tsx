@@ -36,6 +36,10 @@ function Tecnologia() {
             <p className="mt-3 max-w-3xl leading-7 text-slate-400">A experiência é uma só. Por trás dela, o DecidlyAI começa pelo Gemini Flash; quando necessário, passa pelo Groq com uma IA baseada em GPT-4; e usa o Claude AI como último fallback. Essa alternância é controlada pela plataforma para manter o serviço disponível.</p>
           </section>
 
+          <div className="my-12">
+            <AdsterraNativeBanner />
+          </div>
+
           <section className="mt-20 rounded-3xl border border-violet-300/20 bg-violet-400/[0.07] p-7 md:p-10">
             <div className="flex items-start gap-4"><ShieldCheck className="mt-1 h-6 w-6 shrink-0 text-violet-300" /><div><h2 className="text-2xl font-semibold">A tecnologia apoia. Você decide.</h2><p className="mt-3 leading-7 text-slate-300">As respostas servem para organizar perspectivas, levantar perguntas e ajudar você a pensar com mais clareza. Elas não substituem seu julgamento, sua experiência ou aconselhamento profissional quando necessário.</p></div></div>
           </section>
@@ -50,9 +54,6 @@ function Tecnologia() {
             </ul>
             <Link to="/login" className="interactive-lift mt-9 inline-flex items-center gap-2 rounded-xl bg-violet-500 px-6 py-4 font-semibold hover:bg-violet-400">Começar gratuitamente <ArrowRight className="h-5 w-5" /></Link>
           </section>
-          <div className="mt-20">
-            <AdsterraNativeBanner />
-          </div>
         </div>
       </main>
     </AppShell>

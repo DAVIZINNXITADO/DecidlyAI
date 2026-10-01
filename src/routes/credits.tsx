@@ -2,13 +2,132 @@ import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-rout
 import { ChevronRight, Gift, History, ShoppingBag } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { supabase } from "../lib/supabase";
 import { CreditNav, InnerPage } from "../components/InnerPage";
-import { availableCredits, effectiveDailyUsed, normalizeCreditWallet, type CreditWallet } from "../lib/credits";
+import { AdsterraNativeBanner } from "../components/AdsterraAds";
+import {
+  availableCredits,
+  effectiveDailyUsed,
+  normalizeCreditWallet,
+  type CreditWallet,
+} from "../lib/credits";
 import { useLanguageContext } from "../lib/LanguageProvider";
 import { tx } from "../lib/localeText";
-import { AdsterraNativeBanner } from "../components/AdsterraAds";
+import { supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/credits")({ component: Credits });
- function Credits() { const location = useLocation(); const { language } = useLanguageContext(); const [wallet, setWallet] = useState<CreditWallet>(normalizeCreditWallet({ daily_credits_limit: 10 })); const load = useCallback(async () => { const { data: auth } = await supabase.auth.getUser(); if (!auth.user) return; const { data } = await supabase.from("ai_credits").select("free_credits,purchased_credits,total_credits,daily_credits_used,daily_credits_limit,daily_credits_reset_at").eq("user_id", auth.user.id).maybeSingle(); if (data) setWallet(normalizeCreditWallet(data)); }, []); useEffect(() => { void load(); const timer = window.setInterval(() => void load(), 15000); return () => window.clearInterval(timer); }, [load]); if (location.pathname !== "/credits") return <Outlet />; const dailyUsed = effectiveDailyUsed(wallet); const usable = availableCredits(wallet); return <InnerPage eyebrow={tx(language, "wallet")} title={tx(language, "credits")} description={tx(language, "walletDescription")}><CreditNav active="overview" /><section className="rounded-3xl border border-violet-300/20 bg-gradient-to-br from-violet-500/[0.18] to-white/[0.04] p-6"><p className="text-sm text-white/50">{tx(language, "available")}</p><p className="mt-1 text-5xl font-semibold">{usable.toFixed(2)}</p><div className="mt-5 grid grid-cols-3 gap-2"><div className="rounded-2xl bg-black/20 p-3"><p className="text-xs text-white/40">{tx(language, "dailyCredits")}</p><p className="mt-1 font-semibold">{dailyUsed.toFixed(0)}/{wallet.daily_credits_limit >= 999999 ? "∞" : wallet.daily_credits_limit}</p></div><div className="rounded-2xl bg-black/20 p-3"><p className="text-xs text-white/40">Free</p><p className="mt-1 font-semibold">{wallet.free_credits.toFixed(2)}</p></div><div className="rounded-2xl bg-black/20 p-3"><p className="text-xs text-white/40">{tx(language, "purchased")}</p><p className="mt-1 font-semibold">{wallet.purchased_credits.toFixed(2)}</p></div></div></section><div className="mt-5 space-y-3"><CreditCard to="/credits/history" icon={<History className="text-violet-300" size={21} />} title={tx(language, "history")} description={tx(language, "historyDescription")} /><CreditCard to="/credits/free" icon={<Gift className="text-amber-300" size={21} />} title={tx(language, "freeCredits")} description={tx(language, "freeDescription")} /><CreditCard to="/credits/buy" icon={<ShoppingBag className="text-emerald-300" size={21} />} title={tx(language, "buyCredits")} description={tx(language, "buyDescription")} /></div><div className="mt-6"><AdsterraNativeBanner /></div></InnerPage>; }
-function CreditCard({ to, icon, title, description }: { to: "/credits/history" | "/credits/free" | "/credits/buy"; icon: ReactNode; title: string; description: string }) { return <Link to={to} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 hover:bg-white/[0.08]">{icon}<span className="flex-1"><b className="block">{title}</b><small className="text-white/40">{description}</small></span><ChevronRight size={18} /></Link>; }
+
+function Credits() {
+  const location = useLocation();
+  const { language } = useLanguageContext();
+  const [wallet, setWallet] = useState<CreditWallet>(
+    normalizeCreditWallet({ daily_credits_limit: 10 }),
+  );
+
+  const load = useCallback(async () => {
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) return;
+
+    const { data } = await supabase
+      .from("ai_credits")
+      .select(
+        "free_credits,purchased_credits,total_credits,daily_credits_used,daily_credits_limit,daily_credits_reset_at",
+      )
+      .eq("user_id", auth.user.id)
+      .maybeSingle();
+
+    if (data) setWallet(normalizeCreditWallet(data));
+  }, []);
+
+  useEffect(() => {
+    void load();
+    const timer = window.setInterval(() => void load(), 15_000);
+    return () => window.clearInterval(timer);
+  }, [load]);
+
+  if (location.pathname !== "/credits") return <Outlet />;
+
+  const dailyUsed = effectiveDailyUsed(wallet);
+  const usable = availableCredits(wallet);
+
+  return (
+    <InnerPage
+      eyebrow={tx(language, "wallet")}
+      title={tx(language, "credits")}
+      description={tx(language, "walletDescription")}
+    >
+      <CreditNav active="overview" />
+      <section className="rounded-3xl border border-violet-300/20 bg-gradient-to-br from-violet-500/[0.18] to-white/[0.04] p-6">
+        <p className="text-sm text-white/50">{tx(language, "available")}</p>
+        <p className="mt-1 text-5xl font-semibold">{usable.toFixed(2)}</p>
+        <div className="mt-5 grid grid-cols-3 gap-2">
+          <div className="rounded-2xl bg-black/20 p-3">
+            <p className="text-xs text-white/40">{tx(language, "dailyCredits")}</p>
+            <p className="mt-1 font-semibold">
+              {dailyUsed.toFixed(0)}/
+              {wallet.daily_credits_limit >= 999999 ? "∞" : wallet.daily_credits_limit}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-black/20 p-3">
+            <p className="text-xs text-white/40">Free</p>
+            <p className="mt-1 font-semibold">{wallet.free_credits.toFixed(2)}</p>
+          </div>
+          <div className="rounded-2xl bg-black/20 p-3">
+            <p className="text-xs text-white/40">{tx(language, "purchased")}</p>
+            <p className="mt-1 font-semibold">{wallet.purchased_credits.toFixed(2)}</p>
+          </div>
+        </div>
+      </section>
+
+      <div className="my-5">
+        <AdsterraNativeBanner />
+      </div>
+
+      <div className="space-y-3">
+        <CreditCard
+          to="/credits/history"
+          icon={<History className="text-violet-300" size={21} />}
+          title={tx(language, "history")}
+          description={tx(language, "historyDescription")}
+        />
+        <CreditCard
+          to="/credits/free"
+          icon={<Gift className="text-amber-300" size={21} />}
+          title={tx(language, "freeCredits")}
+          description={tx(language, "freeDescription")}
+        />
+        <CreditCard
+          to="/credits/buy"
+          icon={<ShoppingBag className="text-emerald-300" size={21} />}
+          title={tx(language, "buyCredits")}
+          description={tx(language, "buyDescription")}
+        />
+      </div>
+    </InnerPage>
+  );
+}
+
+function CreditCard({
+  to,
+  icon,
+  title,
+  description,
+}: {
+  to: "/credits/history" | "/credits/free" | "/credits/buy";
+  icon: ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <Link
+      to={to}
+      className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 hover:bg-white/[0.08]"
+    >
+      {icon}
+      <span className="flex-1">
+        <b className="block">{title}</b>
+        <small className="text-white/40">{description}</small>
+      </span>
+      <ChevronRight size={18} />
+    </Link>
+  );
+}

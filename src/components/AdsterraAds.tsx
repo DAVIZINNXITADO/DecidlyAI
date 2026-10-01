@@ -109,13 +109,17 @@ export function AdsterraNativeBanner() {
   const frameRef = useRef<HTMLDivElement>(null);
   const slotRef = useRef<HTMLDivElement>(null);
   const [nearViewport, setNearViewport] = useState(false);
-  const [slotIsViewable, setSlotIsViewable] = useState(false);
+  const [bannerIsViewable, setBannerIsViewable] = useState(false);
   const [hasCreative, setHasCreative] = useState(false);
+  const [creativeWidth, setCreativeWidth] = useState(0);
   const [destinationUrl, setDestinationUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [manualRerolls, setManualRerolls] = useState(0);
   const [refreshGeneration, setRefreshGeneration] = useState(0);
+  const [rerollStatus, setRerollStatus] = useState<"idle" | "loading" | "loaded" | "unavailable">(
+    "idle",
+  );
 
   useEffect(() => {
     const frame = frameRef.current;
@@ -124,7 +128,7 @@ export function AdsterraNativeBanner() {
 
     if (typeof IntersectionObserver === "undefined") {
       setNearViewport(true);
-      setSlotIsViewable(true);
+      setBannerIsViewable(true);
       return;
     }
 
@@ -139,13 +143,13 @@ export function AdsterraNativeBanner() {
     const viewabilityObserver = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
-        setSlotIsViewable(Boolean(entry?.isIntersecting && entry.intersectionRatio >= 0.5));
+        setBannerIsViewable(Boolean(entry?.isIntersecting && entry.intersectionRatio >= 0.5));
       },
       { threshold: [0, 0.5] },
     );
 
     preloadObserver.observe(frame);
-    viewabilityObserver.observe(slot);
+    viewabilityObserver.observe(frame);
 
     return () => {
       preloadObserver.disconnect();
@@ -162,42 +166,75 @@ export function AdsterraNativeBanner() {
 
     setIsLoading(true);
     setHasCreative(false);
+    setCreativeWidth(0);
     setDestinationUrl(null);
+    setRerollStatus(refreshGeneration > 0 ? "loading" : "idle");
 
     let loadTimeoutId: number | undefined;
-    const stopWaiting = () => {
+    let active = true;
+    let observedCreative: Element | null = null;
+    let resizeObserver: ResizeObserver | undefined;
+    const stopWaiting = (result: "loaded" | "unavailable") => {
+      if (!active) return;
       if (loadTimeoutId !== undefined) {
         window.clearTimeout(loadTimeoutId);
         loadTimeoutId = undefined;
       }
       setIsLoading(false);
+      if (refreshGeneration > 0) setRerollStatus(result);
     };
     const updateCreative = () => {
-      const creative = slot.querySelector("iframe, img, video, canvas, object, embed, a[href]");
+      const creative = slot.querySelector<HTMLElement>(
+        "iframe, img, video, canvas, object, embed, a[href]",
+      );
       const loaded = Boolean(creative);
       setHasCreative(loaded);
       setDestinationUrl(getExposedDestination(slot));
-      if (loaded) stopWaiting();
+      if (!creative) return;
+
+      if (creative !== observedCreative) {
+        resizeObserver?.disconnect();
+        observedCreative = creative;
+        if (typeof ResizeObserver !== "undefined") {
+          resizeObserver = new ResizeObserver(() => updateCreative());
+          resizeObserver.observe(creative);
+        }
+      }
+
+      const renderedWidth = creative.getBoundingClientRect().width;
+      const declaredWidth = Number(creative.getAttribute("width")) || 0;
+      const measuredWidth = Math.round(renderedWidth || declaredWidth);
+      if (measuredWidth > 0) {
+        setCreativeWidth((current) => (current === measuredWidth ? current : measuredWidth));
+      }
+      stopWaiting("loaded");
     };
 
     const observer = new MutationObserver(updateCreative);
-    observer.observe(slot, { childList: true, subtree: true });
+    observer.observe(slot, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["height", "style", "width"],
+    });
 
     const script = document.createElement("script");
-    const onScriptError = () => stopWaiting();
+    const onScriptError = () => stopWaiting("unavailable");
     script.src = ADSTERRA_BANNER_SRC;
     script.async = true;
     script.setAttribute("data-cfasync", "false");
     script.dataset["decidlyAdsterra"] = "native-banner";
     script.addEventListener("error", onScriptError);
 
-    loadTimeoutId = window.setTimeout(stopWaiting, AD_CREATIVE_TIMEOUT_MS);
+    loadTimeoutId = window.setTimeout(() => stopWaiting("unavailable"), AD_CREATIVE_TIMEOUT_MS);
     parent.insertBefore(script, slot);
     updateCreative();
 
     return () => {
+      active = false;
       if (loadTimeoutId !== undefined) window.clearTimeout(loadTimeoutId);
       observer.disconnect();
+      resizeObserver?.disconnect();
       script.removeEventListener("error", onScriptError);
       script.remove();
       slot.replaceChildren();
@@ -214,28 +251,40 @@ export function AdsterraNativeBanner() {
   }, [infoOpen]);
 
   const requestAnotherCreative = () => {
-    if (isLoading || !slotIsViewable || manualRerolls >= MAX_MANUAL_REROLLS_PER_VIEW) {
+    if (isLoading || !bannerIsViewable || manualRerolls >= MAX_MANUAL_REROLLS_PER_VIEW) {
       return;
     }
+    setRerollStatus("loading");
     setManualRerolls((count) => count + 1);
     setRefreshGeneration((generation) => generation + 1);
   };
 
   const refreshDisabled =
-    isLoading || !nearViewport || !slotIsViewable || manualRerolls >= MAX_MANUAL_REROLLS_PER_VIEW;
-  const refreshLabel = isLoading
-    ? "Carregando"
-    : manualRerolls >= MAX_MANUAL_REROLLS_PER_VIEW
-      ? "Troca usada"
-      : hasCreative
-        ? "Outro anúncio"
-        : "Tentar outro";
+    isLoading || !nearViewport || !bannerIsViewable || manualRerolls >= MAX_MANUAL_REROLLS_PER_VIEW;
+  const refreshTitle =
+    !nearViewport || !bannerIsViewable
+      ? "Role até deixar pelo menos metade do espaço do anúncio visível."
+      : isLoading
+        ? manualRerolls > 0
+          ? "Solicitando outra opção à Adsterra."
+          : "Carregando o anúncio da Adsterra."
+        : rerollStatus === "unavailable"
+          ? "A Adsterra não retornou outro anúncio nesta tentativa."
+          : manualRerolls >= MAX_MANUAL_REROLLS_PER_VIEW
+            ? "A única tentativa manual deste espaço já foi usada."
+            : hasCreative
+              ? "Tentar outro anúncio uma vez."
+              : "Tentar carregar um anúncio uma vez.";
 
   return (
     <section className="w-full" aria-label="Anúncio do provedor Adsterra">
-      <div ref={frameRef} className={`adsterra-banner-frame${hasCreative ? " has-ad" : ""}`}>
-        <div className="pointer-events-none absolute right-1 top-1 z-20">
-          <div className="pointer-events-auto flex items-center gap-0.5 rounded-lg bg-black/60 px-1 py-0.5 shadow-sm backdrop-blur-sm">
+      <div
+        ref={frameRef}
+        data-control-mode={creativeWidth >= 520 ? "wide" : "compact"}
+        className={`adsterra-banner-frame${hasCreative ? " has-ad" : ""}`}
+      >
+        <div className="adsterra-banner-controls">
+          <div className="adsterra-banner-control-group">
             <button
               type="button"
               onClick={() => setInfoOpen((open) => !open)}
@@ -243,37 +292,35 @@ export function AdsterraNativeBanner() {
               aria-controls="adsterra-banner-details"
               aria-expanded={infoOpen}
               title="Informações do anúncio"
-              className="inline-flex min-h-6 items-center gap-1 rounded px-1.5 text-[10px] text-white/70 transition hover:bg-white/15 hover:text-white sm:text-xs"
+              className="adsterra-banner-control"
             >
-              <Info size={13} />
-              <span>Adsterra</span>
+              <Info size={14} />
+              <span className="adsterra-banner-control-label">Info</span>
             </button>
             <button
               type="button"
               onClick={requestAnotherCreative}
               disabled={refreshDisabled}
-              title={
-                !slotIsViewable
-                  ? "Role até o anúncio para solicitar outra opção."
-                  : manualRerolls >= MAX_MANUAL_REROLLS_PER_VIEW
-                    ? "Já foi solicitada outra opção neste espaço."
-                    : "Solicitar outro criativo da Adsterra."
-              }
-              className="inline-flex min-h-6 items-center gap-1 rounded px-1.5 text-[10px] text-white/70 transition hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-35 sm:text-xs"
+              aria-label={refreshTitle}
+              aria-busy={isLoading}
+              title={refreshTitle}
+              className="adsterra-banner-control"
             >
-              <RotateCw size={12} className={isLoading ? "animate-spin" : ""} />
-              <span>{refreshLabel === "Outro anúncio" ? "Outro" : refreshLabel}</span>
+              <RotateCw size={14} className={isLoading ? "animate-spin" : ""} />
+              <span className="adsterra-banner-control-label">Trocar</span>
             </button>
-            <Link
-              to="/vip"
-              title="Plano VIP sem anúncios — em breve"
-              className="inline-flex min-h-6 items-center gap-1 rounded px-1.5 text-[10px] text-white/70 transition hover:bg-white/15 hover:text-white sm:text-xs"
-            >
-              <Crown size={12} className="text-violet-300/80" />
-              <span>Remover anúncios</span>
-            </Link>
           </div>
         </div>
+
+        <Link
+          to="/vip"
+          aria-label="Remover anúncios com o plano VIP — em breve"
+          title="Plano VIP sem anúncios — em breve"
+          className="adsterra-banner-vip"
+        >
+          <Crown size={14} className="text-violet-300/90" />
+          <span className="adsterra-banner-vip-label">VIP</span>
+        </Link>
 
         {infoOpen && (
           <div
@@ -325,6 +372,11 @@ export function AdsterraNativeBanner() {
         {hasCreative && <p className="adsterra-banner-label">Anúncio</p>}
         <div id={ADSTERRA_BANNER_CONTAINER_ID} ref={slotRef} className="adsterra-banner-slot" />
       </div>
+      {rerollStatus === "unavailable" && manualRerolls > 0 && (
+        <p className="adsterra-banner-reroll-status" role="status">
+          A Adsterra não retornou outro anúncio nesta tentativa.
+        </p>
+      )}
     </section>
   );
 }

@@ -571,3 +571,114 @@ html[data-theme="light"] .workspace-shell [class*="border-white/"] {
   pointer-events: none;
   text-transform: uppercase;
 }
+
+
+/* Compact Adsterra controls: the zone's own creative size drives the label mode. */
+.adsterra-banner-frame {
+  container-type: inline-size;
+  container-name: adsterra-banner;
+}
+
+.adsterra-banner-frame.has-ad {
+  min-height: 0;
+}
+
+.adsterra-banner-slot {
+  min-height: 0;
+}
+
+.adsterra-banner-controls {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.adsterra-banner-control-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.62);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(5px);
+  pointer-events: auto;
+}
+
+.adsterra-banner-control,
+.adsterra-banner-vip {
+  display: inline-flex;
+  min-width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.74);
+  font: inherit;
+  font-size: 10px;
+  line-height: 1;
+  text-decoration: none;
+  transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease;
+}
+
+.adsterra-banner-control {
+  cursor: pointer;
+}
+
+.adsterra-banner-control:hover:not(:disabled),
+.adsterra-banner-vip:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.adsterra-banner-control:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.adsterra-banner-control:focus-visible,
+.adsterra-banner-vip:focus-visible {
+  outline: 2px solid rgba(196, 181, 253, 0.95);
+  outline-offset: 2px;
+}
+
+.adsterra-banner-control svg,
+.adsterra-banner-vip svg {
+  flex: none;
+}
+
+.adsterra-banner-control-label,
+.adsterra-banner-vip-label {
+  display: none;
+}
+
+.adsterra-banner-frame[data-control-mode="wide"] .adsterra-banner-control-label,
+.adsterra-banner-frame[data-control-mode="wide"] .adsterra-banner-vip-label {
+  display: inline;
+}
+
+.adsterra-banner-vip {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  z-index: 20;
+  min-width: 24px;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.62);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(5px);
+}
+
+.adsterra-banner-reroll-status {
+  margin: 4px 0 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+  line-height: 1.4;
+  text-align: center;
+}
