@@ -23,6 +23,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TecnologiaRouteImport } from './routes/tecnologia'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as VipRouteImport } from './routes/vip'
 import { Route as WorkspaceRouteImport } from './routes/workspace'
 import { Route as CreditsBuyRouteImport } from './routes/credits/buy'
 import { Route as CreditsFreeRouteImport } from './routes/credits/free'
@@ -105,6 +106,11 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VipRoute = VipRouteImport.update({
+  id: '/vip',
+  path: '/vip',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WorkspaceRoute = WorkspaceRouteImport.update({
   id: '/workspace',
   path: '/workspace',
@@ -176,6 +182,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRouteWithChildren
   '/tecnologia': typeof TecnologiaRoute
   '/terms': typeof TermsRoute
+  '/vip': typeof VipRoute
   '/workspace': typeof WorkspaceRoute
   '/credits/buy': typeof CreditsBuyRoute
   '/credits/free': typeof CreditsFreeRoute
@@ -203,6 +210,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRouteWithChildren
   '/tecnologia': typeof TecnologiaRoute
   '/terms': typeof TermsRoute
+  '/vip': typeof VipRoute
   '/workspace': typeof WorkspaceRoute
   '/credits/buy': typeof CreditsBuyRoute
   '/credits/free': typeof CreditsFreeRoute
@@ -231,6 +239,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRouteWithChildren
   '/tecnologia': typeof TecnologiaRoute
   '/terms': typeof TermsRoute
+  '/vip': typeof VipRoute
   '/workspace': typeof WorkspaceRoute
   '/credits/buy': typeof CreditsBuyRoute
   '/credits/free': typeof CreditsFreeRoute
@@ -260,6 +269,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tecnologia'
     | '/terms'
+    | '/vip'
     | '/workspace'
     | '/credits/buy'
     | '/credits/free'
@@ -287,6 +297,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tecnologia'
     | '/terms'
+    | '/vip'
     | '/workspace'
     | '/credits/buy'
     | '/credits/free'
@@ -314,6 +325,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tecnologia'
     | '/terms'
+    | '/vip'
     | '/workspace'
     | '/credits/buy'
     | '/credits/free'
@@ -342,6 +354,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRouteWithChildren
   TecnologiaRoute: typeof TecnologiaRoute
   TermsRoute: typeof TermsRoute
+  VipRoute: typeof VipRoute
   WorkspaceRoute: typeof WorkspaceRoute
   PtBrCreditsRoute: typeof PtBrCreditsRoute
   PtBrLoginRoute: typeof PtBrLoginRoute
@@ -447,6 +460,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vip': {
+      id: '/vip'
+      path: '/vip'
+      fullPath: '/vip'
+      preLoaderRoute: typeof VipRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/workspace': {
@@ -575,6 +595,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRouteWithChildren,
   TecnologiaRoute: TecnologiaRoute,
   TermsRoute: TermsRoute,
+  VipRoute: VipRoute,
   WorkspaceRoute: WorkspaceRoute,
   PtBrCreditsRoute: PtBrCreditsRoute,
   PtBrLoginRoute: PtBrLoginRoute,
