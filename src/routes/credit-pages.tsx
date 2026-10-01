@@ -1,5 +1,6 @@
 import { Check, Copy, Gift, History, ShoppingBag } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { AdsterraNativeBanner } from "../components/AdsterraAds";
 import { CreditNav, InnerPage } from "../components/InnerPage";
 import { dailyCreditsBalance, normalizeCreditWallet, type CreditWallet } from "../lib/credits";
 import { supabase } from "../lib/supabase";
@@ -102,6 +103,9 @@ export function HistoryPage() {
           <p className="text-sm text-white/45">Nenhuma movimentação ainda.</p>
         )}
       </div>
+      <div className="mt-8">
+        <AdsterraNativeBanner placement="in-content" />
+      </div>
     </InnerPage>
   );
 }
@@ -161,6 +165,9 @@ export function FreePage() {
             ou inativas podem se qualificar.
           </p>
         </div>
+      </div>
+      <div className="mt-8">
+        <AdsterraNativeBanner placement="in-content" />
       </div>
     </InnerPage>
   );
