@@ -682,3 +682,24 @@ html[data-theme="light"] .workspace-shell [class*="border-white/"] {
   line-height: 1.4;
   text-align: center;
 }
+
+.adsterra-banner-frame[data-zone-size="300x250"],
+.adsterra-banner-frame[data-zone-size="320x50"] {
+  position: relative;
+  left: 50%;
+  max-width: 100vw;
+  transform: translateX(-50%);
+}
+
+.adsterra-banner-frame[data-zone-size="300x250"] {
+  width: min(300px, 100vw);
+}
+
+.adsterra-banner-frame[data-zone-size="320x50"] {
+  width: min(320px, 100vw);
+}
+
+.adsterra-banner-frame[data-zone-size="320x50"] .adsterra-banner-fallback,
+.adsterra-banner-frame[data-zone-size="728x90"] .adsterra-banner-fallback {
+  display: none;
+}

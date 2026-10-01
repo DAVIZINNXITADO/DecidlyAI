@@ -3,13 +3,29 @@ import { Crown, Info, RotateCw, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 const SOCIAL_BAR_SRC = "https://cheflobesofficer.com/47/22/20/4722201050555ac91066f4314c7f7b0f.js";
-const ADSTERRA_BANNER_SRC =
-  "https://cheflobesofficer.com/0808b976d18733b256b1229ba2178907/invoke.js";
-const ADSTERRA_BANNER_CONTAINER_ID = "container-0808b976d18733b256b1229ba2178907";
+const ADSTERRA_BANNER_ZONES = {
+  mobile: { key: "22b5e40106fd1d27fef246e09217fecc", width: 320, height: 50 },
+  rectangle: { key: "0aca9c0b2c938bb6bb53743898fe773e", width: 300, height: 250 },
+  desktop: { key: "96c171164990377ba9d624d04a3b4661", width: 728, height: 90 },
+} as const;
+type AdsterraBannerZone = (typeof ADSTERRA_BANNER_ZONES)[keyof typeof ADSTERRA_BANNER_ZONES];
 const SOCIAL_BAR_DELAY_MS = 90_000;
 const AD_CREATIVE_TIMEOUT_MS = 12_000;
 const MAX_MANUAL_REROLLS_PER_VIEW = 1;
 const SOCIAL_BAR_SESSION_KEY = "decidly-socialbar-loaded";
+
+function selectAdsterraBannerZone(
+  frameWidth: number,
+  viewportWidth: number,
+): AdsterraBannerZone | null {
+  const availableWidth = frameWidth >= 300 ? frameWidth : Math.min(viewportWidth, 320);
+  if (availableWidth >= ADSTERRA_BANNER_ZONES.desktop.width) return ADSTERRA_BANNER_ZONES.desktop;
+  if (availableWidth >= 468 || (availableWidth >= 300 && availableWidth < 320)) {
+    return ADSTERRA_BANNER_ZONES.rectangle;
+  }
+  if (availableWidth >= ADSTERRA_BANNER_ZONES.mobile.width) return ADSTERRA_BANNER_ZONES.mobile;
+  return null;
+}
 
 function hasSocialBarBeenAttempted() {
   try {
@@ -108,6 +124,7 @@ function getExposedDestination(slot: HTMLDivElement) {
 export function AdsterraNativeBanner() {
   const frameRef = useRef<HTMLDivElement>(null);
   const slotRef = useRef<HTMLDivElement>(null);
+  const [zone, setZone] = useState<AdsterraBannerZone | null>(null);
   const [nearViewport, setNearViewport] = useState(false);
   const [bannerIsViewable, setBannerIsViewable] = useState(false);
   const [hasCreative, setHasCreative] = useState(false);
@@ -120,6 +137,12 @@ export function AdsterraNativeBanner() {
   const [rerollStatus, setRerollStatus] = useState<"idle" | "loading" | "loaded" | "unavailable">(
     "idle",
   );
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    setZone(selectAdsterraBannerZone(frame.getBoundingClientRect().width, window.innerWidth));
+  }, []);
 
   useEffect(() => {
     const frame = frameRef.current;
@@ -158,7 +181,7 @@ export function AdsterraNativeBanner() {
   }, []);
 
   useEffect(() => {
-    if (!nearViewport) return;
+    if (!nearViewport || !zone) return;
     const slot = slotRef.current;
     if (!slot) return;
     const parent = slot.parentElement;
@@ -218,15 +241,26 @@ export function AdsterraNativeBanner() {
       attributeFilter: ["height", "style", "width"],
     });
 
+    const optionsScript = document.createElement("script");
+    optionsScript.textContent = `window.atOptions = ${JSON.stringify({
+      key: zone.key,
+      format: "iframe",
+      height: zone.height,
+      width: zone.width,
+      params: {},
+    })};`;
+
     const script = document.createElement("script");
     const onScriptError = () => stopWaiting("unavailable");
-    script.src = ADSTERRA_BANNER_SRC;
+    script.src = `https://cheflobesofficer.com/${zone.key}/invoke.js`;
     script.async = true;
     script.setAttribute("data-cfasync", "false");
     script.dataset["decidlyAdsterra"] = "native-banner";
+    script.dataset["decidlyAdsterraKey"] = zone.key;
     script.addEventListener("error", onScriptError);
 
     loadTimeoutId = window.setTimeout(() => stopWaiting("unavailable"), AD_CREATIVE_TIMEOUT_MS);
+    parent.insertBefore(optionsScript, slot);
     parent.insertBefore(script, slot);
     updateCreative();
 
@@ -235,11 +269,12 @@ export function AdsterraNativeBanner() {
       if (loadTimeoutId !== undefined) window.clearTimeout(loadTimeoutId);
       observer.disconnect();
       resizeObserver?.disconnect();
+      optionsScript.remove();
       script.removeEventListener("error", onScriptError);
       script.remove();
       slot.replaceChildren();
     };
-  }, [nearViewport, refreshGeneration]);
+  }, [nearViewport, refreshGeneration, zone]);
 
   useEffect(() => {
     if (!infoOpen) return;
@@ -251,7 +286,7 @@ export function AdsterraNativeBanner() {
   }, [infoOpen]);
 
   const requestAnotherCreative = () => {
-    if (isLoading || !bannerIsViewable || manualRerolls >= MAX_MANUAL_REROLLS_PER_VIEW) {
+    if (!zone || isLoading || !bannerIsViewable || manualRerolls >= MAX_MANUAL_REROLLS_PER_VIEW) {
       return;
     }
     setRerollStatus("loading");
@@ -260,9 +295,14 @@ export function AdsterraNativeBanner() {
   };
 
   const refreshDisabled =
-    isLoading || !nearViewport || !bannerIsViewable || manualRerolls >= MAX_MANUAL_REROLLS_PER_VIEW;
-  const refreshTitle =
-    !nearViewport || !bannerIsViewable
+    !zone ||
+    isLoading ||
+    !nearViewport ||
+    !bannerIsViewable ||
+    manualRerolls >= MAX_MANUAL_REROLLS_PER_VIEW;
+  const refreshTitle = !zone
+    ? "Não há um formato Adsterra disponível para esta largura."
+    : !nearViewport || !bannerIsViewable
       ? "Role até deixar pelo menos metade do espaço do anúncio visível."
       : isLoading
         ? manualRerolls > 0
@@ -280,8 +320,10 @@ export function AdsterraNativeBanner() {
     <section className="w-full" aria-label="Anúncio do provedor Adsterra">
       <div
         ref={frameRef}
+        data-zone-size={zone ? `${zone.width}x${zone.height}` : "unselected"}
         data-control-mode={creativeWidth >= 520 ? "wide" : "compact"}
         className={`adsterra-banner-frame${hasCreative ? " has-ad" : ""}`}
+        style={{ minHeight: `${zone?.height ?? 250}px` }}
       >
         <div className="adsterra-banner-controls">
           <div className="adsterra-banner-control-group">
@@ -343,6 +385,9 @@ export function AdsterraNativeBanner() {
             <p className="mt-2">
               Provedor: <strong className="font-semibold text-white/85">Adsterra</strong>
             </p>
+            <p className="mt-1">
+              Formato: {zone ? `${zone.width} × ${zone.height}` : "indisponível nesta largura"}
+            </p>
             <p className="mt-1">URL do destino:</p>
             {destinationUrl ? (
               <p className="break-all rounded-lg bg-white/[0.06] p-2 font-mono text-[10px] text-violet-200">
@@ -370,7 +415,11 @@ export function AdsterraNativeBanner() {
           />
         )}
         {hasCreative && <p className="adsterra-banner-label">Anúncio</p>}
-        <div id={ADSTERRA_BANNER_CONTAINER_ID} ref={slotRef} className="adsterra-banner-slot" />
+        <div
+          id={zone ? `container-${zone.key}` : undefined}
+          ref={slotRef}
+          className="adsterra-banner-slot"
+        />
       </div>
       {rerollStatus === "unavailable" && manualRerolls > 0 && (
         <p className="adsterra-banner-reroll-status" role="status">
