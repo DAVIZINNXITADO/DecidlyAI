@@ -220,6 +220,7 @@ export function AdsterraNativeBanner({
   const [zone, setZone] = useState<AdsterraBannerZone | null>(null);
   const [nearViewport, setNearViewport] = useState(false);
   const [hasCreative, setHasCreative] = useState(false);
+  const [noFill, setNoFill] = useState(false);
   const [destinationUrl, setDestinationUrl] = useState<string | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
 
@@ -272,10 +273,19 @@ export function AdsterraNativeBanner({
     if (!slot) return;
 
     let active = true;
+    setHasCreative(false);
+    setNoFill(false);
+    const noFillTimer = window.setTimeout(() => {
+      if (!active) return;
+      const creative = slot.querySelector("iframe, img, video, canvas, object, embed, a[href]");
+      if (!creative) setNoFill(true);
+    }, 8_000);
     const updateCreative = () => {
       if (!active) return;
       const creative = slot.querySelector("iframe, img, video, canvas, object, embed, a[href]");
-      setHasCreative(Boolean(creative));
+      const hasAd = Boolean(creative);
+      setHasCreative(hasAd);
+      if (hasAd) setNoFill(false);
       setDestinationUrl(getExposedDestination(slot));
     };
     const observer = new MutationObserver(updateCreative);
@@ -296,6 +306,7 @@ export function AdsterraNativeBanner({
 
     return () => {
       active = false;
+      window.clearTimeout(noFillTimer);
       observer.disconnect();
       cancelQueuedInjection();
       slot.replaceChildren();
@@ -317,6 +328,7 @@ export function AdsterraNativeBanner({
         ref={frameRef}
         data-zone-size={zone ? `${zone.width}x${zone.height}` : "unselected"}
         data-placement={placement}
+        data-ad-state={hasCreative ? "filled" : noFill ? "empty" : "loading"}
         className={`adsterra-banner-frame${hasCreative ? " has-ad" : ""}`}
         style={{ minHeight: `${zone?.height ?? 250}px` }}
       >
@@ -388,13 +400,6 @@ export function AdsterraNativeBanner({
           </div>
         )}
 
-        {!hasCreative && (
-          <img
-            src="/decidlyai-vip-fallback.png"
-            alt="Conheça o plano VIP do DecidlyAI"
-            className="adsterra-banner-fallback"
-          />
-        )}
         {hasCreative && <p className="adsterra-banner-label">Anúncio</p>}
         <div
           id={zone ? `container-${zone.key}` : undefined}

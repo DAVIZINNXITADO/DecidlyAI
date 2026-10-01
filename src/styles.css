@@ -563,7 +563,7 @@ html[data-theme="light"] .workspace-shell [class*="border-white/"] {
   border-color: #ded7eb !important;
 }
 
-/* Adsterra banner: responsive width with a local fallback while the zone fills. */
+/* Adsterra banner: responsive creative; collapse slots when the network returns no fill. */
 .adsterra-banner-frame {
   position: relative;
   display: flex;
@@ -586,17 +586,6 @@ html[data-theme="light"] .workspace-shell [class*="border-white/"] {
 .adsterra-banner-frame[data-placement="top-right"][data-zone-size="728x90"] {
   margin-right: 0;
   margin-left: auto;
-}
-
-.adsterra-banner-fallback {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  display: block;
-  width: min(100%, 300px);
-  max-height: 250px;
-  margin: auto;
-  object-fit: contain;
 }
 
 .adsterra-banner-slot {
@@ -657,6 +646,17 @@ html[data-theme="light"] .workspace-shell [class*="border-white/"] {
   min-height: 0 !important;
   overflow: hidden;
   visibility: hidden;
+}
+
+.adsterra-banner-frame[data-ad-state="loading"] {
+  height: 1px;
+  min-height: 1px !important;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+.adsterra-banner-frame[data-ad-state="empty"] {
+  display: none;
 }
 
 .adsterra-banner-frame.has-ad {
@@ -768,9 +768,4 @@ html[data-theme="light"] .workspace-shell [class*="border-white/"] {
 
 .adsterra-banner-frame[data-zone-size="320x50"] {
   width: min(320px, 100%);
-}
-
-.adsterra-banner-frame[data-zone-size="320x50"] .adsterra-banner-fallback,
-.adsterra-banner-frame[data-zone-size="728x90"] .adsterra-banner-fallback {
-  display: none;
 }
