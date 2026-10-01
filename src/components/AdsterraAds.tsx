@@ -119,7 +119,8 @@ export function AdsterraNativeBanner() {
 
   useEffect(() => {
     const frame = frameRef.current;
-    if (!frame) return;
+    const slot = slotRef.current;
+    if (!frame || !slot) return;
 
     if (typeof IntersectionObserver === "undefined") {
       setNearViewport(true);
@@ -144,7 +145,7 @@ export function AdsterraNativeBanner() {
     );
 
     preloadObserver.observe(frame);
-    viewabilityObserver.observe(frame);
+    viewabilityObserver.observe(slot);
 
     return () => {
       preloadObserver.disconnect();
@@ -231,94 +232,89 @@ export function AdsterraNativeBanner() {
         : "Tentar outro";
 
   return (
-    <section
-      className="rounded-3xl border border-white/10 bg-white/[0.02] p-3"
-      aria-label="Anúncio do provedor Adsterra"
-    >
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+    <section className="w-full" aria-label="Anúncio do provedor Adsterra">
+      <div ref={frameRef} className={`adsterra-banner-frame${hasCreative ? " has-ad" : ""}`}>
+        <div className="absolute inset-x-0 top-0 z-20 flex h-7 items-center justify-between gap-1 px-1">
           <button
             type="button"
             onClick={() => setInfoOpen((open) => !open)}
             aria-label="Informações do anúncio"
             aria-controls="adsterra-banner-details"
             aria-expanded={infoOpen}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/55 transition hover:border-violet-300/25 hover:bg-white/[0.07] hover:text-white"
+            title="Informações do anúncio"
+            className="inline-flex min-h-6 items-center gap-1 rounded px-1.5 text-[10px] text-white/55 transition hover:bg-white/10 hover:text-white sm:text-xs"
           >
-            <Info size={16} />
+            <Info size={13} />
+            <span>Adsterra</span>
           </button>
-          <button
-            type="button"
-            onClick={requestAnotherCreative}
-            disabled={refreshDisabled}
-            title={
-              !slotIsViewable
-                ? "Role até o anúncio para solicitar outra opção."
-                : manualRerolls >= MAX_MANUAL_REROLLS_PER_VIEW
-                  ? "Já foi solicitada outra opção neste espaço."
-                  : "Solicitar outro criativo da Adsterra."
-            }
-            className="inline-flex min-h-9 items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-3 text-xs text-white/60 transition hover:border-violet-300/25 hover:bg-white/[0.07] hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
-          >
-            <RotateCw size={14} className={isLoading ? "animate-spin" : ""} />
-            <span>{refreshLabel}</span>
-          </button>
-        </div>
-
-        <Link
-          to="/vip"
-          title="Plano VIP sem anúncios — em breve"
-          className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.035] px-3 text-xs text-white/60 backdrop-blur-sm transition hover:border-violet-300/25 hover:bg-white/[0.07] hover:text-white"
-        >
-          <Crown size={14} className="text-violet-300/80" />
-          <span>Remover anúncios</span>
-          <span className="rounded-full bg-violet-400/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-violet-200/75">
-            VIP
-          </span>
-        </Link>
-      </div>
-
-      {infoOpen && (
-        <div
-          id="adsterra-banner-details"
-          role="region"
-          aria-label="Detalhes do anúncio"
-          className="mb-3 rounded-2xl border border-white/10 bg-black/25 p-4 text-xs leading-5 text-white/60"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <p className="font-semibold text-white/85">Sobre este anúncio</p>
+          <div className="flex items-center gap-0.5">
             <button
               type="button"
-              onClick={() => setInfoOpen(false)}
-              aria-label="Fechar detalhes do anúncio"
-              className="rounded-full p-1 text-white/45 transition hover:bg-white/10 hover:text-white"
+              onClick={requestAnotherCreative}
+              disabled={refreshDisabled}
+              title={
+                !slotIsViewable
+                  ? "Role até o anúncio para solicitar outra opção."
+                  : manualRerolls >= MAX_MANUAL_REROLLS_PER_VIEW
+                    ? "Já foi solicitada outra opção neste espaço."
+                    : "Solicitar outro criativo da Adsterra."
+              }
+              className="inline-flex min-h-6 items-center gap-1 rounded px-1.5 text-[10px] text-white/55 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-35 sm:text-xs"
             >
-              <X size={14} />
+              <RotateCw size={12} className={isLoading ? "animate-spin" : ""} />
+              <span>{refreshLabel === "Outro anúncio" ? "Outro" : refreshLabel}</span>
             </button>
+            <Link
+              to="/vip"
+              title="Plano VIP sem anúncios — em breve"
+              className="inline-flex min-h-6 items-center gap-1 rounded px-1.5 text-[10px] text-white/55 transition hover:bg-white/10 hover:text-white sm:text-xs"
+            >
+              <Crown size={12} className="text-violet-300/80" />
+              <span>Remover anúncios</span>
+            </Link>
           </div>
-          <p className="mt-2">
-            Provedor: <strong className="font-semibold text-white/85">Adsterra</strong>
-          </p>
-          <p className="mt-1">URL do destino:</p>
-          {destinationUrl ? (
-            <p className="break-all rounded-lg bg-white/[0.04] p-2 font-mono text-[11px] text-violet-200">
-              {destinationUrl}
-            </p>
-          ) : (
-            <p className="mt-1 text-white/45">
-              {hasCreative
-                ? "O criativo está isolado no formato do provedor, que não expõe o destino à página. Não mostramos o endereço do script como se fosse o destino do anúncio."
-                : "Ainda não há um destino disponível. O endereço aparece aqui somente se o próprio criativo o expuser à página."}
-            </p>
-          )}
-          <p className="mt-2 text-white/40">
-            A troca, quando disponível, é manual e limitada a uma solicitação por espaço. Não há
-            atualização automática do banner.
-          </p>
         </div>
-      )}
 
-      <div ref={frameRef} className={`adsterra-banner-frame${hasCreative ? " has-ad" : ""}`}>
+        {infoOpen && (
+          <div
+            id="adsterra-banner-details"
+            role="region"
+            aria-label="Detalhes do anúncio"
+            className="absolute left-1 right-1 top-8 z-30 rounded-xl bg-black/90 p-3 text-[11px] leading-5 text-white/70 shadow-xl sm:left-auto sm:w-80"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <p className="font-semibold text-white/85">Sobre este anúncio</p>
+              <button
+                type="button"
+                onClick={() => setInfoOpen(false)}
+                aria-label="Fechar detalhes do anúncio"
+                className="rounded px-1 text-white/45 transition hover:bg-white/10 hover:text-white"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <p className="mt-2">
+              Provedor: <strong className="font-semibold text-white/85">Adsterra</strong>
+            </p>
+            <p className="mt-1">URL do destino:</p>
+            {destinationUrl ? (
+              <p className="break-all rounded-lg bg-white/[0.06] p-2 font-mono text-[10px] text-violet-200">
+                {destinationUrl}
+              </p>
+            ) : (
+              <p className="mt-1 text-white/45">
+                {hasCreative
+                  ? "O criativo está isolado no formato do provedor, que não expõe o destino à página. Não mostramos o endereço do script como se fosse o destino do anúncio."
+                  : "Ainda não há um destino disponível. O endereço aparece aqui somente se o próprio criativo o expuser à página."}
+              </p>
+            )}
+            <p className="mt-2 text-white/40">
+              A troca, quando disponível, é manual e limitada a uma solicitação por espaço. Não há
+              atualização automática do banner.
+            </p>
+          </div>
+        )}
+
         {!hasCreative && (
           <img
             src="/decidlyai-vip-fallback.png"
