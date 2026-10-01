@@ -312,6 +312,11 @@ function RootShell({
     <html lang="pt-BR">
       <head>
         <HeadContent />
+        <script
+          src="https://analytics.ahrefs.com/analytics.js"
+          data-key="HeI8uYMvnd18q5sJLYvuww"
+          async
+        />
       </head>
 
       <body>

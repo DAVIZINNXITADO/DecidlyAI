@@ -48,7 +48,7 @@ function Privacy() {
             <p>
               Última alteração:{" "}
               <span className="font-medium text-slate-400">
-                06/09/2026
+                01/10/2026
               </span>
             </p>
           </div>
@@ -288,9 +288,27 @@ function Privacy() {
             </p>
 
             <p>
-              Atualmente, esses serviços incluem o Google para autenticação e o
-              Supabase para autenticação e infraestrutura de suporte à
-              plataforma.
+              Atualmente, esses serviços incluem o Google para autenticação, o
+              Supabase para autenticação e infraestrutura de suporte à plataforma
+              e o Ahrefs Web Analytics para métricas agregadas de uso.
+            </p>
+
+            <p>
+              Segundo a documentação da Ahrefs, o Web Analytics não utiliza
+              cookies nem identificadores persistentes por padrão. O serviço
+              processa URLs visitadas, referenciadores, agente do navegador,
+              idioma e localização aproximada (país/cidade) derivada do endereço
+              IP; a Ahrefs informa que descarta o IP bruto e também pode registrar
+              visualizações, cliques e envios de formulários. Consulte a{" "}
+              <a
+                href="https://help.ahrefs.com/en/articles/10247870-about-ahrefs-web-analytics"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-violet-400 underline underline-offset-4 hover:text-violet-300"
+              >
+                documentação oficial do Ahrefs Web Analytics
+              </a>
+              .
             </p>
 
             <p>

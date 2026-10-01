@@ -39,7 +39,7 @@ function Cookies() {
 
           <div className="mt-5 space-y-1 text-sm text-slate-500">
             <p>Data de criação: 06/09/2026</p>
-            <p>Última alteração: 06/09/2026</p>
+            <p>Última alteração: 01/10/2026</p>
           </div>
         </div>
 
@@ -137,15 +137,17 @@ function Cookies() {
             </p>
 
             <p>
-              Atualmente, isso pode incluir o Google para autenticação e o
-              Supabase para autenticação e infraestrutura de suporte à
-              plataforma.
+              Atualmente, isso pode incluir o Google para autenticação, o
+              Supabase para autenticação e infraestrutura de suporte à plataforma
+              e o Ahrefs Web Analytics para métricas agregadas de uso.
             </p>
 
             <p>
               Esses serviços podem utilizar suas próprias tecnologias, cookies
-              ou mecanismos semelhantes conforme necessário para fornecer suas
-              funcionalidades.
+              ou mecanismos semelhantes conforme necessário. Segundo a
+              documentação da Ahrefs, o Web Analytics não utiliza cookies nem
+              identificadores persistentes por padrão; os dados processados por
+              essa ferramenta estão descritos na Política de Privacidade.
             </p>
 
             <p>
