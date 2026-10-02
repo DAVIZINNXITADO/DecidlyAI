@@ -4,7 +4,6 @@ import {
   useEffect,
   useRef,
   useState,
-  type ChangeEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
@@ -62,6 +61,7 @@ type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  toolLabel?: string;
 };
 
 type Conversation = {
@@ -135,6 +135,7 @@ function Workspace() {
   const [requestPhase, setRequestPhase] = useState<"idle" | "sending" | "thinking">("idle");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState("");
@@ -165,8 +166,8 @@ function Workspace() {
   const [toolsOpen, setToolsOpen] = useState(false);
   const [extraGuidance, setExtraGuidance] = useState("");
   const [selectedTool, setSelectedTool] = useState<SelectedTool | null>(null);
+  const [requestTool, setRequestTool] = useState<SelectedTool | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<{ id: string; text: string; ai: string } | null>(null);
-  const [attachedFiles, setAttachedFiles] = useState<string[]>([]);
   const [workspaceEntered, setWorkspaceEntered] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installOpen, setInstallOpen] = useState(false);
@@ -237,12 +238,6 @@ function Workspace() {
   const speechSessionRef = useRef(0);
   const requestStartedAtRef = useRef<number | null>(null);
 
-  const handleToolFile = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    const names = Array.from(event.target.files ?? []).map((file) => file.name);
-    if (names.length) setAttachedFiles((current) => [...current, ...names].slice(-5));
-    event.target.value = "";
-  }, []);
-
   const answerQuestion = useCallback((answer: string) => {
     if (!pendingQuestion) return;
     setExtraGuidance((current) => `${current}${current ? "\n" : ""}${pendingQuestion.text}\nResposta: ${answer}`);
@@ -250,17 +245,18 @@ function Workspace() {
   }, [pendingQuestion]);
 
   const handleResponseAction = useCallback(async (action: { type: string; title: string; description: string }) => {
-    if (action.type === "create_pdf" || /pdf/i.test(action.title)) {
-      try {
-        await downloadPdf({ title: action.title, content: action.description, fileName: action.title });
-        setError("PDF baixado com sucesso.");
-      } catch {
-        setError("Não foi possível gerar o PDF. Tente novamente.");
-      }
+    if (action.type !== "create_pdf") {
+      setError("Essa ferramenta ainda não está disponível.");
       return;
     }
-    setSelectedTool({ id: action.type as SelectedTool["id"], label: action.title });
-    setError(`Autorizado: ${action.title}. A ferramenta está selecionada e aguardando sua solicitação no próximo envio.`);
+    setError("");
+    setNotice("");
+    try {
+      await downloadPdf({ title: action.title, content: action.description, fileName: action.title });
+      setNotice("PDF simples gerado e baixado.");
+    } catch {
+      setError("Não foi possível gerar o PDF. Tente novamente.");
+    }
   }, []);
 
   const loadCreditWallet = useCallback(async () => {
@@ -1224,9 +1220,12 @@ function Workspace() {
       }
 
       setError("");
+      setNotice("");
       setInput("");
       setExtraGuidance("");
       setToolsOpen(false);
+      const toolForRequest = selectedTool;
+      setRequestTool(toolForRequest);
       // A ferramenta selecionada vale somente para esta mensagem.
       // Mantê-la ativa fazia a IA interpretar mensagens futuras como novos pedidos de PDF.
       setSelectedTool(null);
@@ -1235,6 +1234,7 @@ function Workspace() {
         id: crypto.randomUUID(),
         role: "user",
         content: text,
+        ...(toolForRequest ? { toolLabel: toolForRequest.label } : {}),
       };
 
       setMessages((current) => [
@@ -1290,11 +1290,8 @@ function Workspace() {
         const guidanceContext = guidance
           ? `Perguntas opcionais respondidas pelo usuário para melhorar a análise:\n${guidance}`
           : "";
-        const toolContext = selectedTool
-          ? `Ferramenta solicitada pelo usuário: ${selectedTool.label}. Use-a somente se for compatível com a tarefa.`
-          : "";
-        const fileContext = attachedFiles.length
-          ? `Arquivos anexados pelo usuário: ${attachedFiles.join(", ")}. Considere-os disponíveis para a próxima etapa de processamento.`
+        const toolContext = toolForRequest
+          ? `Ferramenta solicitada pelo usuário: ${toolForRequest.label}. Prepare uma exportação simples em PDF do conteúdo solicitado.`
           : "";
 
         const assistantId = crypto.randomUUID();
@@ -1312,7 +1309,7 @@ function Workspace() {
         };
         setRequestPhase("thinking");
         const answer = await streamAi(functionName, {
-          message: [privateContext, guidanceContext, toolContext, fileContext, responseProtocolInstructions(), "Mensagem do usuário:\n" + text].filter(Boolean).join("\n\n"),
+          message: [privateContext, guidanceContext, toolContext, responseProtocolInstructions(), "Mensagem do usuário:\n" + text].filter(Boolean).join("\n\n"),
           history,
           signal: abortController.signal,
           onDelta: (_delta, accumulated) => {
@@ -1406,6 +1403,7 @@ function Workspace() {
          */
         setIsLoading(false);
         setRequestPhase("idle");
+        setRequestTool(null);
         setElapsedSeconds(0);
         requestStartedAtRef.current = null;
         streamAbortRef.current = null;
@@ -1423,7 +1421,6 @@ function Workspace() {
       preferredName,
       extraGuidance,
       selectedTool,
-      attachedFiles,
     ],
   );
 
@@ -1432,6 +1429,7 @@ function Workspace() {
     streamAbortRef.current = null;
     setIsLoading(false);
     setRequestPhase("idle");
+    setRequestTool(null);
     requestStartedAtRef.current = null;
   }, []);
 
@@ -2924,11 +2922,14 @@ function Workspace() {
                               </div>
                             </>
                           ) : (
-                            <div className="whitespace-pre-wrap">
-                              {
-                                message.content
-                              }
-                            </div>
+                            <>
+                              {message.toolLabel && (
+                                <span className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-medium text-white/80">
+                                  <FileText size={12} /> {message.toolLabel}
+                                </span>
+                              )}
+                              <div className="whitespace-pre-wrap">{message.content}</div>
+                            </>
                           )}
                         </div>
                       </div>
@@ -2940,7 +2941,15 @@ function Workspace() {
                   <div className="flex justify-start">
                     <div className="inline-flex items-center gap-2 rounded-2xl border border-violet-300/15 bg-violet-400/[0.07] px-3 py-2 text-sm text-white/60">
                       <Loader2 size={15} className="animate-spin text-violet-300" />
-                      <span>{requestPhase === "sending" ? "Enviando…" : thinkingLabel}</span>
+                      <span>
+                        {requestTool
+                          ? requestPhase === "sending"
+                            ? `Enviando para a IA · ${requestTool.label}…`
+                            : `A IA está preparando · ${requestTool.label}`
+                          : requestPhase === "sending"
+                            ? "Enviando…"
+                            : thinkingLabel}
+                      </span>
                       {requestPhase === "thinking" && <span className="tabular-nums text-violet-200/80">{elapsedSeconds}s</span>}
                     </div>
                   </div>
@@ -2952,6 +2961,13 @@ function Workspace() {
               <div className="mt-5 flex items-center justify-between gap-4 rounded-xl border border-red-400/15 bg-red-500/[0.06] px-4 py-3 text-sm text-red-200/80">
                 <span>{error}</span>
                 <button type="button" onClick={() => setError("")} className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium text-red-200 hover:bg-red-400/10">Fechar</button>
+              </div>
+            )}
+
+            {notice && (
+              <div role="status" className="mt-5 flex items-center justify-between gap-4 rounded-xl border border-emerald-400/15 bg-emerald-500/[0.06] px-4 py-3 text-sm text-emerald-200/85">
+                <span className="inline-flex items-center gap-2"><Check size={15} />{notice}</span>
+                <button type="button" onClick={() => setNotice("")} className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium text-emerald-200 hover:bg-emerald-400/10">Fechar</button>
               </div>
             )}
 
@@ -2989,10 +3005,18 @@ function Workspace() {
                 <div className="mt-3 flex gap-2"><button type="button" onClick={() => { setInput("Resposta: "); requestAnimationFrame(() => textareaRef.current?.focus()); }} className="rounded-xl bg-violet-500 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-400">Responder</button><button type="button" onClick={() => setPendingQuestion(null)} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white/60 hover:bg-white/10 hover:text-white">Ignorar</button></div>
               </div>
             )}
-            {toolsOpen && (
-              <ToolCenter selected={selectedTool} onSelect={setSelectedTool} onClose={() => setToolsOpen(false)} onFile={handleToolFile} />
+            {selectedTool && (
+              <div className="mb-2 flex items-center justify-between gap-3 rounded-2xl border border-violet-300/20 bg-violet-400/[0.08] px-3 py-2">
+                <span className="flex min-w-0 items-center gap-2 text-xs">
+                  <FileText size={15} className="shrink-0 text-violet-200" />
+                  <span><span className="text-white/45">Ativo neste envio · </span><strong className="font-medium text-violet-100">{selectedTool.label}</strong></span>
+                </span>
+                <button type="button" onClick={() => setSelectedTool(null)} className="rounded-lg p-1 text-white/45 transition hover:bg-white/10 hover:text-white" aria-label="Desativar ferramenta selecionada"><X size={14} /></button>
+              </div>
             )}
-            {attachedFiles.length > 0 && <div className="mb-2 flex flex-wrap gap-2">{attachedFiles.map((file) => <span key={file} className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] text-white/60">{file}</span>)}</div>}
+            {toolsOpen && (
+              <ToolCenter selected={selectedTool} onSelect={setSelectedTool} onClose={() => setToolsOpen(false)} />
+            )}
             <div
               className="rounded-[26px] bg-[#17101f] px-2.5 py-1.5 shadow-2xl"
               style={{

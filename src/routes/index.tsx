@@ -99,7 +99,7 @@ function Index() {
           <section className="border-y border-white/[0.08] bg-white/[0.025]">
             <div className="mx-auto grid max-w-7xl gap-4 px-6 py-7 text-sm text-slate-400 md:grid-cols-3 md:px-8">
               <TrustItem icon={<ShieldCheck className="h-5 w-5" />} text="A IA apoia sua reflexão. A decisão é sempre sua." />
-              <TrustItem icon={<Gauge className="h-5 w-5" />} text="O consumo é calculado pelo uso real de tokens." />
+              <TrustItem icon={<Gauge className="h-5 w-5" />} text="O consumo usa uma estimativa baseada no volume de texto enviado e gerado." />
               <TrustItem icon={<Lock className="h-5 w-5" />} text="Seus pensamentos merecem um espaço organizado." />
             </div>
           </section>
@@ -118,9 +118,9 @@ function Index() {
               <SectionHeading eyebrow="POR QUE DECIDLYAI" title="Menos ruído. Mais perspectiva." description="Tudo o que você precisa para transformar uma decisão confusa em uma conversa útil e organizada." />
               <div className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
                 <Feature icon={<BrainCircuit />} title="Análise com contexto" description="A resposta considera o cenário que você compartilhou, não apenas uma pergunta solta." />
-                <Feature icon={<Zap />} title="Modelos em fallback" description="A plataforma tenta o modelo disponível mais adequado e mantém a conversa fluindo quando um limite é atingido." />
-                <Feature icon={<Coins />} title="Créditos transparentes" description="O consumo acompanha os tokens usados, deixando mais claro como cada análise utiliza seus créditos." />
-                <Feature icon={<CircleHelp />} title="Histórico de decisões" description="Revisite suas reflexões e acompanhe como suas escolhas foram construídas ao longo do tempo." />
+                <Feature icon={<Zap />} title="Roteamento automático" description="A plataforma gerencia a rota de IA configurada para o ambiente, sem exigir escolha manual." />
+                <Feature icon={<Coins />} title="Créditos transparentes" description="O consumo é estimado pelo volume de contexto e de resposta; conversas mais longas podem usar mais créditos." />
+                <Feature icon={<CircleHelp />} title="Histórico de conversas" description="Retome conversas anteriores e releia suas reflexões quando precisar." />
               </div>
             </div>
           </section>
@@ -137,21 +137,21 @@ function Index() {
                 <p className="mt-5 max-w-md leading-7 text-slate-300">Um espaço para começar a organizar suas decisões e descobrir se pensar com mais clareza pode mudar o seu próximo passo.</p>
                 <div className="my-7 h-px bg-white/10" />
                 <ul className="grid gap-4 text-sm text-slate-200 sm:grid-cols-2">
-                  <PlanItem>10 créditos gratuitos por dia</PlanItem>
-                  <PlanItem>Acúmulo máximo de 10 créditos gratuitos</PlanItem>
-                  <PlanItem>Créditos calculados pelo uso de tokens</PlanItem>
-                  <PlanItem>Modelos em fallback automático</PlanItem>
+                  <PlanItem>5 créditos gratuitos por dia</PlanItem>
+                  <PlanItem>Saldo diário renovável limitado a 5 créditos</PlanItem>
+                  <PlanItem>Consumo estimado pelo volume de texto</PlanItem>
+                  <PlanItem>Rota de IA gerenciada automaticamente</PlanItem>
                   <PlanItem>Sem escolha manual de modelo</PlanItem>
-                  <PlanItem>Fila de processamento normal</PlanItem>
-                  <PlanItem>Sem exportação para PDF</PlanItem>
-                  <PlanItem>Créditos comprados não expiram pelo limite de acúmulo</PlanItem>
+                  <PlanItem>Histórico de conversas</PlanItem>
+                  <PlanItem>Exportação básica de respostas em PDF</PlanItem>
+                  <PlanItem>Créditos comprados em saldo separado</PlanItem>
                 </ul>
                 <Link to="/login" className="interactive-lift mt-8 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-5 py-4 font-semibold text-[#151322] hover:bg-violet-100">Criar minha conta grátis <ArrowRight className="h-5 w-5" /></Link>
               </div>
 
               <div className="flex flex-col justify-between rounded-3xl border border-white/10 bg-white/[0.035] p-7 md:p-9">
-                <div><div className="flex items-center justify-between"><p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">VIP</p><span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400">Em breve</span></div><h3 className="mt-5 text-3xl font-semibold">Mais espaço para pensar.</h3><p className="mt-4 leading-7 text-slate-400">Quando o plano pago chegar, você terá mais liberdade para usar o produto sem perder a clareza sobre seus créditos.</p><div className="mt-8 space-y-4 text-sm text-slate-300"><PlanItem>100 créditos gratuitos por dia</PlanItem><PlanItem>Acúmulo de até 100 créditos gratuitos</PlanItem><PlanItem>Créditos comprados separados da regra de acúmulo</PlanItem></div></div>
-                <div className="mt-10 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-slate-400">Os detalhes finais, preço e recursos extras do VIP serão anunciados em breve.</div>
+                <div><div className="flex items-center justify-between"><p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">VIP</p><span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400">Em breve</span></div><h3 className="mt-5 text-3xl font-semibold">Uma experiência premium em preparação.</h3><p className="mt-4 leading-7 text-slate-400">O plano ainda não está disponível. Preço, limites e benefícios não estão definidos e serão comunicados antes de qualquer oferta.</p></div>
+                <div className="mt-10 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-slate-400">Nenhum pagamento ou cadastro VIP pode ser feito no momento.</div>
               </div>
             </div>
           </section>
@@ -221,9 +221,9 @@ function PlanItem({ children }: { children: React.ReactNode }) { return <li clas
 function FaqSection() {
   const [open, setOpen] = useState<number | null>(0);
   const items = [
-    ["Como os créditos são consumidos?", "O consumo é calculado com base na quantidade de tokens usada pela IA. Por isso, uma análise mais longa ou complexa pode consumir uma quantidade diferente de créditos."],
-    ["Os créditos gratuitos acumulam?", "Sim. No plano Free, os créditos gratuitos são renovados diariamente e podem acumular até o limite de 10 créditos. Créditos comprados são separados dessa regra de acúmulo."],
-    ["Quando o plano VIP estará disponível?", "O plano pago chega em breve. A previsão é oferecer 10 créditos gratuitos diários, acúmulo de até 100 créditos gratuitos e benefícios adicionais que serão anunciados."],
+    ["Como os créditos são consumidos?", "O sistema estima o uso pelo volume de texto enviado (incluindo o contexto da conversa) e pela resposta gerada. Conversas mais longas podem consumir mais. É uma estimativa, não a contagem exata reportada pelo provedor."],
+    ["Os créditos gratuitos acumulam?", "O saldo diário renovável tem limite de 5 créditos. Créditos obtidos por convites e créditos comprados ficam em saldos separados e seguem suas próprias regras."],
+    ["Quando o plano VIP estará disponível?", "Ainda não há data, preço, limites ou benefícios confirmados. Nenhum pagamento ou cadastro VIP está disponível; as condições serão publicadas antes de qualquer oferta."],
   ];
   return <section className="mx-auto max-w-4xl px-6 py-24 md:px-8 md:py-32"><div className="text-center"><p className="text-sm font-semibold tracking-[0.18em] text-violet-300">DÚVIDAS FREQUENTES</p><h2 className="mt-5 text-4xl font-semibold tracking-tight md:text-5xl">Transparência antes de começar.</h2></div><div className="mt-12 divide-y divide-white/10 rounded-2xl border border-white/10 bg-white/[0.025] px-6">{items.map(([question, answer], index) => <div key={question}><button type="button" aria-expanded={open === index} onClick={() => setOpen(open === index ? null : index)} className="flex w-full items-center justify-between gap-5 py-5 text-left font-medium text-slate-100"><span>{question}</span><ChevronDown className={`h-5 w-5 shrink-0 text-violet-300 transition-transform ${open === index ? "rotate-180" : ""}`} /></button>{open === index && <p className="max-w-3xl pb-5 pr-8 text-sm leading-7 text-slate-400">{answer}</p>}</div>)}</div></section>;
 }

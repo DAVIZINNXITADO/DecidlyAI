@@ -49,7 +49,7 @@ function Tecnologia() {
             <TechnologyCard
               step="03"
               title="Uso responsável"
-              description="O consumo considera a complexidade e a quantidade de tokens utilizados pela análise, em vez de tratar toda solicitação como igual."
+              description="O consumo é estimado pelo volume de contexto enviado e de resposta gerada; não é uma medição exata de tokens reportada pelo provedor."
             />
           </div>
 
@@ -58,13 +58,13 @@ function Tecnologia() {
               ROTA DO PLANO FREE
             </p>
             <h2 className="mt-4 text-2xl font-semibold">
-              A mesma inteligência, com diferentes rotas de disponibilidade.
+              Roteamento automático, sem escolha manual de modelo.
             </h2>
             <p className="mt-3 max-w-3xl leading-7 text-slate-400">
-              A experiência é uma só. Por trás dela, o DecidlyAI começa pelo Gemini Flash; quando
-              necessário, passa pelo Groq com uma IA baseada em GPT-4; e usa o Claude AI como último
-              fallback. Essa alternância é controlada pela plataforma para manter o serviço
-              disponível.
+              O chat passa por um roteador que usa as funções de IA disponíveis no ambiente. O
+              código prevê tentativas alternativas quando uma rota falha, mas a disponibilidade de
+              cada alternativa depende da configuração implantada. Provedores e modelos podem mudar;
+              não anunciamos uma sequência fixa nem oferecemos seleção manual no plano Free.
             </p>
           </section>
 
@@ -86,9 +86,9 @@ function Tecnologia() {
             <h2 className="text-3xl font-semibold">O que você encontra no plano Free</h2>
             <ul className="mt-7 grid gap-4 text-slate-300 md:grid-cols-2">
               <ListItem>Rota automática de inteligência</ListItem>
-              <ListItem>Créditos calculados pelo uso real</ListItem>
+              <ListItem>Consumo estimado pelo volume de texto</ListItem>
               <ListItem>Experiência simples, sem configuração técnica</ListItem>
-              <ListItem>Fallback para reduzir indisponibilidades</ListItem>
+              <ListItem>Roteamento mantido pela plataforma</ListItem>
             </ul>
             <div className="my-10">
               <AdsterraNativeBanner placement="standard" />
