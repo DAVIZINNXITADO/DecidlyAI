@@ -190,7 +190,7 @@ function isTextEntryFocused() {
   );
 }
 
-/** Loads the Social Bar once per tab session, after the workspace has been quiet and visible. */
+/** Loads the Social Bar once per tab session, 90 seconds after workspace mount/consent. */
 export function AdsterraSocialBar() {
   const adsConsent = useAdsConsent();
 
@@ -198,28 +198,19 @@ export function AdsterraSocialBar() {
     if (!adsConsent || hasSocialBarBeenAttempted()) return;
 
     let timerId: number | undefined;
-    const mobileViewport = window.matchMedia("(max-width: 767px)");
 
     const schedule = () => {
       if (timerId !== undefined) {
         window.clearTimeout(timerId);
         timerId = undefined;
       }
-      if (
-        document.visibilityState !== "visible" ||
-        !mobileViewport.matches ||
-        hasSocialBarBeenAttempted()
-      ) {
+      if (document.visibilityState !== "visible" || hasSocialBarBeenAttempted()) {
         return;
       }
 
       timerId = window.setTimeout(() => {
         timerId = undefined;
-        if (
-          document.visibilityState !== "visible" ||
-          !mobileViewport.matches ||
-          isTextEntryFocused()
-        ) {
+        if (document.visibilityState !== "visible" || isTextEntryFocused()) {
           schedule();
           return;
         }
@@ -247,16 +238,12 @@ export function AdsterraSocialBar() {
       schedule();
     };
 
-    const onViewportChange = () => schedule();
-
     document.addEventListener("visibilitychange", onVisibilityChange);
-    mobileViewport.addEventListener("change", onViewportChange);
     schedule();
 
     return () => {
       if (timerId !== undefined) window.clearTimeout(timerId);
       document.removeEventListener("visibilitychange", onVisibilityChange);
-      mobileViewport.removeEventListener("change", onViewportChange);
     };
   }, [adsConsent]);
 
