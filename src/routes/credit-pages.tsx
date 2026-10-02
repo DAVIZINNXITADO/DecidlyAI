@@ -141,8 +141,6 @@ export function FreePage() {
             {wallet.daily_credits_limit >= 9999 ? "♾" : wallet.daily_credits_limit}
           </p>
         </div>
-        <AdsterraNativeBanner placement="native-300x250" />
-
         <div className="rounded-3xl border border-white/10 bg-white/[0.035] p-6">
           <h2 className="text-xl font-semibold">Referral program</h2>
           <p className="mt-2 text-sm leading-6 text-white/50">
@@ -166,6 +164,7 @@ export function FreePage() {
             ou inativas podem se qualificar.
           </p>
         </div>
+        <AdsterraNativeBanner placement="native-300x250" />
       </div>
     </InnerPage>
   );

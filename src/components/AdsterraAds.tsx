@@ -209,7 +209,7 @@ export function AdsterraSocialBar() {
 
       timerId = window.setTimeout(() => {
         timerId = undefined;
-        if (document.visibilityState !== "visible") return;
+        if (document.visibilityState !== "visible" || hasSocialBarBeenAttempted()) return;
         if (isTextEntryFocused()) {
           if (!waitingForFocusOut) {
             waitingForFocusOut = true;
