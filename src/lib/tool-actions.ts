@@ -20,12 +20,12 @@ function attributes(raw: string) {
 }
 
 function withFreshRequestIds(content: string, createRequestId: () => string) {
-  return content.replace(ACTION_BLOCK_PATTERN, (_whole, rawAttributes: string) => {
+  return content.replace(ACTION_BLOCK_PATTERN, (_whole, rawAttributes: string, body: string) => {
     const safeAttributes = rawAttributes
       .replace(/(?:^|\s)(?:request_id|id)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s]+)/gi, " ")
       .trim();
     const extra = safeAttributes ? ` ${safeAttributes}` : "";
-    return `[action request_id="${createRequestId()}"${extra}]`;
+    return `[action request_id="${createRequestId()}"${extra}]${body}[/action]`;
   });
 }
 
