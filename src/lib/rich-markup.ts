@@ -6,6 +6,19 @@ function readAttribute(raw: string, name: string) {
   return match?.[1] ?? match?.[2] ?? match?.[3] ?? "";
 }
 
+const MALFORMED_ACTION_TERMINATOR_PATTERN =
+  /\[(?:\/?action)\s+type\s*=\s*(?:"none"|'none'|none)\s*\]/gi;
+
+/** Repair the model's common `[action type="none"]` closing-marker mistake. */
+export function normalizeActionProtocolMarkup(value: string) {
+  const repaired = value.replace(
+    /([[]action\b[^\]]*\])([\s\S]*?)\[(?:\/?action)\s+type\s*=\s*(?:"none"|'none'|none)\s*\]/gi,
+    (whole, opener: string, body: string) =>
+      /\[\/action\s*\]/i.test(body) ? whole : `${opener}${body}[/action]`,
+  );
+  return repaired.replace(MALFORMED_ACTION_TERMINATOR_PATTERN, "");
+}
+
 /** Convert the app's presentation markup and common Markdown into artifact-safe plain text. */
 export function toPlainArtifactText(value: string) {
   return value

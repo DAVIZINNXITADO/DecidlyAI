@@ -1497,7 +1497,7 @@ function Workspace() {
         });
 
         if (pendingFrame !== null) window.cancelAnimationFrame(pendingFrame);
-        const answer = ensureToolActionResponse(streamedAnswer, toolForRequest, text);
+        const answer = ensureToolActionResponse(streamedAnswer, selectedTool, text);
         latestAccumulated = answer;
         flushAssistant();
 

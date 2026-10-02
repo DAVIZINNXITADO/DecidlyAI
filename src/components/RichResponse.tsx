@@ -3,6 +3,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AlertTriangle, Check, Copy, Download, ExternalLink, FileText, Image as ImageIcon, Info, Lightbulb, Loader2, ShieldAlert, Sparkles, TriangleAlert, Type } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { normalizeActionProtocolMarkup, toPlainArtifactText } from "../lib/rich-markup";
+import { MAX_TEXT_IMAGE_CHARS } from "../lib/text-image";
 
 export type Variant = "info" | "success" | "warning" | "danger" | "tip" | "important" | "advantage" | "disadvantage" | "observation" | "recommendation" | "decision" | "neutral";
 type Block = {
@@ -56,6 +58,7 @@ function normalizeLegacyMarkup(content: string) {
 }
 
 function keepOnlyRequestedAction(content: string) {
+  content = normalizeActionProtocolMarkup(content);
   const action = content.match(/\[action(?:\s+[^\]]*)?\][\s\S]*?\[\/action\]/i);
   if (!action) return content;
   const supported = /type\s*=\s*["']?(create_pdf|create_image|create_text_image)["']?/i.test(action[0]);
@@ -63,12 +66,18 @@ function keepOnlyRequestedAction(content: string) {
   return supported ? action[0] : remainingText || "Essa ferramenta ainda não está disponível.";
 }
 
+function hideIncompleteActionTail(content: string) {
+  const opening = content.lastIndexOf("[action");
+  const closing = content.lastIndexOf("[/action]");
+  return opening > closing ? content.slice(0, opening).trimEnd() : content;
+}
+
 function attributes(raw: string | undefined) {
   return Object.fromEntries(Array.from(raw?.matchAll(/([\w-]+)=(?:"([^"]*)"|'([^']*)'|([^\s]+))/gi) ?? []).map((item) => [item[1]?.toLowerCase(), item[2] ?? item[3] ?? item[4] ?? ""]));
 }
 
 export function parseBlocks(content: string): Block[] {
-  content = normalizeLegacyMarkup(keepOnlyRequestedAction(content));
+  content = normalizeLegacyMarkup(hideIncompleteActionTail(keepOnlyRequestedAction(content)));
   const blocks: Block[] = [];
   const pattern = /\[(callout|highlight|copy_block|link|action|question|color|generated_file|generated_image)(?:\s+([^\]]+))?\]([\s\S]*?)\[\/(callout|highlight|copy_block|link|action|question|color|generated_file|generated_image)\]/gi;
   let cursor = 0;
@@ -78,6 +87,20 @@ export function parseBlocks(content: string): Block[] {
     const rawKind = (match[1] ?? "callout").toLowerCase();
     const attr = attributes(match[2]);
     const value = (match[3] ?? "").trim();
+    const blockEnd = start + match[0].length;
+    if (rawKind === "action" && attr.type === "create_text_image") {
+      const plainText = toPlainArtifactText(value);
+      const tooLong = plainText.length > MAX_TEXT_IMAGE_CHARS;
+      const missingRequestId = !(attr.request_id || attr.id);
+      if (tooLong || missingRequestId) {
+        const notice = tooLong
+          ? `A imagem de texto aceita até ${MAX_TEXT_IMAGE_CHARS} caracteres. O conteúdo foi mantido como texto; nenhum crédito foi consumido.`
+          : "A imagem não foi preparada nesta mensagem. O conteúdo foi mantido como texto.";
+        blocks.push({ kind: "markdown", value: `${plainText}\n\n${notice}` });
+        cursor = blockEnd;
+        continue;
+      }
+    }
     const variant = attr.variant as Variant | undefined;
     const kind: Block["kind"] = rawKind === "copy_block" ? "copy" : rawKind === "generated_file" ? "file" : rawKind === "generated_image" ? "image" : rawKind as Block["kind"];
     const block: Block = { kind, value, variant: variant && variant in variants ? variant : "info", color: attr.color?.toLowerCase() };
@@ -92,7 +115,7 @@ export function parseBlocks(content: string): Block[] {
     if (rawKind === "link") block.title = attr.label || value;
     if (rawKind === "action") block.title = attr.title || "Ação da IA";
     blocks.push(block);
-    cursor = start + match[0].length;
+    cursor = blockEnd;
   }
   if (cursor < content.length) blocks.push({ kind: "markdown", value: content.slice(cursor) });
   return blocks.length ? blocks : [{ kind: "markdown", value: content }];
@@ -235,6 +258,7 @@ export function responseProtocolInstructions() {
     `Pedidos de redação, ensaio, fábula, conto ou texto completo são solicitações de conteúdo textual: escreva a obra integral no chat e nunca os converta em imagem. Imagem de texto serve apenas para frases curtas de até 220 caracteres.`,
     `Estes recursos não leem PDFs, não aceitam anexos, não pesquisam na web, não editam imagens e não devem ser prometidos como concluídos antes da ação terminar. Só prepare um bloco de ação se o usuário pediu explicitamente a ferramenta ou se uma ferramenta está selecionada; não execute nada por conta própria.`,
     `Para PDF, retorne exatamente um bloco [action type=create_pdf title="Criar PDF"]conteúdo final conciso[/action]. Para uma ilustração, retorne [action type=create_image title="Gerar imagem"]prompt visual final[/action]. Para renderizar palavras curtas sobre fundo escuro, retorne [action type=create_text_image title="Criar imagem de texto"]texto exato da imagem[/action].`,
+    `Use sempre o fechamento exato [/action]. Nunca emita [action type="none"] nem deixe blocos de ação abertos; quando não houver ação compatível, responda diretamente em texto normal sem marcadores de ação.`,
     `O app adicionará um identificador idempotente; nunca invente um. Se faltar uma informação indispensável, faça uma única pergunta consolidada antes de criar o bloco. Não gere HTML, CSS ou JavaScript. Nunca afirme que o arquivo já foi criado antes de o usuário acionar e concluir a ação. Se a mensagem já tem informação suficiente, siga sem perguntas redundantes.`,
     `Use [question id=clarify]1. ...\n2. ...[/question] para uma única pergunta consolidada. Use [highlight variant=warning color=yellow]trecho importante[/highlight], [color color=red]texto colorido[/color], [link href="https://exemplo.com" label="Abrir página"]https://exemplo.com[/link] e [copy_block language=text]conteúdo[/copy_block] quando apropriado.`,
   ].join(" ");
