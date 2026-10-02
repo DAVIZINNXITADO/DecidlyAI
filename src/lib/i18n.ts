@@ -11,13 +11,13 @@ const coreTranslations = {
   "pt-BR": {
     nav: { workspace: "Workspace", settings: "Configurações", credits: "Créditos", logout: "Sair", howItWorks: "Como funciona", resources: "Recursos", plans: "Planos", signIn: "Entrar", start: "Começar", openMenu: "Abrir menu", closeMenu: "Fechar menu" },
     legal: { links: "Links legais", terms: "Termos de Uso", privacy: "Política de Privacidade", cookies: "Política de Cookies" },
-    cookies: { title: "Cookies", subtitle: "Sua privacidade é importante.", description: "Utilizamos cookies e tecnologias semelhantes para manter o funcionamento do DecidlyAI, manter sua sessão e melhorar sua experiência na plataforma.", optional: "Você pode aceitar ou recusar o uso de cookies não essenciais.", readPolicy: "Ler a Política de Cookies", reject: "Recusar", accept: "Aceitar", close: "Fechar aviso de cookies" },
+    cookies: { title: "Cookies", subtitle: "Sua privacidade é importante.", description: "Utilizamos cookies e tecnologias semelhantes para manter o funcionamento do DecidlyAI e sua sessão. Os anúncios de terceiros da Adsterra só são carregados se você aceitar os cookies não essenciais.", optional: "Você pode aceitar ou recusar o uso de cookies não essenciais.", readPolicy: "Ler a Política de Cookies", reject: "Recusar", accept: "Aceitar", close: "Fechar aviso de cookies" },
     settings: { title: "Configurações", language: "Idioma", languageLabel: "Idioma da interface", saved: "Sua preferência fica salva neste dispositivo e na sua sessão.", progressive: "Os textos da interface são traduzidos progressivamente." },
   },
   "en-US": {
     nav: { workspace: "Workspace", settings: "Settings", credits: "Credits", logout: "Log out", howItWorks: "How it works", resources: "Resources", plans: "Plans", signIn: "Sign in", start: "Get started", openMenu: "Open menu", closeMenu: "Close menu" },
     legal: { links: "Legal links", terms: "Terms of Use", privacy: "Privacy Policy", cookies: "Cookie Policy" },
-    cookies: { title: "Cookies", subtitle: "Your privacy matters.", description: "We use cookies and similar technologies to keep DecidlyAI working, maintain your session, and improve your experience.", optional: "You can accept or refuse non-essential cookies.", readPolicy: "Read Cookie Policy", reject: "Reject", accept: "Accept", close: "Close cookie notice" },
+    cookies: { title: "Cookies", subtitle: "Your privacy matters.", description: "We use cookies and similar technologies to keep DecidlyAI working and maintain your session. Adsterra third-party ads load only if you accept non-essential cookies.", optional: "You can accept or refuse non-essential cookies.", readPolicy: "Read Cookie Policy", reject: "Reject", accept: "Accept", close: "Close cookie notice" },
     settings: { title: "Settings", language: "Language", languageLabel: "Interface language", saved: "Your preference is saved on this device and in your session.", progressive: "Interface text is translated progressively." },
   },
 } as const;

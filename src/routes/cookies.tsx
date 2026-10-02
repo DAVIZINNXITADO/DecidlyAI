@@ -138,13 +138,16 @@ function Cookies() {
 
             <p>
               Atualmente, isso pode incluir o Google para autenticação, o
-              Supabase para autenticação e infraestrutura de suporte à plataforma
-              e o Ahrefs Web Analytics para métricas agregadas de uso.
+              Supabase para autenticação e infraestrutura de suporte à plataforma,
+              o Ahrefs Web Analytics para métricas agregadas de uso e a Adsterra
+              para exibir publicidade de terceiros quando você der consentimento.
             </p>
 
             <p>
               Esses serviços podem utilizar suas próprias tecnologias, cookies
-              ou mecanismos semelhantes conforme necessário. Segundo a
+              ou mecanismos semelhantes conforme necessário. Os scripts
+              publicitários da Adsterra só são carregados após o aceite de cookies
+              não essenciais. Segundo a
               documentação da Ahrefs, o Web Analytics não utiliza cookies nem
               identificadores persistentes por padrão; os dados processados por
               essa ferramenta estão descritos na Política de Privacidade.
@@ -159,14 +162,14 @@ function Cookies() {
 
           <CookieSection number="06" title="Consentimento">
             <p>
-              Quando aplicável, o DecidlyAI poderá solicitar sua escolha em
-              relação ao uso de cookies não essenciais.
+              O DecidlyAI solicita sua escolha em relação ao uso de cookies não
+              essenciais antes de carregar os scripts publicitários da Adsterra.
             </p>
 
             <p>
-              Você poderá aceitar ou recusar determinadas categorias de cookies
-              não essenciais por meio do aviso de cookies disponibilizado na
-              plataforma.
+              Você pode aceitar ou recusar cookies não essenciais por meio do
+              aviso de cookies disponibilizado na plataforma. Ao recusar, os
+              anúncios da Adsterra não são carregados.
             </p>
 
             <p>

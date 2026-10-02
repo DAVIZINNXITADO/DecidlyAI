@@ -46,7 +46,7 @@ import { downloadPdf } from "../lib/pdf";
 import { useLanguageContext } from "../lib/LanguageProvider";
 import { RichResponse, responseProtocolInstructions } from "../components/RichResponse";
 import { ToolCenter, type SelectedTool } from "../components/ToolCenter";
-import { AdsterraSocialBar } from "../components/AdsterraAds";
+import { AdsterraNativeBanner, AdsterraSocialBar } from "../components/AdsterraAds";
 import {
   availableCredits,
   dailyCreditsBalance,
@@ -2366,6 +2366,10 @@ function Workspace() {
             )}
           </div>
 
+          <div className="hidden justify-center lg:flex">
+            <AdsterraNativeBanner placement="rail-160x300" />
+          </div>
+
           {/* ==================================================
               CONTA + CONFIGURAÇÕES
               ================================================== */}
@@ -2448,7 +2452,7 @@ function Workspace() {
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300/80">Carteira</p>
                 <h2 id="credits-title" className="mt-1 text-2xl font-semibold text-white">Seus créditos</h2>
-                <p className="mt-1 text-sm text-white/45">Convites e anúncios entram nos créditos grátis.</p>
+                <p className="mt-1 text-sm text-white/45">Convites válidos podem gerar créditos grátis.</p>
               </div>
               <button type="button" onClick={() => setCreditsOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-xl text-white/45 hover:bg-white/[0.06] hover:text-white" aria-label="Fechar créditos"><X size={18} /></button>
             </div>
@@ -2463,8 +2467,8 @@ function Workspace() {
             <div className="mt-5 space-y-3">
               <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
                 <p className="font-semibold text-white">Conseguir créditos grátis</p>
-                <p className="mt-1 text-sm leading-5 text-white/50">Receba a renovação diária e, quando os eventos forem ativados, ganhe créditos ao convidar amigos ou assistir anúncios recompensados.</p>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs text-white/45"><span className="rounded-full bg-white/[0.06] px-2.5 py-1">Renovação diária</span><span className="rounded-full bg-white/[0.06] px-2.5 py-1">Convites</span><span className="rounded-full bg-white/[0.06] px-2.5 py-1">Anúncios</span></div>
+                <p className="mt-1 text-sm leading-5 text-white/50">Receba a renovação diária e ganhe créditos ao convidar pessoas elegíveis.</p>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs text-white/45"><span className="rounded-full bg-white/[0.06] px-2.5 py-1">Renovação diária</span><span className="rounded-full bg-white/[0.06] px-2.5 py-1">Convites</span></div>
               </div>
               <div className="rounded-2xl border border-violet-300/15 bg-violet-400/[0.07] p-4">
                 <p className="font-semibold text-white">Comprar créditos</p>

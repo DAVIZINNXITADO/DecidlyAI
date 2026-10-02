@@ -7,14 +7,15 @@ import {
 import { useEffect, useState } from "react";
 import { useLanguageContext } from "../lib/LanguageProvider";
 import { t } from "../lib/i18n";
+import {
+  COOKIE_CONSENT_STORAGE_KEY,
+  notifyCookieConsentChanged,
+} from "../lib/ad-consent";
 
 type CookieConsentStatus =
   | "accepted"
   | "rejected"
   | null;
-
-const COOKIE_CONSENT_KEY =
-  "decidlyai-cookie-consent";
 
 export function CookieConsent() {
   const { language } = useLanguageContext();
@@ -31,7 +32,7 @@ export function CookieConsent() {
   useEffect(() => {
     const savedConsent =
       window.localStorage.getItem(
-        COOKIE_CONSENT_KEY,
+        COOKIE_CONSENT_STORAGE_KEY,
       );
 
     if (
@@ -53,10 +54,8 @@ export function CookieConsent() {
       null
     >,
   ) {
-    window.localStorage.setItem(
-      COOKIE_CONSENT_KEY,
-      status,
-    );
+    window.localStorage.setItem(COOKIE_CONSENT_STORAGE_KEY, status);
+    notifyCookieConsentChanged();
 
     setConsent(status);
     setIsVisible(false);

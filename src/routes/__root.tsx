@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "../lib/supabase";
 import { LanguageProvider } from "../lib/LanguageProvider";
+import { CookieConsent } from "../components/CookieConsent";
 
 const SITE_URL = "https://decidlyai.lovable.app";
 
@@ -360,6 +361,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <Outlet />
+        <CookieConsent />
       </LanguageProvider>
     </QueryClientProvider>
   );

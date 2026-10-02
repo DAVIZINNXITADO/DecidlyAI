@@ -6,7 +6,7 @@ Este documento separa funcionalidades implementadas no código, funcionalidades 
 
 ## Resumo executivo
 
-O workspace, autenticação, conversas, streaming, fallback gratuito, resposta rica segura, perguntas contextuais, central compacta de ferramentas, créditos e páginas institucionais já estão presentes no projeto. O build de produção atual passa. Pagamentos ainda estão apenas com a tela de pacotes; não existe checkout real conectado. Anúncios possuem `ads.txt` e uma interface de recompensa demonstrativa, mas a validação real depende de uma integração de anúncios recompensados e da Edge Function correspondente.
+O workspace, autenticação, conversas, streaming, fallback gratuito, resposta rica segura, perguntas contextuais, central compacta de ferramentas, créditos e páginas institucionais já estão presentes no projeto. Pagamentos ainda estão apenas com a tela de pacotes; não existe checkout real conectado. A monetização por anúncios usa somente formatos display padrão do Adsterra nas posições editoriais e de apoio descritas em `MONETAG-AD-SETUP.md`; não há anúncios recompensados nem créditos concedidos por visualização de anúncio.
 
 ## O que está implementado
 
@@ -32,7 +32,7 @@ O workspace, autenticação, conversas, streaming, fallback gratuito, resposta r
 | Créditos e carteira | Implementado | Saldo, créditos diários, gratuitos, comprados e histórico visual. |
 | Custos por operação | Preparado | Existe motor inicial de estimativa e migration de ledger; ainda precisa ser ligado a reservas/ajustes reais no backend. |
 | Indicações | Implementado | Código, campanha e recompensa aparecem no workspace/créditos. |
-| Anúncio recompensado | Parcial/demonstrativo | UI faz contagem e chama `decidly-reward-ad`, mas a função não está presente neste repositório e não há SDK de ad network conectado. |
+| Anúncios recompensados | Fora de escopo | Não oferecer visualizações de anúncio em troca de créditos. Migration preparada para revogar as RPCs legadas sem apagar registros existentes; ainda precisa ser aplicada ao ambiente. |
 | Compra de créditos | Não conectado | A tela exibe pacotes, mas o clique apenas mostra aviso de que o checkout será integrado. |
 | Página institucional | Implementado | `/como-funciona` explica produto, ferramentas, autonomia e controle do usuário. |
 | PWA | Preparado | Manifest, ícones e fluxo de instalação existem. |
@@ -54,20 +54,11 @@ A tela de compra já existe, mas não deve ser considerada pagamento funcional. 
 
 Nenhuma chave secreta deve entrar no frontend ou no Git. As chaves devem ser configuradas como secrets das Edge Functions.
 
-## Anúncios: o que já existe e o que falta
+## Anúncios: escopo e pendências
 
-O projeto já contém `public/ads.txt` com o publisher configurado. Isso é apenas uma parte da preparação. Para anúncios reais, ainda falta:
+O projeto mantém `public/ads.txt` e usa formatos display padrão da Adsterra nas posições descritas em `MONETAG-AD-SETUP.md`. Não oferecer anúncios recompensados nem usar visualização de anúncio para conceder créditos. Há anúncios em `/credits`, `/credits/free` e `/credits/history`; `/credits/buy` permanece sem anúncios.
 
-1. Criar/validar a conta e o domínio no provedor de anúncios.
-2. Confirmar o publisher ID e a linha de `ads.txt`.
-3. Integrar o SDK/script oficial somente nas áreas permitidas.
-4. Para anúncios recompensados, receber o evento de recompensa pelo mecanismo oficial do provedor, nunca confiar apenas em um contador do navegador.
-5. Implementar/deployar `decidly-reward-ad` com validação do evento, limite diário, idempotência e registro em `credit_events`.
-6. Exibir claramente ao usuário quando um anúncio é opcional e qual recompensa será concedida.
-7. Adicionar consentimento e política de privacidade compatíveis com a região dos usuários.
-8. Validar o comportamento com bloqueador de anúncios, mobile e falha de rede.
-
-A contagem de cinco segundos atualmente deve ser tratada como **demonstração**, não como prova de visualização de anúncio.
+O aviso de cookies agora está montado globalmente e os scripts Adsterra só carregam após aceite explícito de cookies não essenciais. Antes de produção, ainda é necessário confirmar a configuração do publisher/domínio e revisar consentimento e política de privacidade para as regiões atendidas; `ads.txt` ou o snippet não substituem essas verificações.
 
 ## Variáveis de configuração preparadas
 
@@ -84,12 +75,12 @@ As variáveis sugeridas estão no `.env.example`. Valores reais devem ser config
 
 - [ ] Aplicar todas as migrations no Supabase.
 - [ ] Fazer deploy das Edge Functions usadas pelo workspace.
-- [ ] Confirmar que `decidly-reward-ad` existe ou remover o botão de recompensa até a integração real.
+- [ ] Aplicar a migration que revoga as RPCs legadas de recompensa patrocinada; ela preserva os registros existentes.
 - [ ] Isolar e validar a rota VIP.
 - [ ] Implementar checkout e webhook idempotente.
 - [ ] Implementar processamento real de upload/PDF/storage.
-- [ ] Trocar a contagem demonstrativa de anúncios por validação oficial.
 - [ ] Testar limites, créditos insuficientes, duplicidade de webhook e cancelamento de streaming.
 - [ ] Corrigir os erros TypeScript antigos existentes no projeto.
 - [ ] Testar mobile, acessibilidade, links externos e estados offline.
+- [ ] Testar aceite/recusa de cookies: aceitar carrega anúncios; recusar mantém todos os scripts Adsterra bloqueados.
 - [ ] Revisar termos, privacidade, consentimento e política de anúncios.
