@@ -1,7 +1,7 @@
 import { Check, FileText, Image as ImageIcon, Type, X } from "lucide-react";
 
 export type ToolId = "create_pdf" | "create_image" | "create_text_image";
-export type SelectedTool = { id: ToolId; label: string; cost: number };
+export type SelectedTool = { id: ToolId; label: string; cost: number; costLabel: string };
 
 type Props = {
   selected: SelectedTool | null;
@@ -13,25 +13,28 @@ const availableTools: Array<SelectedTool & { description: string; icon: typeof F
   {
     id: "create_pdf",
     label: "Criar PDF",
-    cost: 3,
-    description: "Exporta uma resposta curta em PDF; não lê arquivos enviados.",
-    limit: "1 PDF por execução · até 8 páginas",
+    cost: 1,
+    costLabel: "1 crédito/arquivo + IA",
+    description: "O conteúdo usa os créditos normais da resposta da IA; o arquivo adiciona 1 crédito.",
+    limit: "1/dia Free · 3/dia VIP · até 8 páginas",
     icon: FileText,
   },
   {
     id: "create_image",
     label: "Imagem por IA",
-    cost: 6,
+    cost: 2.5,
+    costLabel: "2,5 créditos",
     description: "Gera uma imagem quadrada com FLUX.1 Schnell.",
-    limit: "1 imagem por execução · saldo de créditos necessário",
+    limit: "3/dia Free · 9/dia VIP · saldo de créditos necessário",
     icon: ImageIcon,
   },
   {
     id: "create_text_image",
     label: "Imagem de texto",
-    cost: 6,
+    cost: 0.5,
+    costLabel: "0,5 crédito",
     description: "Renderiza uma frase curta em fundo escuro, sem chamada a um gerador externo.",
-    limit: "1 imagem por execução · até 220 caracteres",
+    limit: "5/dia Free · 15/dia VIP · até 220 caracteres",
     icon: Type,
   },
 ];
@@ -64,7 +67,7 @@ export function ToolCenter({ selected, onSelect, onClose }: Props) {
             role="menuitemcheckbox"
             aria-checked={isSelected}
             onClick={() => {
-              onSelect({ id: tool.id, label: tool.label, cost: tool.cost });
+              onSelect({ id: tool.id, label: tool.label, cost: tool.cost, costLabel: tool.costLabel });
               onClose();
             }}
             className="flex w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-left text-[12px] text-white/80 transition hover:bg-violet-400/[0.13] hover:text-white"
@@ -73,7 +76,7 @@ export function ToolCenter({ selected, onSelect, onClose }: Props) {
             <span className="min-w-0 flex-1">
               <span className="flex items-center justify-between gap-2">
                 <strong className="font-medium">{tool.label}</strong>
-                <span className="shrink-0 text-[10px] text-violet-200">{tool.cost} crédito{tool.cost === 1 ? "" : "s"}</span>
+                <span className="shrink-0 text-[10px] text-violet-200">{tool.costLabel}</span>
               </span>
               <span className="mt-1 block text-[10px] leading-4 text-white/45">{tool.description}</span>
               <span className="mt-0.5 block text-[10px] leading-4 text-white/35">{tool.limit}</span>

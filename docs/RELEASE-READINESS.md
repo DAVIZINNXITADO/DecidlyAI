@@ -21,9 +21,9 @@ O workspace, autenticação, conversas, streaming, respostas ricas, créditos e 
 | Perguntas contextuais | Implementado no contrato/UI | A IA pode emitir `[question]`; a pergunta aparece sem bloquear a caixa de mensagem. |
 | Respostas ricas | Implementado | Markdown seguro, ações explícitas, cartões de PDF e imagem privada. |
 | Central do botão “+” | Implementado | PDF, imagem por IA e imagem de texto; cada item informa custo e limite. Sem anexos ou plugins. |
-| PDF | Implementado no código | PDF A4 simples em alfabeto latino, até 12.000 caracteres/8 páginas, 3 créditos por execução; armazenamento privado e link de download. Não lê PDFs. |
-| Imagem por IA | Implementado no código | Edge Function chama FLUX.1 Schnell com chave server-side; 1024×1024, 4 passos, 6 créditos por execução, prompt de até 1.500 caracteres. |
-| Imagem de texto | Implementado no código | Canvas cria PNG 1024×1024, texto até 220 caracteres, 6 créditos por execução. |
+| PDF | Implementado no código | PDF A4 simples em alfabeto latino, até 12.000 caracteres/8 páginas; 1 crédito por arquivo + cobrança normal da resposta IA; limite 1/dia Free, 3/dia VIP. Não lê PDFs. |
+| Imagem profissional por IA | Implementado no código | Edge Function chama FLUX.1 Schnell com chave server-side; 1024×1024, 4 passos, 2,5 créditos; limite 3/dia Free, 9/dia VIP; prompt até 1.500 caracteres. |
+| Imagem básica de texto | Implementado no código | Canvas cria PNG 1024×1024, texto até 220 caracteres, 0,5 crédito; limite 5/dia Free, 15/dia VIP, quota separada. |
 | Créditos de artefatos | Implementado no código; migration pendente | RPCs transacionais e idempotentes reservam, liquidam ou devolvem crédito; a cota é aplicada no banco. |
 | Storage dos artefatos | Implementado no código; migration pendente | Bucket privado, políticas de caminho por usuário e URLs assinadas temporárias. |
 | Indicações | Implementado | Código, campanha e recompensa aparecem no workspace/créditos. |
@@ -42,7 +42,7 @@ O código ainda não está ativo em produção até completar todos estes passos
 5. Testar com conta autenticada, sem revelar a chave: saldo insuficiente, cotas diárias, duplicidade, estorno após falha, execução concorrente, arquivos privados e links assinados.
 6. Confirmar que PDF, PNG e JPEG aparecem no histórico depois de recarregar a conversa.
 
-Os limites implementados: 3 créditos por PDF e 6 por imagem; cada ação gera no máximo um artefato. Não há cota diária adicional por quantidade: novas execuções só ocorrem se o saldo de créditos permitir. O plano Free tem 5 créditos diários; por isso, qualquer geração de imagem exige créditos suficientes além desse saldo diário.
+Os limites implementados são aplicados no banco por dia (America/Sao_Paulo): PDF 1 Free/3 VIP; imagem profissional 3 Free/9 VIP; imagem básica 5 Free/15 VIP. Cada ação gera no máximo um artefato e também exige saldo suficiente. O PDF debita 1 crédito pelo arquivo, além do uso de créditos normal da resposta/conteúdo gerado pela IA. O plano Free tem 5 créditos diários; os limites de quantidade não ampliam esse saldo.
 
 ## Pagamentos: o que falta configurar
 

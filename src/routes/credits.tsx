@@ -63,7 +63,7 @@ function Credits() {
           <div className="rounded-2xl bg-black/20 p-3">
             <p className="text-xs text-white/40">{tx(language, "dailyCredits")}</p>
             <p className="mt-1 font-semibold">
-              {dailyUsed.toFixed(0)}/
+              {dailyUsed.toFixed(2)}/
               {wallet.daily_credits_limit >= 999999 ? "∞" : wallet.daily_credits_limit}
             </p>
           </div>

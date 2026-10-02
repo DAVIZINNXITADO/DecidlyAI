@@ -5,9 +5,9 @@ Auditoria do código local em 2026-10-02. Este documento distingue funcionalidad
 ## Implementado no código
 
 - Conversa de texto com a IA e histórico de conversas.
-- **PDF simples**: conteúdo final preparado pela IA é transformado em PDF A4 com texto em alfabeto latino, guardado em Storage privado e anexado à conversa. Custa 3 créditos por execução; máximo de 12.000 caracteres e 8 páginas. Não lê PDFs enviados.
-- **Imagem por IA**: Supabase Edge Function chama `fal-ai/flux/schnell` no servidor, usa uma imagem quadrada 1024×1024 e mantém o safety checker ligado. Custa 6 créditos por execução; prompt de até 1.500 caracteres.
-- **Imagem de texto**: Canvas cria localmente uma imagem PNG quadrada 1024×1024 com fundo escuro e texto branco. Custa 6 créditos por execução; texto de até 220 caracteres.
+- **PDF simples**: conteúdo final preparado pela IA é transformado em PDF A4 com texto em alfabeto latino, guardado em Storage privado e anexado à conversa. O arquivo custa 1 crédito; a geração do conteúdo usa a cobrança normal da conversa. Limite: 1 PDF/dia Free ou 3/dia VIP; máximo de 12.000 caracteres e 8 páginas. Não lê PDFs enviados.
+- **Imagem profissional por IA**: Supabase Edge Function chama `fal-ai/flux/schnell` no servidor, usa uma imagem quadrada 1024×1024 e mantém o safety checker ligado. Custa 2,5 créditos; limites: 3/dia Free ou 9/dia VIP; prompt de até 1.500 caracteres.
+- **Imagem básica de texto**: Canvas cria localmente uma imagem PNG quadrada 1024×1024 com fundo escuro e texto branco. Custa 0,5 crédito; limites: 5/dia Free ou 15/dia VIP; texto de até 220 caracteres. Esta cota é separada da imagem profissional.
 - Os blocos de ação exigem clique explícito, apresentam custo/limite e recebem ID idempotente. Cada execução cria no máximo um artefato; execuções adicionais dependem do saldo. A cobrança é reservada no banco e estornada se a geração não concluir.
 - Os arquivos ficam em bucket privado, com acesso por usuário e links assinados temporários.
 - O histórico guarda qual ferramenta o usuário selecionou e substitui a ação concluída pelo link ou imagem gerada.

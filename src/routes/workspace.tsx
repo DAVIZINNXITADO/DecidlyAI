@@ -299,6 +299,9 @@ function Workspace() {
 
     const errorText = (message: string) => {
       if (message.includes("insufficient_credits")) return "Créditos insuficientes para esta ferramenta.";
+      if (message.includes("daily_artifact_limit:pdf")) return "Você atingiu o limite diário de PDFs do seu plano.";
+      if (message.includes("daily_artifact_limit:professional_image")) return "Você atingiu o limite diário de imagens por IA do seu plano.";
+      if (message.includes("daily_artifact_limit:basic_image")) return "Você atingiu o limite diário de imagens básicas do seu plano.";
       if (message.includes("credit_wallet_unavailable")) return "Não foi possível consultar sua carteira de créditos.";
       return message;
     };
@@ -1491,7 +1494,7 @@ function Workspace() {
           ? `Perguntas opcionais respondidas pelo usuário para melhorar a análise:\n${guidance}`
           : "";
         const toolContext = toolForRequest
-          ? `Ferramenta selecionada pelo usuário: ${toolForRequest.label} (${toolForRequest.cost} crédito${toolForRequest.cost === 1 ? "" : "s"}). Gere uma única ação compatível com o tipo ${toolForRequest.id}. Para create_pdf, produza conteúdo final conciso; para create_image, produza um prompt visual; para create_text_image, retorne o texto exato, com até 220 caracteres. Não afirme que o arquivo já existe antes de a pessoa executar a ação.`
+          ? `Ferramenta selecionada pelo usuário: ${toolForRequest.label} (${toolForRequest.costLabel}). Gere uma única ação compatível com o tipo ${toolForRequest.id}. Para create_pdf, produza conteúdo final conciso; para create_image, produza um prompt visual; para create_text_image, retorne o texto exato, com até 220 caracteres. Não afirme que o arquivo já existe antes de a pessoa executar a ação.`
           : "";
 
         const assistantId = crypto.randomUUID();
@@ -2659,7 +2662,7 @@ function Workspace() {
 
             <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
               <div className="rounded-2xl bg-white/[0.06] p-3"><p className="text-[11px] text-white/45">Disponível</p><p className="mt-1 text-lg font-semibold text-white">{usableCredits.toFixed(2)}</p></div>
-              <div className="rounded-2xl bg-amber-400/[0.10] p-3"><p className="text-[11px] text-white/55">Créditos diários</p><p className="mt-1 text-lg font-semibold text-amber-200">{dailyBalance.toFixed(0)}/{creditWallet.daily_credits_limit >= 999999 ? "∞" : creditWallet.daily_credits_limit.toFixed(0)}</p></div>
+              <div className="rounded-2xl bg-amber-400/[0.10] p-3"><p className="text-[11px] text-white/55">Créditos diários</p><p className="mt-1 text-lg font-semibold text-amber-200">{dailyBalance.toFixed(2)}/{creditWallet.daily_credits_limit >= 999999 ? "∞" : creditWallet.daily_credits_limit.toFixed(0)}</p></div>
               <div className="rounded-2xl bg-violet-400/[0.10] p-3"><p className="text-[11px] text-white/55">Grátis</p><p className="mt-1 text-lg font-semibold text-violet-200">{creditWallet.free_credits.toFixed(2)}</p></div>
               <div className="rounded-2xl bg-emerald-400/[0.10] p-3"><p className="text-[11px] text-white/55">Comprados</p><p className="mt-1 text-lg font-semibold text-emerald-200">{creditWallet.purchased_credits.toFixed(2)}</p></div>
             </div>
@@ -3211,7 +3214,7 @@ function Workspace() {
               <div className="mb-2 flex items-center justify-between gap-3 rounded-2xl border border-violet-300/20 bg-violet-400/[0.08] px-3 py-2">
                 <span className="flex min-w-0 items-center gap-2 text-xs">
                   {selectedTool.id === "create_image" ? <ImageIcon size={15} className="shrink-0 text-violet-200" /> : selectedTool.id === "create_text_image" ? <Type size={15} className="shrink-0 text-violet-200" /> : <FileText size={15} className="shrink-0 text-violet-200" />}
-                  <span><span className="text-white/45">Ativo neste envio · </span><strong className="font-medium text-violet-100">{selectedTool.label} · {selectedTool.cost} crédito{selectedTool.cost === 1 ? "" : "s"}</strong></span>
+                  <span><span className="text-white/45">Ativo neste envio · </span><strong className="font-medium text-violet-100">{selectedTool.label} · {selectedTool.costLabel}</strong></span>
                 </span>
                 <button type="button" onClick={() => setSelectedTool(null)} className="rounded-lg p-1 text-white/45 transition hover:bg-white/10 hover:text-white" aria-label="Desativar ferramenta selecionada"><X size={14} /></button>
               </div>

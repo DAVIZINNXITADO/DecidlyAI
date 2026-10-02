@@ -5,9 +5,9 @@ export type CostInput = { kind: OperationKind; inputChars?: number; outputChars?
 const baseCosts: Record<OperationKind, number> = {
   question: 1,
   complex_response: 2,
-  pdf_create: 3,
-  image: 6,
-  text_image: 6,
+  pdf_create: 1,
+  image: 2.5,
+  text_image: 0.5,
 };
 
 export function estimateOperationCost(input: CostInput) {

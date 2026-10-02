@@ -80,7 +80,8 @@ Deno.serve(async (request) => {
     });
     if (reserveError) {
       const message = reserveError.message ?? "";
-      if (message.includes("insufficient_credits")) throw new ApiError("Créditos insuficientes. A geração de imagem custa 6 créditos.", 402);
+      if (message.includes("insufficient_credits")) throw new ApiError("Créditos insuficientes. A geração de imagem profissional custa 2,5 créditos.", 402);
+      if (message.includes("daily_artifact_limit:professional_image")) throw new ApiError("Você atingiu o limite diário de imagens profissionais do seu plano.", 429);
       throw new ApiError("Não foi possível reservar os créditos para esta imagem.", 500);
     }
 
