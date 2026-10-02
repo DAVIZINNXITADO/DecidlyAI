@@ -22,7 +22,7 @@ O produto não deve oferecer visualizações de anúncios em troca de créditos 
 - Banners e Social Bar não carregam nem são renderizados antes do aceite de cookies não essenciais. Recusar impede inserir os scripts Adsterra.
 - Banners carregam próximo à viewport, enfileirando os scripts para evitar concorrência em `window.atOptions`; quando não há preenchimento, o slot é ocultado.
 - Não repetir scripts de zona, criar refresh manual ou alterar dimensões do criativo com CSS.
-- O frame do anúncio usa o fundo translúcido, contorno e raio de borda dos cards do site. No mobile, o rótulo, o botão de informação e o acesso VIP ficam num cabeçalho próprio fora da área clicável do criativo; a moldura só aparece com anúncio preenchido. O criativo nunca é cortado, esticado ou redimensionado.
+- O card do anúncio ocupa toda a largura do container, como os demais cards da página, e usa as variáveis semânticas do tema (`--card`, `--border`, `--muted`) para acompanhar automaticamente o esquema de cores. No mobile, o rótulo, o botão de informação e o acesso VIP ficam num cabeçalho próprio fora da área clicável; o criativo fica centralizado no tamanho nativo da zona, sem corte, esticamento ou redimensionamento.
 - Os cinco tamanhos Banner são `728×90`, `468×60`, `320×50`, `160×300` e `160×600`. O Native Banner `300×250` é uma zona separada. As zonas horizontais são escolhidas conforme a largura disponível; `160×300` está no rodapé da sidebar desktop; `160×600` permanece disponível para uma coluna alta sem slot definido.
 - Categorias de anúncios e bloqueios de conteúdo dependem das configurações na conta Adsterra e precisam ser verificados diretamente no painel do publisher.
 

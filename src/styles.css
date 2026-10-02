@@ -568,15 +568,11 @@ html[data-theme="light"] .workspace-shell [class*="border-white/"] {
   position: relative;
   display: flex;
   width: 100%;
-  max-width: 728px;
+  max-width: none;
   min-height: 250px;
-  margin-inline: auto;
+  margin-inline: 0;
   align-items: center;
   justify-content: center;
-}
-
-.adsterra-banner-frame[data-placement="in-content"] {
-  max-width: 320px;
 }
 
 .adsterra-banner-frame.has-ad {
@@ -647,10 +643,10 @@ html[data-theme="light"] .workspace-shell [class*="border-white/"] {
   align-items: stretch;
   gap: 8px;
   min-height: 0;
-  outline: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1.5rem;
-  background: rgba(255, 255, 255, 0.035);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+  outline: 1px solid var(--border);
+  border-radius: var(--radius-3xl);
+  background: var(--card);
+  color: var(--card-foreground);
 }
 
 .adsterra-banner-card-head {
@@ -670,10 +666,10 @@ html[data-theme="light"] .workspace-shell [class*="border-white/"] {
   align-items: center;
   margin: 0;
   padding: 4px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.68);
+  background: var(--muted);
+  color: var(--muted-foreground);
   font-size: 10px;
   letter-spacing: 0.08em;
   line-height: 1.5;
@@ -693,9 +689,9 @@ html[data-theme="light"] .workspace-shell [class*="border-white/"] {
   align-items: center;
   gap: 4px;
   padding: 2px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.28);
+  background: var(--background);
 }
 
 .adsterra-banner-control,
@@ -709,8 +705,8 @@ html[data-theme="light"] .workspace-shell [class*="border-white/"] {
   padding: 0;
   border: 0;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.74);
+  background: var(--secondary);
+  color: var(--secondary-foreground);
   font: inherit;
   font-size: 10px;
   line-height: 1;
@@ -727,13 +723,13 @@ html[data-theme="light"] .workspace-shell [class*="border-white/"] {
 
 .adsterra-banner-control:hover:not(:disabled),
 .adsterra-banner-vip:hover {
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 
 .adsterra-banner-control:focus-visible,
 .adsterra-banner-vip:focus-visible {
-  outline: 2px solid rgba(196, 181, 253, 0.95);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -753,14 +749,13 @@ html[data-theme="light"] .workspace-shell [class*="border-white/"] {
 .adsterra-banner-details {
   position: relative;
   width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
-  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--popover);
   padding: 12px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--popover-foreground);
   font-size: 11px;
   line-height: 1.5;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
 }
 
 .adsterra-banner-details p {
@@ -781,9 +776,9 @@ html[data-theme="light"] .workspace-shell [class*="border-white/"] {
 }
 
 .adsterra-banner-frame[data-zone-size="300x250"] {
-  width: min(300px, 100%);
+  width: 100%;
 }
 
 .adsterra-banner-frame[data-zone-size="320x50"] {
-  width: min(320px, 100%);
+  width: 100%;
 }
