@@ -3,7 +3,7 @@
 ## Escopo permitido
 
 - **Workspace (desktop):** um banner vertical compacto `160×300` no rodapé da barra lateral, abaixo do histórico. Não inserir banners no feed, junto ao campo de mensagem ou sobre respostas da IA.
-- **Workspace:** Social Bar padrão do Adsterra inicia automaticamente depois de 90 segundos com a aba visível; se o usuário estiver digitando, o carregamento é adiado. Não exibir o banner da sidebar no celular.
+- **Workspace:** Social Bar padrão do Adsterra inicia automaticamente uma vez por aba, cerca de 2 segundos após o Workspace estar pronto; se o usuário estiver digitando, aguarda o campo perder foco. Não exibir o banner da sidebar no celular.
 - **Homepage (`/` / `index.tsx`):** sem anúncios, conforme exclusão expressa.
 - **Blog (`/blog`):** um banner entre os cards da listagem; sem faixa no cabeçalho.
 - **Como funciona (`/como-funciona`) e Tecnologia (`/tecnologia`):** um único banner responsivo entre a explicação e o CTA final.
@@ -18,11 +18,11 @@ O produto não deve oferecer visualizações de anúncios em troca de créditos 
 
 ## Comportamento dos formatos
 
-- O Social Bar inicia automaticamente após 90 segundos no Workspace, em qualquer viewport; exige aba visível e adia enquanto um campo de texto está focado.
+- O Social Bar inicia automaticamente cerca de 2 segundos após abrir o Workspace, em qualquer viewport; exige consentimento e aba visível e adia enquanto um campo de texto está focado. Há uma única injeção por aba: sem polling, sem refresh e sem repetição a cada 10 segundos.
 - Banners e Social Bar não carregam nem são renderizados antes do aceite de cookies não essenciais. Recusar impede inserir os scripts Adsterra.
 - Banners carregam próximo à viewport, enfileirando os scripts para evitar concorrência em `window.atOptions`; quando não há preenchimento, o slot é ocultado.
 - Não repetir scripts de zona, criar refresh manual ou alterar dimensões do criativo com CSS.
-- O frame do anúncio pode usar fundo e contorno arredondado sutil, sem cortar, esticar, sobrepor ou mudar a proporção do criativo.
+- O frame do anúncio usa o fundo translúcido, contorno e raio de borda dos cards do site. No mobile, o rótulo, o botão de informação e o acesso VIP ficam num cabeçalho próprio fora da área clicável do criativo; a moldura só aparece com anúncio preenchido. O criativo nunca é cortado, esticado ou redimensionado.
 - Os cinco tamanhos Banner são `728×90`, `468×60`, `320×50`, `160×300` e `160×600`. O Native Banner `300×250` é uma zona separada. As zonas horizontais são escolhidas conforme a largura disponível; `160×300` está no rodapé da sidebar desktop; `160×600` permanece disponível para uma coluna alta sem slot definido.
 - Categorias de anúncios e bloqueios de conteúdo dependem das configurações na conta Adsterra e precisam ser verificados diretamente no painel do publisher.
 

@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Crown, Info, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { COOKIE_CONSENT_CHANGED_EVENT, hasAdsConsent } from "../lib/ad-consent";
 
 const SOCIAL_BAR_SRC = "https://cheflobesofficer.com/47/22/20/4722201050555ac91066f4314c7f7b0f.js";
@@ -20,8 +20,8 @@ type AdsterraBannerPlacement =
   | "native-300x250"
   | "rail-160x300"
   | "rail-160x600";
-const SOCIAL_BAR_DELAY_MS = 90_000;
-const SOCIAL_BAR_SESSION_KEY = "decidly-socialbar-loaded";
+const SOCIAL_BAR_INITIAL_DELAY_MS = 2_000;
+const SOCIAL_BAR_SESSION_KEY = "decidly-socialbar-loaded-v2";
 
 function useAdsConsent() {
   const [consent, setConsent] = useState(false);
@@ -190,7 +190,7 @@ function isTextEntryFocused() {
   );
 }
 
-/** Loads the Social Bar once per tab session, 90 seconds after workspace mount/consent. */
+/** Loads the Social Bar once per tab session after a short Workspace entry delay; never polls or refreshes. */
 export function AdsterraSocialBar() {
   const adsConsent = useAdsConsent();
 
@@ -198,6 +198,7 @@ export function AdsterraSocialBar() {
     if (!adsConsent || hasSocialBarBeenAttempted()) return;
 
     let timerId: number | undefined;
+    let waitingForFocusOut = false;
 
     const schedule = () => {
       if (timerId !== undefined) {
@@ -210,8 +211,12 @@ export function AdsterraSocialBar() {
 
       timerId = window.setTimeout(() => {
         timerId = undefined;
-        if (document.visibilityState !== "visible" || isTextEntryFocused()) {
-          schedule();
+        if (document.visibilityState !== "visible") return;
+        if (isTextEntryFocused()) {
+          if (!waitingForFocusOut) {
+            waitingForFocusOut = true;
+            document.addEventListener("focusout", onFocusOut);
+          }
           return;
         }
         if (document.querySelector('script[data-decidly-adsterra="social-bar"]')) {
@@ -225,8 +230,27 @@ export function AdsterraSocialBar() {
         script.async = true;
         script.setAttribute("data-cfasync", "false");
         script.dataset["decidlyAdsterra"] = "social-bar";
+        script.addEventListener(
+          "error",
+          () => {
+            try {
+              window.sessionStorage.removeItem(SOCIAL_BAR_SESSION_KEY);
+            } catch {
+              // A later Workspace entry can retry; there is no automatic retry loop.
+            }
+            script.remove();
+          },
+          { once: true },
+        );
         document.body.appendChild(script);
-      }, SOCIAL_BAR_DELAY_MS);
+      }, SOCIAL_BAR_INITIAL_DELAY_MS);
+    };
+
+    const onFocusOut = () => {
+      if (isTextEntryFocused()) return;
+      waitingForFocusOut = false;
+      document.removeEventListener("focusout", onFocusOut);
+      schedule();
     };
 
     const onVisibilityChange = () => {
@@ -243,6 +267,7 @@ export function AdsterraSocialBar() {
 
     return () => {
       if (timerId !== undefined) window.clearTimeout(timerId);
+      if (waitingForFocusOut) document.removeEventListener("focusout", onFocusOut);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [adsConsent]);
@@ -276,6 +301,7 @@ export function AdsterraNativeBanner({
   const [noFill, setNoFill] = useState(false);
   const [destinationUrl, setDestinationUrl] = useState<string | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
+  const adDetailsId = useId();
 
   useEffect(() => {
     if (!adsConsent) {
@@ -379,37 +405,40 @@ export function AdsterraNativeBanner({
         className={`adsterra-banner-frame${hasCreative ? " has-ad" : ""}`}
         style={{ minHeight: `${zone?.height ?? 250}px` }}
       >
-        <div className="adsterra-banner-controls">
-          <div className="adsterra-banner-control-group">
-            <button
-              type="button"
-              onClick={() => setInfoOpen((open) => !open)}
-              aria-label="Informações do anúncio"
-              aria-controls="adsterra-banner-details"
-              aria-expanded={infoOpen}
-              title="Informações do anúncio"
-              className="adsterra-banner-control"
-            >
-              <Info size={11} />
-            </button>
+        <div className="adsterra-banner-card-head">
+          {hasCreative && <p className="adsterra-banner-label">Anúncio</p>}
+          <div className="adsterra-banner-controls">
+            <div className="adsterra-banner-control-group">
+              <button
+                type="button"
+                onClick={() => setInfoOpen((open) => !open)}
+                aria-label="Informações do anúncio"
+                aria-controls={adDetailsId}
+                aria-expanded={infoOpen}
+                title="Informações do anúncio"
+                className="adsterra-banner-control"
+              >
+                <Info size={14} />
+              </button>
+              <Link
+                to="/vip"
+                aria-label="Remover anúncios com o plano VIP — em breve"
+                title="Plano VIP sem anúncios — em breve"
+                className="adsterra-banner-vip"
+              >
+                <Crown size={13} className="text-violet-300/90" />
+                <span>VIP</span>
+              </Link>
+            </div>
           </div>
         </div>
 
-        <Link
-          to="/vip"
-          aria-label="Remover anúncios com o plano VIP — em breve"
-          title="Plano VIP sem anúncios — em breve"
-          className="adsterra-banner-vip"
-        >
-          <Crown size={11} className="text-violet-300/90" />
-        </Link>
-
         {infoOpen && (
           <div
-            id="adsterra-banner-details"
+            id={adDetailsId}
             role="region"
             aria-label="Detalhes do anúncio"
-            className="absolute left-1 right-1 top-7 z-30 rounded-xl bg-black/90 p-3 text-[11px] leading-5 text-white/70 shadow-xl sm:left-auto sm:w-80"
+            className="adsterra-banner-details"
           >
             <div className="flex items-center justify-between gap-3">
               <p className="font-semibold text-white/85">Sobre este anúncio</p>
@@ -447,7 +476,6 @@ export function AdsterraNativeBanner({
           </div>
         )}
 
-        {hasCreative && <p className="adsterra-banner-label">Anúncio</p>}
         <div
           id={zone ? `container-${zone.key}` : undefined}
           ref={slotRef}
