@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { toPlainArtifactText } from "./rich-markup";
 
 export const MAX_PDF_CHARS = 12_000;
 export const MAX_PDF_PAGES = 8;
@@ -29,15 +30,24 @@ function safeHelveticaText(value: string) {
     if (punctuation[character]) return punctuation[character];
     const codePoint = character.codePointAt(0) ?? 0;
     if (codePoint === 9 || codePoint === 10 || codePoint === 13) return character;
-    if ((codePoint >= 32 && codePoint <= 126) || (codePoint >= 160 && codePoint <= 255)) return character;
+    if ((codePoint >= 32 && codePoint <= 126) || (codePoint >= 160 && codePoint <= 255))
+      return character;
     if (codePoint >= 0x0100 && codePoint <= 0x024f) {
-      return character.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\x20-\x7e]/g, "");
+      return character
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^\x20-\x7e]/g, "");
     }
     return "";
   }).join("");
 }
 
-function wrapText(text: string, font: Awaited<ReturnType<PDFDocument["embedFont"]>>, size: number, maxWidth: number) {
+function wrapText(
+  text: string,
+  font: Awaited<ReturnType<PDFDocument["embedFont"]>>,
+  size: number,
+  maxWidth: number,
+) {
   const lines: string[] = [];
   for (const paragraph of text.split(/\r?\n/)) {
     if (!paragraph.trim()) {
@@ -59,19 +69,31 @@ function wrapText(text: string, font: Awaited<ReturnType<PDFDocument["embedFont"
   return lines;
 }
 
-export async function createPdfBlob(options: { title?: string; content: string; fileName?: string }) {
-  const sourceContent = options.content.trim();
+export async function createPdfBlob(options: {
+  title?: string;
+  content: string;
+  fileName?: string;
+}) {
+  const sourceContent = toPlainArtifactText(options.content);
   if (!sourceContent) throw new Error("A IA não preparou conteúdo para o PDF.");
   if (sourceContent.length > MAX_PDF_CHARS) {
-    throw new Error(`O PDF pode ter até ${MAX_PDF_CHARS.toLocaleString("pt-BR")} caracteres. Peça uma versão mais curta.`);
+    throw new Error(
+      `O PDF pode ter até ${MAX_PDF_CHARS.toLocaleString("pt-BR")} caracteres. Peça uma versão mais curta.`,
+    );
   }
   const unsupportedLetterOrNumber = Array.from(sourceContent).some((character) => {
     if (!/[\p{L}\p{N}]/u.test(character)) return false;
     const codePoint = character.codePointAt(0) ?? 0;
-    return !((codePoint >= 32 && codePoint <= 126) || (codePoint >= 160 && codePoint <= 255) || (codePoint >= 0x0100 && codePoint <= 0x024f));
+    return !(
+      (codePoint >= 32 && codePoint <= 126) ||
+      (codePoint >= 160 && codePoint <= 255) ||
+      (codePoint >= 0x0100 && codePoint <= 0x024f)
+    );
   });
   if (unsupportedLetterOrNumber) {
-    throw new Error("O PDF simples aceita texto em alfabeto latino. Peça à IA para adaptar o texto antes de exportar.");
+    throw new Error(
+      "O PDF simples aceita texto em alfabeto latino. Peça à IA para adaptar o texto antes de exportar.",
+    );
   }
 
   const pdf = await PDFDocument.create();
@@ -96,9 +118,21 @@ export async function createPdfBlob(options: { title?: string; content: string; 
   const drawHeader = () => {
     page.drawText("DecidlyAI", { x: margin, y, size: 10, font: bold, color: rgb(0.43, 0.25, 0.8) });
     y -= 32;
-    page.drawText(title || "Documento DecidlyAI", { x: margin, y, size: 20, font: bold, color: rgb(0.12, 0.08, 0.18) });
+    page.drawText(title || "Documento DecidlyAI", {
+      x: margin,
+      y,
+      size: 20,
+      font: bold,
+      color: rgb(0.12, 0.08, 0.18),
+    });
     y -= 28;
-    page.drawText(new Date().toLocaleDateString("pt-BR"), { x: margin, y, size: 9, font: regular, color: rgb(0.4, 0.36, 0.45) });
+    page.drawText(new Date().toLocaleDateString("pt-BR"), {
+      x: margin,
+      y,
+      size: 9,
+      font: regular,
+      color: rgb(0.4, 0.36, 0.45),
+    });
     y -= 30;
   };
 
@@ -110,7 +144,8 @@ export async function createPdfBlob(options: { title?: string; content: string; 
       linesOnPage = 0;
       drawHeader();
     }
-    if (line) page.drawText(line, { x: margin, y, size: 11, font: regular, color: rgb(0.15, 0.12, 0.18) });
+    if (line)
+      page.drawText(line, { x: margin, y, size: 11, font: regular, color: rgb(0.15, 0.12, 0.18) });
     y -= 17;
     linesOnPage += 1;
   }
