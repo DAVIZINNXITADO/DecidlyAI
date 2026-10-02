@@ -35,10 +35,6 @@ function Tecnologia() {
             </p>
           </div>
 
-          <div className="mt-4 flex justify-center md:justify-end">
-            <AdsterraNativeBanner placement="top-right" />
-          </div>
-
           <div className="mt-4 grid gap-5 md:grid-cols-3">
             <TechnologyCard
               step="01"
@@ -55,10 +51,6 @@ function Tecnologia() {
               title="Uso responsável"
               description="O consumo considera a complexidade e a quantidade de tokens utilizados pela análise, em vez de tratar toda solicitação como igual."
             />
-          </div>
-
-          <div className="mt-8">
-            <AdsterraNativeBanner placement="in-content" />
           </div>
 
           <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.025] p-7 md:p-10">
@@ -98,6 +90,9 @@ function Tecnologia() {
               <ListItem>Experiência simples, sem configuração técnica</ListItem>
               <ListItem>Fallback para reduzir indisponibilidades</ListItem>
             </ul>
+            <div className="my-10">
+              <AdsterraNativeBanner placement="standard" />
+            </div>
             <Link
               to="/login"
               className="interactive-lift mt-9 inline-flex items-center gap-2 rounded-xl bg-violet-500 px-6 py-4 font-semibold hover:bg-violet-400"

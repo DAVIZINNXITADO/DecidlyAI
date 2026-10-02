@@ -1,30 +1,36 @@
-# Configuração atual de anúncios do DecidlyAI
+# Configuração de anúncios do DecidlyAI
 
-## Zonas ativas
+## Escopo permitido
 
-- **Adsterra Banner** em páginas de conteúdo: uma faixa horizontal `728×90` (`96c171164990377ba9d624d04a3b4661`) no canto superior direito no desktop (`320×50` em telas estreitas) e um segundo anúncio integrado entre os blocos de conteúdo (`300×250` no desktop e `320×50` quando a coluna não comporta o retângulo). Os dois slots ficam somente em `/blog`, `/tecnologia` e `/como-funciona`.
-- **Sem banner em páginas funcionais**: carteira (`/credits`, `/credits/free`, `/credits/history`, `/credits/buy`), home e histórico de convites.
-- **Adsterra Social Bar**, montado apenas no workspace.
+- **Workspace (desktop):** um banner vertical compacto `160×300` no rodapé da barra lateral, abaixo do histórico. Não inserir banners no feed, junto ao campo de mensagem ou sobre respostas da IA.
+- **Workspace (mobile):** Social Bar padrão do Adsterra, após 90 segundos com a aba visível e sem foco em campo de texto. Não exibir o banner da sidebar no celular.
+- **Homepage (`/` / `index.tsx`):** sem anúncios, conforme exclusão expressa.
+- **Blog (`/blog`):** um banner entre os cards da listagem; sem faixa no cabeçalho.
+- **Como funciona (`/como-funciona`) e Tecnologia (`/tecnologia`):** um único banner responsivo entre a explicação e o CTA final.
+- **Créditos (`/credits`):** um banner depois do resumo da carteira e dos links de navegação.
+- **Créditos grátis (`/credits/free`):** o Native Banner `300×250` abaixo do card de saldo/renovação diária.
+- **Histórico (`/credits/history`):** um banner no rodapé, após as movimentações.
+- **Rotas sem anúncios:** `/`, `/login`, `/reset-password` (Nova Senha), `/credits/buy`, `/privacy`, `/terms` e `/cookies`.
 
-## Experiência e controles
+## Sem anúncios recompensados
 
-- O Social Bar espera 90 segundos (1 minuto e 30 segundos) com a aba visível e sem foco em um campo de texto; se a aba ficar em segundo plano, o tempo recomeça. O script é injetado no máximo uma vez por sessão da aba. A frequência recorrente deve ser gerida pela configuração da Adsterra.
-- Os banners carregam quando o espaço se aproxima da área visível. Enquanto carrega, o frame fica invisível e não reserva uma faixa grande; se a zona não entregar criativo em oito segundos, o slot colapsa. Não aparece o fallback VIP quadrado nem fica um espaço vazio. O script de cada zona é enfileirado para serializar o uso de `window.atOptions` e evitar que dois slots sobrescrevam a configuração um do outro. No modo superior-direito, o desktop usa `728×90`; a inserção no conteúdo usa `300×250` no desktop e `320×50` em telas estreitas. O criativo não é esticado; o banner superior fica à direita e o anúncio dentro do conteúdo fica centralizado.
-- Os controles ficam à direita dentro do frame, como ícones compactos de informação e VIP; em viewport móvel (até 639 px), ficam ocultos para não cobrir o criativo. A etiqueta “Anúncio” permanece visível, mas menor no celular.
-- O reroll foi removido: repetir o mesmo `invoke.js` não é uma API oficial de troca e pode criar requisições/criativos duplicados. Não há refresh automático.
-- O botão de informações identifica o provedor e exibe a URL de destino somente quando o criativo a expõe à página. Em `iframe` isolado, a página não consegue ler o destino interno. Os scripts da zona são inseridos dentro do slot para que o iframe gerado respeite o tamanho responsivo.
-- O botão VIP leva a `/vip`, uma página informativa “Em breve”. Não há preço, checkout ou compra habilitada neste momento.
+O produto não deve oferecer visualizações de anúncios em troca de créditos nem chamar anúncios display de “recompensados”. Uma migration foi preparada para revogar as RPCs legadas `start_sponsored_reward` e `claim_sponsored_reward` quando for aplicada ao banco; ela não apaga linhas já existentes em `sponsored_reward_sessions`.
 
-## Tamanhos e responsividade
+## Comportamento dos formatos
 
-No modo superior-direito, o componente escolhe `728×90` quando viewport e frame comportam 728 px; caso contrário escolhe `320×50` quando ambos comportam 320 px. A seleção padrão para outros posicionamentos ainda considera frame e viewport: `728×90` a partir de 728 px, `300×250` entre 468–727 px (e em viewport de 300–319 px), `320×50` entre 320–467 px. A escolha é feita uma vez por montagem; resize não dispara refresh automático.
+- O Social Bar mantém o atraso de 90 segundos, exige que a aba esteja visível e que o usuário não esteja escrevendo; só é iniciado em viewport móvel.
+- Banners e Social Bar não carregam nem são renderizados antes do aceite de cookies não essenciais. Recusar impede inserir os scripts Adsterra.
+- Banners carregam próximo à viewport, enfileirando os scripts para evitar concorrência em `window.atOptions`; quando não há preenchimento, o slot é ocultado.
+- Não repetir scripts de zona, criar refresh manual ou alterar dimensões do criativo com CSS.
+- Os cinco tamanhos Banner são `728×90`, `468×60`, `320×50`, `160×300` e `160×600`. O Native Banner `300×250` é uma zona separada. As zonas horizontais são escolhidas conforme a largura disponível; `160×300` está no rodapé da sidebar desktop; `160×600` permanece disponível para uma coluna alta sem slot definido.
+- Categorias de anúncios e bloqueios de conteúdo dependem das configurações na conta Adsterra e precisam ser verificados diretamente no painel do publisher.
 
-O publisher também forneceu `160×300` (`c7472a11c92c4f0f46847786e98bb26a`) e `160×600` (`39622a664c5a3450388606e74ac02d84`), mas eles não são carregados no conteúdo central: ficam reservados para uma coluna lateral, ainda inexistente. O painel mostra também `468×60`; falta o snippet dessa zona para habilitar esse tamanho. Não duplicar o mesmo código da zona no mesmo espaço/página; o tamanho vem da zona Adsterra, não de redimensionar o conteúdo de um `iframe` por CSS.
+## Inventário encontrado no repositório
 
-Bloqueios de apostas, cassinos, conteúdo adulto e outras categorias são configurações da zona/conta da Adsterra; o componente visual não filtra nem garante quais anúncios a rede serve. A confirmação desses bloqueios deve vir da Adsterra.
+O código contém os cinco tamanhos Banner (`320×50`, `468×60`, `728×90`, `160×300` e `160×600`), um Native Banner (`300×250`) e a Social Bar. O `468×60` participa da seleção responsiva, o `160×300` está no rodapé do Workspace desktop e o Native Banner está em `/credits/free`; `160×600` ainda não está montado. O Popunder é o único dos oito formatos informados que não encontrei nos arquivos/snippets disponíveis para esta alteração. O fluxo antigo em `/credits/sponsored` era recompensado por visualização e foi removido/desativado; não será reutilizado como Popunder.
 
-## Referências oficiais da Adsterra
+## Antes de publicar
 
-- [How to Make Money with Banner Ads](https://adsterra.com/blog/how-banner-ads-make-money/): tamanhos disponíveis, códigos de publisher, banners não responsivos e aviso contra repetir o mesmo código.
-- [How Adsterra Counts Ad Impressions](https://adsterra.com/blog/adsterra-ad-impressions/): carregamento completo e visibilidade do criativo.
-- [Publisher’s Guide to Social Bar](https://adsterra.com/blog/publishers-guide-to-social-bar/): frequência e instalação do Social Bar.
+1. Confirmar que domínio, publisher ID, `ads.txt` e zonas estão corretos na conta Adsterra.
+2. Validar a política de consentimento e privacidade para os países atendidos; o aviso agora bloqueia scripts até o aceite, mas a revisão legal e regional continua necessária.
+3. Testar responsividade, bloqueadores de anúncios, falhas de rede e comportamento real de preenchimento no domínio de produção.

@@ -40,7 +40,6 @@ function ComoFuncionaPage() {
       eyebrow="DecidlyAI"
       title="Como funciona"
       description="Uma forma mais clara e consciente de organizar decisões importantes."
-      headerAside={<AdsterraNativeBanner placement="top-right" />}
     >
       <div className="space-y-4">
         {steps.map(({ icon: Icon, title, text }, index) => (
@@ -59,8 +58,6 @@ function ComoFuncionaPage() {
             </div>
           </article>
         ))}
-
-        <AdsterraNativeBanner placement="in-content" />
 
         <section className="rounded-3xl border border-amber-300/15 bg-amber-300/[0.06] p-6">
           <div className="flex items-start gap-4">
@@ -129,6 +126,23 @@ function ComoFuncionaPage() {
             title="Você continua no controle"
             text="A IA pode analisar, organizar e sugerir. Ela não executa uma ação externa ou cria um arquivo sem pedir autorização antes."
           />
+        </section>
+
+        <div className="pt-4">
+          <AdsterraNativeBanner placement="standard" />
+        </div>
+
+        <section className="rounded-3xl border border-violet-300/20 bg-violet-400/[0.07] p-7 text-center">
+          <h2 className="text-2xl font-semibold">Pronto para organizar sua próxima decisão?</h2>
+          <p className="mt-2 leading-7 text-white/55">
+            Comece gratuitamente e pense com mais clareza, no seu ritmo.
+          </p>
+          <Link
+            to="/login"
+            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-violet-500 px-5 py-3 font-semibold text-white transition hover:bg-violet-400"
+          >
+            Começar agora <ArrowRight size={17} />
+          </Link>
         </section>
       </div>
     </InnerPage>

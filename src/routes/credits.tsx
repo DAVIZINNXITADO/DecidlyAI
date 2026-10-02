@@ -2,6 +2,7 @@ import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-rout
 import { ChevronRight, Gift, History, ShoppingBag } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { AdsterraNativeBanner } from "../components/AdsterraAds";
 import { CreditNav, InnerPage } from "../components/InnerPage";
 import {
   availableCredits,
@@ -96,6 +97,9 @@ function Credits() {
           title={tx(language, "buyCredits")}
           description={tx(language, "buyDescription")}
         />
+      </div>
+      <div className="mt-8">
+        <AdsterraNativeBanner placement="in-content" />
       </div>
     </InnerPage>
   );

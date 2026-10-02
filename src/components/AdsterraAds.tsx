@@ -1,17 +1,40 @@
 import { Link } from "@tanstack/react-router";
 import { Crown, Info, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { COOKIE_CONSENT_CHANGED_EVENT, hasAdsConsent } from "../lib/ad-consent";
 
 const SOCIAL_BAR_SRC = "https://cheflobesofficer.com/47/22/20/4722201050555ac91066f4314c7f7b0f.js";
 const ADSTERRA_BANNER_ZONES = {
   mobile: { key: "22b5e40106fd1d27fef246e09217fecc", width: 320, height: 50 },
   rectangle: { key: "0aca9c0b2c938bb6bb53743898fe773e", width: 300, height: 250 },
+  leaderboard: { key: "7b7ec6d58978edec94d9c1b5beaae9e4", width: 468, height: 60 },
+  verticalCompact: { key: "c7472a11c92c4f0f46847786e98bb26a", width: 160, height: 300 },
+  verticalTall: { key: "39622a664c5a3450388606e74ac02d84", width: 160, height: 600 },
   desktop: { key: "96c171164990377ba9d624d04a3b4661", width: 728, height: 90 },
 } as const;
 type AdsterraBannerZone = (typeof ADSTERRA_BANNER_ZONES)[keyof typeof ADSTERRA_BANNER_ZONES];
-type AdsterraBannerPlacement = "standard" | "top-right" | "in-content";
+type AdsterraBannerPlacement =
+  | "standard"
+  | "top-right"
+  | "in-content"
+  | "native-300x250"
+  | "rail-160x300"
+  | "rail-160x600";
 const SOCIAL_BAR_DELAY_MS = 90_000;
 const SOCIAL_BAR_SESSION_KEY = "decidly-socialbar-loaded";
+
+function useAdsConsent() {
+  const [consent, setConsent] = useState(false);
+
+  useEffect(() => {
+    const syncConsent = () => setConsent(hasAdsConsent());
+    syncConsent();
+    window.addEventListener(COOKIE_CONSENT_CHANGED_EVENT, syncConsent);
+    return () => window.removeEventListener(COOKIE_CONSENT_CHANGED_EVENT, syncConsent);
+  }, []);
+
+  return consent;
+}
 
 type AdsterraBannerRequest = {
   slot: HTMLDivElement;
@@ -105,16 +128,41 @@ function enqueueAdsterraBanner(request: Omit<AdsterraBannerRequest, "cancelled">
 function selectAdsterraBannerZone(
   frameWidth: number,
   viewportWidth: number,
+  placement: AdsterraBannerPlacement,
 ): AdsterraBannerZone | null {
   const availableWidth = Math.min(
     Math.max(frameWidth, Math.min(viewportWidth, ADSTERRA_BANNER_ZONES.mobile.width)),
     viewportWidth,
   );
+
+  if (placement === "rail-160x300" || placement === "rail-160x600") {
+    if (viewportWidth < 768 || frameWidth < 160) return null;
+    return placement === "rail-160x300"
+      ? ADSTERRA_BANNER_ZONES.verticalCompact
+      : ADSTERRA_BANNER_ZONES.verticalTall;
+  }
+
+  if (placement === "native-300x250") {
+    return availableWidth >= ADSTERRA_BANNER_ZONES.rectangle.width
+      ? ADSTERRA_BANNER_ZONES.rectangle
+      : null;
+  }
+
+  if (placement === "in-content" && viewportWidth >= 768) {
+    if (availableWidth >= ADSTERRA_BANNER_ZONES.desktop.width) return ADSTERRA_BANNER_ZONES.desktop;
+    if (availableWidth >= ADSTERRA_BANNER_ZONES.leaderboard.width) {
+      return ADSTERRA_BANNER_ZONES.leaderboard;
+    }
+    if (availableWidth >= ADSTERRA_BANNER_ZONES.rectangle.width) return ADSTERRA_BANNER_ZONES.rectangle;
+    return null;
+  }
+
   if (availableWidth >= ADSTERRA_BANNER_ZONES.desktop.width) return ADSTERRA_BANNER_ZONES.desktop;
-  if (availableWidth >= 468 || (availableWidth >= 300 && availableWidth < 320)) {
-    return ADSTERRA_BANNER_ZONES.rectangle;
+  if (availableWidth >= ADSTERRA_BANNER_ZONES.leaderboard.width) {
+    return ADSTERRA_BANNER_ZONES.leaderboard;
   }
   if (availableWidth >= ADSTERRA_BANNER_ZONES.mobile.width) return ADSTERRA_BANNER_ZONES.mobile;
+  if (availableWidth >= ADSTERRA_BANNER_ZONES.rectangle.width) return ADSTERRA_BANNER_ZONES.rectangle;
   return null;
 }
 
@@ -144,21 +192,34 @@ function isTextEntryFocused() {
 
 /** Loads the Social Bar once per tab session, after the workspace has been quiet and visible. */
 export function AdsterraSocialBar() {
+  const adsConsent = useAdsConsent();
+
   useEffect(() => {
-    if (hasSocialBarBeenAttempted()) return;
+    if (!adsConsent || hasSocialBarBeenAttempted()) return;
 
     let timerId: number | undefined;
+    const mobileViewport = window.matchMedia("(max-width: 767px)");
 
     const schedule = () => {
       if (timerId !== undefined) {
         window.clearTimeout(timerId);
         timerId = undefined;
       }
-      if (document.visibilityState !== "visible" || hasSocialBarBeenAttempted()) return;
+      if (
+        document.visibilityState !== "visible" ||
+        !mobileViewport.matches ||
+        hasSocialBarBeenAttempted()
+      ) {
+        return;
+      }
 
       timerId = window.setTimeout(() => {
         timerId = undefined;
-        if (document.visibilityState !== "visible" || isTextEntryFocused()) {
+        if (
+          document.visibilityState !== "visible" ||
+          !mobileViewport.matches ||
+          isTextEntryFocused()
+        ) {
           schedule();
           return;
         }
@@ -186,14 +247,18 @@ export function AdsterraSocialBar() {
       schedule();
     };
 
+    const onViewportChange = () => schedule();
+
     document.addEventListener("visibilitychange", onVisibilityChange);
+    mobileViewport.addEventListener("change", onViewportChange);
     schedule();
 
     return () => {
       if (timerId !== undefined) window.clearTimeout(timerId);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      mobileViewport.removeEventListener("change", onViewportChange);
     };
-  }, []);
+  }, [adsConsent]);
 
   return null;
 }
@@ -215,6 +280,7 @@ function getExposedDestination(slot: HTMLDivElement) {
 export function AdsterraNativeBanner({
   placement = "standard",
 }: { placement?: AdsterraBannerPlacement } = {}) {
+  const adsConsent = useAdsConsent();
   const frameRef = useRef<HTMLDivElement>(null);
   const slotRef = useRef<HTMLDivElement>(null);
   const [zone, setZone] = useState<AdsterraBannerZone | null>(null);
@@ -225,28 +291,20 @@ export function AdsterraNativeBanner({
   const [infoOpen, setInfoOpen] = useState(false);
 
   useEffect(() => {
+    if (!adsConsent) {
+      setZone(null);
+      return;
+    }
     const frame = frameRef.current;
     if (!frame) return;
     const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
     const frameWidth = frame.getBoundingClientRect().width;
-    const zone =
-      placement === "top-right"
-        ? viewportWidth >= 768 && frameWidth >= ADSTERRA_BANNER_ZONES.desktop.width
-          ? ADSTERRA_BANNER_ZONES.desktop
-          : frameWidth >= ADSTERRA_BANNER_ZONES.mobile.width
-            ? ADSTERRA_BANNER_ZONES.mobile
-            : null
-        : placement === "in-content"
-          ? viewportWidth >= 768 && frameWidth >= ADSTERRA_BANNER_ZONES.rectangle.width
-            ? ADSTERRA_BANNER_ZONES.rectangle
-            : frameWidth >= ADSTERRA_BANNER_ZONES.mobile.width
-              ? ADSTERRA_BANNER_ZONES.mobile
-              : null
-          : selectAdsterraBannerZone(frameWidth, viewportWidth);
+    const zone = selectAdsterraBannerZone(frameWidth, viewportWidth, placement);
     setZone(zone);
-  }, [placement]);
+  }, [adsConsent, placement]);
 
   useEffect(() => {
+    if (!adsConsent) return;
     const frame = frameRef.current;
     if (!frame) return;
 
@@ -265,10 +323,10 @@ export function AdsterraNativeBanner({
     );
     observer.observe(frame);
     return () => observer.disconnect();
-  }, []);
+  }, [adsConsent]);
 
   useEffect(() => {
-    if (!nearViewport || !zone) return;
+    if (!adsConsent || !nearViewport || !zone) return;
     const slot = slotRef.current;
     if (!slot) return;
 
@@ -311,7 +369,7 @@ export function AdsterraNativeBanner({
       cancelQueuedInjection();
       slot.replaceChildren();
     };
-  }, [nearViewport, zone]);
+  }, [adsConsent, nearViewport, zone]);
 
   useEffect(() => {
     if (!infoOpen) return;
@@ -321,6 +379,8 @@ export function AdsterraNativeBanner({
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [infoOpen]);
+
+  if (!adsConsent) return null;
 
   return (
     <section className="w-full" aria-label="Anúncio do provedor Adsterra">
