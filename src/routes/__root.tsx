@@ -15,8 +15,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "../lib/supabase";
 import { LanguageProvider } from "../lib/LanguageProvider";
 import { CookieConsent } from "../components/CookieConsent";
-
-const SITE_URL = "https://decidlyai.lovable.app";
+import { resolveRouteSeo, SITE_URL } from "../lib/seo";
 
 const websiteSchema = {
   "@context": "https://schema.org",
@@ -30,13 +29,9 @@ function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">
-          404
-        </h1>
+        <h1 className="text-7xl font-bold text-foreground">404</h1>
 
-        <h2 className="mt-4 text-xl font-semibold text-foreground">
-          Página não encontrada
-        </h2>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">Página não encontrada</h2>
 
         <p className="mt-2 text-sm text-muted-foreground">
           A página que você está procurando não existe ou foi movida.
@@ -55,13 +50,7 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({
-  error,
-  reset,
-}: {
-  error: Error;
-  reset: () => void;
-}) {
+function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
 
   const router = useRouter();
@@ -106,11 +95,19 @@ function ErrorComponent({
   );
 }
 
-export const Route =
-  createRootRouteWithContext<{
-    queryClient: QueryClient;
-  }>()({
-    head: () => ({
+export const Route = createRootRouteWithContext<{
+  queryClient: QueryClient;
+}>()({
+  head: ({ matches }) => {
+    const currentMatch = matches[matches.length - 1];
+    const isUnmatchedPath = matches.length === 1 && currentMatch?.routeId === "__root__";
+    const seo = resolveRouteSeo(
+      currentMatch?.pathname ?? "/",
+      isUnmatchedPath || matches.some((match) => match.status === "notFound"),
+      matches.some((match) => match.status === "error"),
+    );
+
+    return {
       meta: [
         {
           charSet: "utf-8",
@@ -118,19 +115,14 @@ export const Route =
 
         {
           name: "viewport",
-          content:
-            "width=device-width, initial-scale=1, viewport-fit=cover",
+          content: "width=device-width, initial-scale=1, viewport-fit=cover",
         },
 
-        {
-          title:
-            "DecidlyAI | IA para Tomada de Decisão e Clareza Mental",
-        },
+        { title: seo.title },
 
         {
           name: "description",
-          content:
-            "Organize dilemas, compare cenários e tome decisões conscientes com inteligência artificial reflexiva. Reduza o ruído mental sem terceirizar sua escolha.",
+          content: seo.description,
         },
 
         {
@@ -151,8 +143,7 @@ export const Route =
 
         {
           name: "robots",
-          content:
-            "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+          content: seo.robots,
         },
 
         {
@@ -182,14 +173,12 @@ export const Route =
 
         {
           property: "og:title",
-          content:
-            "DecidlyAI | IA para Tomada de Decisão e Clareza Mental",
+          content: seo.title,
         },
 
         {
           property: "og:description",
-          content:
-            "Organize dilemas, compare cenários e tome decisões conscientes com inteligência artificial reflexiva. Reduza o ruído mental sem terceirizar sua escolha.",
+          content: seo.description,
         },
 
         {
@@ -197,10 +186,7 @@ export const Route =
           content: "website",
         },
 
-        {
-          property: "og:url",
-          content: SITE_URL,
-        },
+        ...(seo.canonical ? [{ property: "og:url" as const, content: seo.canonical }] : []),
 
         {
           property: "og:site_name",
@@ -249,14 +235,12 @@ export const Route =
 
         {
           name: "twitter:title",
-          content:
-            "DecidlyAI | IA para Tomada de Decisão e Clareza Mental",
+          content: seo.title,
         },
 
         {
           name: "twitter:description",
-          content:
-            "Organize dilemas, compare cenários e tome decisões conscientes com inteligência artificial reflexiva. Reduza o ruído mental sem terceirizar sua escolha.",
+          content: seo.description,
         },
       ],
 
@@ -272,10 +256,7 @@ export const Route =
           type: "image/x-icon",
         },
 
-        {
-          rel: "canonical",
-          href: SITE_URL,
-        },
+        ...(seo.canonical ? [{ rel: "canonical" as const, href: seo.canonical }] : []),
 
         {
           rel: "manifest",
@@ -294,22 +275,19 @@ export const Route =
           children: JSON.stringify(websiteSchema),
         },
       ],
-    }),
+    };
+  },
 
-    shellComponent: RootShell,
+  shellComponent: RootShell,
 
-    component: RootComponent,
+  component: RootComponent,
 
-    notFoundComponent: NotFoundComponent,
+  notFoundComponent: NotFoundComponent,
 
-    errorComponent: ErrorComponent as unknown as ErrorRouteComponent,
-  });
+  errorComponent: ErrorComponent as unknown as ErrorRouteComponent,
+});
 
-function RootShell({
-  children,
-}: {
-  children: ReactNode;
-}) {
+function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR">
       <head>
@@ -331,8 +309,7 @@ function RootShell({
 }
 
 function RootComponent() {
-  const { queryClient } =
-    Route.useRouteContext();
+  const { queryClient } = Route.useRouteContext();
 
   useEffect(() => {
     const applyDocumentPreferences = (theme: string, language: string) => {
@@ -350,7 +327,8 @@ function RootComponent() {
 
     const syncAccountPreferences = async () => {
       const { data } = await supabase.auth.getUser();
-      const metadata = data.user?.user_metadata as { theme?: string; language?: string } | undefined;
+      const metadata = data.user?.user_metadata as
+        { theme?: string; language?: string } | undefined;
       applyDocumentPreferences(metadata?.theme || localTheme, metadata?.language || localLanguage);
     };
 
