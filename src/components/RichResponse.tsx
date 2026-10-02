@@ -44,8 +44,9 @@ function normalizeLegacyMarkup(content: string) {
 function keepOnlyRequestedAction(content: string) {
   const action = content.match(/\[action(?:\s+[^\]]*)?\][\s\S]*?\[\/action\]/i);
   if (!action) return content;
-  const isCreation = /type\s*=\s*["']?(create_image|create_pdf|create_file|create_text)["']?/i.test(action[0]) || /criar|create|imagem|image|pdf|arquivo|file/i.test(action[0]);
-  return isCreation ? action[0] : content;
+  const isSupportedPdfExport = /type\s*=\s*["']?create_pdf["']?/i.test(action[0]);
+  const remainingText = content.replace(action[0], "").trim();
+  return isSupportedPdfExport ? action[0] : remainingText || "Essa ferramenta ainda não está disponível.";
 }
 
 function attributes(raw: string | undefined) {
@@ -130,7 +131,7 @@ export const RichResponse = memo(function RichResponse({ content, onActionReques
 });
 
 export function responseProtocolInstructions() {
-  return "Abrir o menu + ou selecionar uma ferramenta não é, sozinho, um pedido para criar PDF, imagem ou arquivo. Só trate como pedido quando a mensagem do usuário solicitar a criação. Se a mensagem do usuário já contém informação suficiente, responda ou execute o próximo passo sem fazer pergunta. Se faltarem dados essenciais, faça UMA ÚNICA pergunta consolidada contendo todas as dúvidas necessárias, numeradas na mesma mensagem; nunca pergunte uma coisa por vez, nunca repita uma pergunta já respondida e nunca pergunte 'quer adicionar mais alguma coisa?' por padrão. Use [question id=clarify]1. ...\n2. ...[/question]. Se o usuário disser claramente 'faça', 'crie', 'gere' ou equivalente, isso já é autorização para a ação pedida; não peça uma confirmação redundante. Só pergunte os parâmetros que realmente impedem a execução e reúna todos eles em uma única pergunta. Não gere um novo questionário depois que o usuário responder. Você pode usar emojis com moderação. Use callout para Vantagens, Desvantagens, Observação, Recomendação e Decisão; use [highlight variant=warning color=yellow]trecho importante[/highlight] e [color color=red]texto colorido[/color] somente quando fizer sentido. NUNCA use HTML, <font>, <span>, CSS ou JavaScript. Para links, use [link href=\"https://exemplo.com\" label=\"Abrir página\"]https://exemplo.com[/link]. Para reutilização, use [copy_block language=text]conteúdo[/copy_block].";
+  return "O único recurso atual do menu + é exportar texto em um PDF simples. Se a mensagem vier com a ferramenta 'Exportar resposta em PDF' selecionada, prepare o conteúdo solicitado em texto simples e retorne exatamente um bloco [action type=create_pdf title=\"Exportar resposta em PDF\"]conteúdo final[/action]; se faltar dado indispensável, faça uma única pergunta consolidada antes. Sem essa seleção, só gere o bloco de ação se o usuário pedir explicitamente a exportação para PDF. Não alegue que pode pesquisar na web, gerar imagens, ler PDFs ou processar anexos/arquivos; esses recursos ainda não estão disponíveis. Se forem solicitados, explique isso com clareza e ofereça uma alternativa textual. Se a mensagem do usuário já contém informação suficiente, responda ou prepare a exportação sem perguntar. Nunca repita pergunta já respondida nem pergunte 'quer adicionar mais alguma coisa?' por padrão. Use [question id=clarify]1. ...\n2. ...[/question] para uma única pergunta consolidada. Não peça confirmação redundante para uma ação que o usuário pediu explicitamente; o bloco de ação apresenta a permissão de exportação. Use emojis com moderação e callouts para Vantagens, Desvantagens, Observação, Recomendação e Decisão quando ajudarem. Use [highlight variant=warning color=yellow]trecho importante[/highlight], [color color=red]texto colorido[/color], [link href=\"https://exemplo.com\" label=\"Abrir página\"]https://exemplo.com[/link] e [copy_block language=text]conteúdo[/copy_block] quando apropriado. Nunca gere HTML, CSS ou JavaScript.";
 }
 
 export function flattenResponse(content: string) { return parseBlocks(content).map((block) => block.value).join("\n\n"); }

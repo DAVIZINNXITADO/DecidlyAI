@@ -95,11 +95,11 @@ function ComoFuncionaPage() {
           <div className="flex items-start gap-4">
             <Wrench className="mt-1 text-violet-300" size={22} />
             <div>
-              <h2 className="text-xl font-semibold">Ferramentas quando você precisar</h2>
+              <h2 className="text-xl font-semibold">Ferramenta disponível no momento</h2>
               <p className="mt-2 leading-7 text-white/55">
-                No botão “+”, você encontra Pesquisa avançada, criação de imagem, PDF, texto e
-                arquivo, além de anexar arquivos. A IA também pode sugerir uma ferramenta, mas ações
-                como criação pedem sua autorização antes de começar.
+                No botão “+”, você pode exportar o texto preparado pela IA em um PDF simples. A
+                exportação não lê PDFs enviados; outras ferramentas só aparecerão quando estiverem
+                funcionando de ponta a ponta.
               </p>
             </div>
           </div>
