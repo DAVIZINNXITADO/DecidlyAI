@@ -1,42 +1,48 @@
 # Checklist de prontidão do DecidlyAI
 
-Última auditoria: **20 de setembro de 2026**.
+Última auditoria de código: **2 de outubro de 2026**.
 
-Este documento separa funcionalidades implementadas no código, funcionalidades que dependem de configuração externa e pontos que ainda não devem ser considerados prontos para produção.
+Este documento separa funcionalidades implementadas no código das que dependem de configuração externa e validação no ambiente Supabase.
 
 ## Resumo executivo
 
-O workspace, autenticação, conversas, streaming, fallback gratuito, resposta rica segura, perguntas contextuais, central compacta de ferramentas, créditos e páginas institucionais já estão presentes no projeto. Pagamentos ainda estão apenas com a tela de pacotes; não existe checkout real conectado. A monetização por anúncios usa somente formatos display padrão do Adsterra nas posições editoriais e de apoio descritas em `MONETAG-AD-SETUP.md`; não há anúncios recompensados nem créditos concedidos por visualização de anúncio.
+O workspace, autenticação, conversas, streaming, respostas ricas, créditos e páginas institucionais estão presentes. As ferramentas opcionais de PDF e imagem agora têm fluxo de código ponta a ponta, mas ainda dependem de migration/deploy/secret no Supabase para operar em produção. Pagamentos ainda estão apenas com a tela de pacotes; não existe checkout real conectado. A monetização por anúncios usa formatos display padrão do Adsterra nas posições descritas em `MONETAG-AD-SETUP.md`; não há anúncios recompensados nem créditos concedidos por visualização de anúncio.
 
-## O que está implementado
+## O que está implementado no repositório
 
 | Área | Estado | Observação |
 |---|---|---|
-| Aplicação React/TanStack Start | Completo | Estrutura principal, rotas, layout e build configurados. |
+| Aplicação React/TanStack Start | Implementado | Build e typecheck executados sem erros nesta revisão. |
 | Login e sessão | Implementado | Supabase Auth é usado pelo frontend e pelas Edge Functions. |
-| Workspace | Implementado | Conversas, histórico, criação de conversa, mensagens e navegação lateral. |
+| Workspace | Implementado | Conversas, histórico, mensagens, seleção de ferramenta e estados de envio/processamento. |
 | Streaming | Implementado | Streaming SSE com atualização progressiva e cancelamento da geração. |
-| Rota Free | Implementado | `decidly-ai-stream` consulta créditos e encaminha para `free-ai-router`, que tenta provedores em fallback. |
-| Rota VIP | Parcial | Existe seleção de função para VIP, mas o caminho precisa ser revisado antes de ser tratado como rota VIP isolada em produção. |
-| Estados de processamento | Implementado | Enviando, pensando e mensagens de processamento com tempo decorrido. |
+| Rota Free | Parcial | `decidly-ai-stream` consulta créditos e encaminha para `free-ai-router`; fallback de provedores depende do ambiente implantado. |
+| Rota VIP | Parcial | O caminho precisa ser revisado antes de ser tratado como rota VIP isolada em produção. |
 | Perguntas contextuais | Implementado no contrato/UI | A IA pode emitir `[question]`; a pergunta aparece sem bloquear a caixa de mensagem. |
-| Respostas ricas | Implementado | Markdown seguro e blocos semânticos renderizados pelo frontend. |
-| Vantagens e desvantagens | Implementado | Callouts `advantage` e `disadvantage`. |
-| Marcações personalizadas | Implementado | Destaques com variantes controladas pelo renderer. Não há HTML/CSS arbitrário. |
-| Blocos copiáveis | Implementado | Botão de cópia para texto, comando, código e templates. |
-| Links externos | Implementado | Cartão clicável com aviso visual de site externo. |
-| Autorização antes de ações | Implementado no protocolo/UI | A IA pode pedir permissão para criar imagem, PDF ou arquivo; a execução efetiva das ferramentas ainda precisa ser conectada. |
-| Central do botão “+” | Implementado | Popup compacto com pesquisa, criação, plugins futuros e anexos. |
-| Upload real | Parcial | O seletor de arquivos funciona e registra nomes no contexto; processamento/storage ainda não está conectado. |
-| PDF | Parcial | Existem opções e protocolo; leitura/criação real ainda requer Edge Functions e storage. |
-| Créditos e carteira | Implementado | Saldo, créditos diários, gratuitos, comprados e histórico visual. |
-| Custos por operação | Preparado | Existe motor inicial de estimativa e migration de ledger; ainda precisa ser ligado a reservas/ajustes reais no backend. |
+| Respostas ricas | Implementado | Markdown seguro, ações explícitas, cartões de PDF e imagem privada. |
+| Central do botão “+” | Implementado | PDF, imagem por IA e imagem de texto; cada item informa custo e limite. Sem anexos ou plugins. |
+| PDF | Implementado no código | PDF A4 simples em alfabeto latino, até 12.000 caracteres/8 páginas; 1 crédito por arquivo + cobrança normal da resposta IA; limite 1/dia Free, 3/dia VIP. Não lê PDFs. |
+| Imagem profissional por IA | Implementado no código | Edge Function chama FLUX.1 Schnell com chave server-side; 1024×1024, 4 passos, 2,5 créditos; limite 3/dia Free, 9/dia VIP; prompt até 1.500 caracteres. |
+| Imagem básica de texto | Implementado no código | Canvas cria PNG 1024×1024, texto até 220 caracteres, 0,5 crédito; limite 5/dia Free, 15/dia VIP, quota separada. |
+| Créditos de artefatos | Implementado no código; migration pendente | RPCs transacionais e idempotentes reservam, liquidam ou devolvem crédito; a cota é aplicada no banco. |
+| Storage dos artefatos | Implementado no código; migration pendente | Bucket privado, políticas de caminho por usuário e URLs assinadas temporárias. |
 | Indicações | Implementado | Código, campanha e recompensa aparecem no workspace/créditos. |
-| Anúncios recompensados | Fora de escopo | Não oferecer visualizações de anúncio em troca de créditos. Migration preparada para revogar as RPCs legadas sem apagar registros existentes; ainda precisa ser aplicada ao ambiente. |
-| Compra de créditos | Não conectado | A tela exibe pacotes, mas o clique apenas mostra aviso de que o checkout será integrado. |
-| Página institucional | Implementado | `/como-funciona` explica produto, ferramentas, autonomia e controle do usuário. |
-| PWA | Preparado | Manifest, ícones e fluxo de instalação existem. |
+| Anúncios recompensados | Fora de escopo | Não oferecer visualizações de anúncio em troca de créditos. Migration preparada para revogar RPCs legadas; ainda precisa ser aplicada ao ambiente. |
+| Compra de créditos | Não conectado | A tela exibe pacotes, mas o clique ainda informa que o checkout será integrado. |
 | TTS | Implementado | Existe função de texto para voz e controles na resposta. |
+
+## Artefatos: configuração necessária para produção
+
+O código ainda não está ativo em produção até completar todos estes passos:
+
+1. Aplicar primeiro a migration-base `20260917110000_operation_credit_ledger.sql` (a tabela `credit_operations` ainda não existe na produção verificada) e depois `20261002100000_ai_artifact_limits_and_storage.sql`.
+2. Implantar `generate-ai-image` e a versão atualizada de `groq-free`.
+3. Configurar `FAL_KEY` em **Supabase Edge Function Secrets**, nunca em `VITE_*`, frontend ou Git.
+4. Revogar e substituir a chave FAL compartilhada em conversa antes de configurar o secret; ela deve ser tratada como exposta.
+5. Testar com conta autenticada, sem revelar a chave: saldo insuficiente, cotas diárias, duplicidade, estorno após falha, execução concorrente, arquivos privados e links assinados.
+6. Confirmar que PDF, PNG e JPEG aparecem no histórico depois de recarregar a conversa.
+
+Os limites implementados são aplicados no banco por dia (America/Sao_Paulo): PDF 1 Free/3 VIP; imagem profissional 3 Free/9 VIP; imagem básica 5 Free/15 VIP. Cada ação gera no máximo um artefato e também exige saldo suficiente. O PDF debita 1 crédito pelo arquivo, além do uso de créditos normal da resposta/conteúdo gerado pela IA. O plano Free tem 5 créditos diários; os limites de quantidade não ampliam esse saldo.
 
 ## Pagamentos: o que falta configurar
 
@@ -60,9 +66,9 @@ O projeto mantém `public/ads.txt` e usa formatos display padrão da Adsterra na
 
 O aviso de cookies agora está montado globalmente e os scripts Adsterra só carregam após aceite explícito de cookies não essenciais. Antes de produção, ainda é necessário confirmar a configuração do publisher/domínio e revisar consentimento e política de privacidade para as regiões atendidas; `ads.txt` ou o snippet não substituem essas verificações.
 
-## Variáveis de configuração preparadas
+## Variáveis e secrets
 
-As variáveis sugeridas estão no `.env.example`. Valores reais devem ser configurados no ambiente de deploy ou nos secrets do Supabase:
+As variáveis públicas preparadas estão no `.env.example`. Valores reais devem ser configurados no ambiente de deploy ou nos secrets do Supabase:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
@@ -70,17 +76,18 @@ As variáveis sugeridas estão no `.env.example`. Valores reais devem ser config
 - `VITE_PAYMENT_CHECKOUT_URL`, somente se for usado um checkout hospedado e público
 - `PAYMENT_SECRET_KEY`, somente como secret server-side/Edge Function
 - `PAYMENT_WEBHOOK_SECRET`, somente como secret server-side/Edge Function
+- `FAL_KEY`, somente como Supabase Edge Function Secret; nunca como variável `VITE_*`
 
 ## Critérios antes de abrir para produção
 
 - [ ] Aplicar todas as migrations no Supabase.
-- [ ] Fazer deploy das Edge Functions usadas pelo workspace.
-- [ ] Aplicar a migration que revoga as RPCs legadas de recompensa patrocinada; ela preserva os registros existentes.
+- [ ] Fazer deploy das Edge Functions usadas pelo workspace, incluindo `generate-ai-image`.
+- [ ] Configurar uma chave FAL nova e revogar a chave exposta anteriormente.
+- [ ] Aplicar a migration que revoga RPCs legadas de recompensa patrocinada; ela preserva os registros existentes.
 - [ ] Isolar e validar a rota VIP.
 - [ ] Implementar checkout e webhook idempotente.
-- [ ] Implementar processamento real de upload/PDF/storage.
-- [ ] Testar limites, créditos insuficientes, duplicidade de webhook e cancelamento de streaming.
-- [ ] Corrigir os erros TypeScript antigos existentes no projeto.
+- [ ] Testar cotas, saldo insuficiente, repetição, concorrência e estorno de artefatos.
+- [ ] Validar que outros usuários não conseguem ler arquivos no bucket privado.
 - [ ] Testar mobile, acessibilidade, links externos e estados offline.
 - [ ] Testar aceite/recusa de cookies: aceitar carrega anúncios; recusar mantém todos os scripts Adsterra bloqueados.
 - [ ] Revisar termos, privacidade, consentimento e política de anúncios.

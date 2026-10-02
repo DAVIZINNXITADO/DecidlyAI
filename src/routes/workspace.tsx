@@ -33,6 +33,8 @@ import {
   Paperclip,
   FileText,
   WandSparkles,
+  Image as ImageIcon,
+  Type,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { SiFacebook, SiReddit, SiWhatsapp, SiX } from "react-icons/si";
@@ -41,10 +43,11 @@ import remarkGfm from "remark-gfm";
 import { supabase } from "../lib/supabase";
 import { streamAi } from "../lib/ai-stream";
 import { requestTtsAudio } from "../lib/tts";
-import { downloadPdf } from "../lib/pdf";
+import { createPdfBlob } from "../lib/pdf";
+import { createTextImage } from "../lib/text-image";
 import { useLanguageContext } from "../lib/LanguageProvider";
-import { RichResponse, responseProtocolInstructions } from "../components/RichResponse";
-import { ToolCenter, type SelectedTool } from "../components/ToolCenter";
+import { RichResponse, responseProtocolInstructions, type ResponseAction } from "../components/RichResponse";
+import { ToolCenter, type SelectedTool, type ToolId } from "../components/ToolCenter";
 import { AdsterraNativeBanner, AdsterraSocialBar } from "../components/AdsterraAds";
 import {
   availableCredits,
@@ -62,7 +65,22 @@ type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   toolLabel?: string;
+  toolId?: ToolId;
 };
+
+function ensureActionRequestIds(content: string) {
+  return content.replace(/\[action\b([^\]]*)\]/gi, (match, rawAttributes: string) => {
+    if (/\b(?:request_id|id)\s*=/i.test(rawAttributes)) return match;
+    const attributes = rawAttributes.trim();
+    return `[action request_id="${crypto.randomUUID()}"${attributes ? ` ${attributes}` : ""}]`;
+  });
+}
+
+function replaceActionWithArtifact(content: string, requestId: string, replacement: string) {
+  const escapedId = requestId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`\\[action\\b(?=[^\\]]*\\b(?:request_id|id)=["']${escapedId}["'])[^\\]]*\\][\\s\\S]*?\\[\\/action\\]`, "i");
+  return content.replace(pattern, replacement);
+}
 
 type Conversation = {
   id: string;
@@ -244,21 +262,6 @@ function Workspace() {
     setPendingQuestion(null);
   }, [pendingQuestion]);
 
-  const handleResponseAction = useCallback(async (action: { type: string; title: string; description: string }) => {
-    if (action.type !== "create_pdf") {
-      setError("Essa ferramenta ainda não está disponível.");
-      return;
-    }
-    setError("");
-    setNotice("");
-    try {
-      await downloadPdf({ title: action.title, content: action.description, fileName: action.title });
-      setNotice("PDF simples gerado e baixado.");
-    } catch {
-      setError("Não foi possível gerar o PDF. Tente novamente.");
-    }
-  }, []);
-
   const loadCreditWallet = useCallback(async () => {
     if (!userId) return;
     setCreditsLoading(true);
@@ -272,6 +275,165 @@ function Workspace() {
     }
     setCreditsLoading(false);
   }, [userId]);
+
+  const handleResponseAction = useCallback(async (action: ResponseAction, messageId: string) => {
+    if (!userId) throw new Error("Entre na sua conta para criar o arquivo.");
+    if (!new Set(["create_pdf", "create_image", "create_text_image"]).has(action.type)) {
+      throw new Error("Essa ferramenta ainda não está disponível.");
+    }
+    const targetMessage = messages.find((item) => item.id === messageId);
+    if (!targetMessage || targetMessage.role !== "assistant") {
+      throw new Error("Não encontrei a resposta que originou este arquivo.");
+    }
+    setError("");
+    setNotice("");
+
+    const refreshWallet = async () => {
+      const { data } = await supabase
+        .from("ai_credits")
+        .select("free_credits,purchased_credits,total_credits,daily_credits_used,daily_credits_limit,daily_credits_reset_at")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (data) setCreditWallet(normalizeCreditWallet(data));
+    };
+
+    const errorText = (message: string) => {
+      if (message.includes("insufficient_credits")) return "Créditos insuficientes para esta ferramenta.";
+      if (message.includes("daily_artifact_limit:pdf")) return "Você atingiu o limite diário de PDFs do seu plano.";
+      if (message.includes("daily_artifact_limit:professional_image")) return "Você atingiu o limite diário de imagens por IA do seu plano.";
+      if (message.includes("daily_artifact_limit:basic_image")) return "Você atingiu o limite diário de imagens básicas do seu plano.";
+      if (message.includes("credit_wallet_unavailable")) return "Não foi possível consultar sua carteira de créditos.";
+      return message;
+    };
+
+    const persistArtifact = async (artifact: { kind: "file" | "image"; path: string; fileName?: string; alt?: string }) => {
+      const defaultName = artifact.kind === "file"
+        ? "DecidlyAI.pdf"
+        : `DecidlyAI-imagem.${artifact.path.toLowerCase().endsWith(".png") ? "png" : "jpg"}`;
+      const safeName = (artifact.fileName || defaultName).replace(/[\"<>]/g, "");
+      const replacement = artifact.kind === "file"
+        ? `[generated_file path="${artifact.path}" name="${safeName}"][/generated_file]`
+        : `[generated_image path="${artifact.path}" name="${safeName}" alt="${artifact.alt || "Imagem gerada"}"][/generated_image]`;
+      const replaced = replaceActionWithArtifact(targetMessage.content, action.requestId, replacement);
+      const nextContent = replaced === targetMessage.content
+        ? `${targetMessage.content}\n\n${replacement}`
+        : replaced;
+      setMessages((current) => current.map((item) => item.id === messageId ? { ...item, content: nextContent } : item));
+      const { error: saveError } = await supabase
+        .from("messages")
+        .update({ content: nextContent })
+        .eq("id", messageId)
+        .eq("user_id", userId);
+      if (saveError) {
+        setNotice("Arquivo criado e armazenado, mas não foi anexado ao histórico. Atualize a carteira de créditos para ver o saldo.");
+      } else {
+        setNotice(artifact.kind === "file" ? "PDF criado e anexado à conversa." : "Imagem criada e anexada à conversa.");
+      }
+    };
+
+    if (action.type === "create_image") {
+      const { data, error } = await supabase.functions.invoke("generate-ai-image", {
+        body: { operation_id: action.requestId, prompt: action.description },
+      });
+      if (error) {
+        let message = error.message || "Falha na geração da imagem.";
+        const context = error.context;
+        if (context instanceof Response) {
+          const payload = await context.clone().json().catch(() => null) as { error?: string } | null;
+          if (payload?.error) message = payload.error;
+        }
+        await refreshWallet();
+        throw new Error(message);
+      }
+      const result = data as { path?: string; replayed?: boolean } | null;
+      if (!result?.path) throw new Error("O serviço não retornou o arquivo da imagem.");
+      await persistArtifact({ kind: "image", path: result.path, alt: "Imagem gerada por IA" });
+      await refreshWallet();
+      return;
+    }
+
+    const artifactType = action.type === "create_pdf" ? "pdf_create" : "text_image";
+    let reservationCreated = false;
+    let uploadedPath = "";
+    try {
+      const { data, error } = await supabase.rpc("reserve_ai_artifact", {
+        p_request_id: action.requestId,
+        p_artifact_type: artifactType,
+      });
+      if (error) throw new Error(errorText(error.message));
+      const reservation = data as {
+        status?: string;
+        replayed?: boolean;
+        metadata?: { storage_path?: string; file_name?: string };
+      } | null;
+      if (reservation?.status === "settled" && reservation.metadata?.storage_path) {
+        const isPdf = action.type === "create_pdf";
+        await persistArtifact({
+          kind: isPdf ? "file" : "image",
+          path: reservation.metadata.storage_path,
+          fileName: reservation.metadata.file_name || (isPdf ? "DecidlyAI.pdf" : "decidlyai-imagem-de-texto.png"),
+          ...(!isPdf ? { alt: "Imagem de texto" } : {}),
+        });
+        await refreshWallet();
+        return;
+      }
+      if (reservation?.status === "reserved" && reservation.replayed) {
+        throw new Error("Esta geração já está em andamento. Aguarde alguns minutos antes de tentar novamente.");
+      }
+      reservationCreated = reservation?.status === "reserved";
+      if (!reservationCreated) throw new Error("Não foi possível reservar os créditos.");
+
+      let blob: Blob;
+      let fileName: string;
+      let mimeType: string;
+      if (action.type === "create_pdf") {
+        const pdf = await createPdfBlob({ title: action.title, content: action.description, fileName: action.title });
+        blob = pdf.blob;
+        fileName = pdf.fileName;
+        mimeType = "application/pdf";
+      } else {
+        blob = await createTextImage(action.description);
+        fileName = "decidlyai-imagem-de-texto.png";
+        mimeType = "image/png";
+      }
+
+      uploadedPath = `${userId}/${action.requestId}.${action.type === "create_pdf" ? "pdf" : "png"}`;
+      const { error: uploadError } = await supabase.storage.from("decidlyai-artifacts").upload(uploadedPath, blob, {
+        contentType: mimeType,
+        upsert: true,
+      });
+      if (uploadError) throw new Error("Não foi possível guardar o arquivo com segurança.");
+
+      const { error: settleError } = await supabase.rpc("settle_ai_artifact", {
+        p_request_id: action.requestId,
+        p_result_metadata: {
+          storage_path: uploadedPath,
+          file_name: fileName,
+          mime_type: mimeType,
+        },
+      });
+      if (settleError) throw new Error("Não foi possível registrar a conclusão do arquivo.");
+      reservationCreated = false;
+
+      await persistArtifact({
+        kind: action.type === "create_pdf" ? "file" : "image",
+        path: uploadedPath,
+        fileName,
+        ...(action.type !== "create_pdf" ? { alt: "Imagem de texto" } : {}),
+      });
+      await refreshWallet();
+    } catch (caughtError) {
+      if (uploadedPath) await supabase.storage.from("decidlyai-artifacts").remove([uploadedPath]);
+      if (reservationCreated) {
+        await supabase.rpc("release_ai_artifact", {
+          p_request_id: action.requestId,
+          p_reason: caughtError instanceof Error ? caughtError.message.slice(0, 180) : "artifact_generation_failed",
+        });
+      }
+      await refreshWallet();
+      throw caughtError instanceof Error ? caughtError : new Error("Não foi possível criar o arquivo.");
+    }
+  }, [messages, userId]);
 
   useEffect(() => {
     if (!userId) {
@@ -550,14 +712,34 @@ function Workspace() {
       if (savedConversation) {
         setActiveConversationId(savedConversation.id);
 
-        const { data: savedMessages } = await supabase
+        const { data: savedMessages, error: savedMessagesError } = await supabase
           .from("messages")
-          .select("id,role,content")
+          .select("id,role,content,tool_id,tool_label")
           .eq("conversation_id", savedConversation.id)
           .eq("user_id", userId)
           .order("created_at", { ascending: true });
 
-        setMessages((savedMessages ?? []) as ChatMessage[]);
+        if (savedMessagesError) {
+          const { data: legacyMessages } = await supabase
+            .from("messages")
+            .select("id,role,content")
+            .eq("conversation_id", savedConversation.id)
+            .eq("user_id", userId)
+            .order("created_at", { ascending: true });
+          setMessages((legacyMessages ?? []).map((message) => ({
+            id: message.id,
+            role: message.role as ChatMessage["role"],
+            content: message.content,
+          })));
+        } else {
+          setMessages((savedMessages ?? []).map((message) => ({
+            id: message.id,
+            role: message.role as ChatMessage["role"],
+            content: message.content,
+            ...(message.tool_id ? { toolId: message.tool_id as ToolId } : {}),
+            ...(message.tool_label ? { toolLabel: message.tool_label } : {}),
+          })));
+        }
       }
     }, [userId]);
 
@@ -856,10 +1038,10 @@ function Workspace() {
          * Se a tabela de mensagens existir no projeto,
          * carregamos as mensagens dessa conversa.
          */
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("messages")
           .select(
-            "id,role,content",
+            "id,role,content,tool_id,tool_label",
           )
           .eq(
             "conversation_id",
@@ -870,10 +1052,28 @@ function Workspace() {
             ascending: true,
           });
 
-        if (data) {
+        if (error) {
+          const { data: legacyMessages } = await supabase
+            .from("messages")
+            .select("id,role,content")
+            .eq("conversation_id", conversation.id)
+            .eq("user_id", userId)
+            .order("created_at", { ascending: true });
           setMessages(
-            data as ChatMessage[],
+            (legacyMessages ?? []).map((message) => ({
+              id: message.id,
+              role: message.role as ChatMessage["role"],
+              content: message.content,
+            })),
           );
+        } else if (data) {
+          setMessages(data.map((message) => ({
+            id: message.id,
+            role: message.role as ChatMessage["role"],
+            content: message.content,
+            ...(message.tool_id ? { toolId: message.tool_id as ToolId } : {}),
+            ...(message.tool_label ? { toolLabel: message.tool_label } : {}),
+          })));
         }
       },
       [closeSidebar, userId],
@@ -1235,6 +1435,7 @@ function Workspace() {
         role: "user",
         content: text,
         ...(toolForRequest ? { toolLabel: toolForRequest.label } : {}),
+        ...(toolForRequest ? { toolId: toolForRequest.id } : {}),
       };
 
       setMessages((current) => [
@@ -1263,10 +1464,12 @@ function Workspace() {
         const { error: userMessageError } = await supabase
           .from("messages")
           .insert({
+            id: userMessage.id,
             conversation_id: conversationId,
             user_id: userId,
             role: "user",
             content: text,
+            ...(toolForRequest ? { tool_id: toolForRequest.id, tool_label: toolForRequest.label } : {}),
           });
 
         if (userMessageError) {
@@ -1291,7 +1494,7 @@ function Workspace() {
           ? `Perguntas opcionais respondidas pelo usuário para melhorar a análise:\n${guidance}`
           : "";
         const toolContext = toolForRequest
-          ? `Ferramenta solicitada pelo usuário: ${toolForRequest.label}. Prepare uma exportação simples em PDF do conteúdo solicitado.`
+          ? `Ferramenta selecionada pelo usuário: ${toolForRequest.label} (${toolForRequest.costLabel}). Gere uma única ação compatível com o tipo ${toolForRequest.id}. Para create_pdf, produza conteúdo final conciso; para create_image, produza um prompt visual; para create_text_image, retorne o texto exato, com até 220 caracteres. Não afirme que o arquivo já existe antes de a pessoa executar a ação.`
           : "";
 
         const assistantId = crypto.randomUUID();
@@ -1308,7 +1511,7 @@ function Workspace() {
           });
         };
         setRequestPhase("thinking");
-        const answer = await streamAi(functionName, {
+        const streamedAnswer = await streamAi(functionName, {
           message: [privateContext, guidanceContext, toolContext, responseProtocolInstructions(), "Mensagem do usuário:\n" + text].filter(Boolean).join("\n\n"),
           history,
           signal: abortController.signal,
@@ -1323,6 +1526,7 @@ function Workspace() {
         });
 
         if (pendingFrame !== null) window.cancelAnimationFrame(pendingFrame);
+        const answer = ensureActionRequestIds(streamedAnswer);
         latestAccumulated = answer;
         flushAssistant();
 
@@ -1334,6 +1538,7 @@ function Workspace() {
         const { error: assistantMessageError } = await supabase
           .from("messages")
           .insert({
+            id: assistantId,
             conversation_id: conversationId,
             user_id: userId,
             role: "assistant",
@@ -2457,7 +2662,7 @@ function Workspace() {
 
             <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
               <div className="rounded-2xl bg-white/[0.06] p-3"><p className="text-[11px] text-white/45">Disponível</p><p className="mt-1 text-lg font-semibold text-white">{usableCredits.toFixed(2)}</p></div>
-              <div className="rounded-2xl bg-amber-400/[0.10] p-3"><p className="text-[11px] text-white/55">Créditos diários</p><p className="mt-1 text-lg font-semibold text-amber-200">{dailyBalance.toFixed(0)}/{creditWallet.daily_credits_limit >= 999999 ? "∞" : creditWallet.daily_credits_limit.toFixed(0)}</p></div>
+              <div className="rounded-2xl bg-amber-400/[0.10] p-3"><p className="text-[11px] text-white/55">Créditos diários</p><p className="mt-1 text-lg font-semibold text-amber-200">{dailyBalance.toFixed(2)}/{creditWallet.daily_credits_limit >= 999999 ? "∞" : creditWallet.daily_credits_limit.toFixed(0)}</p></div>
               <div className="rounded-2xl bg-violet-400/[0.10] p-3"><p className="text-[11px] text-white/55">Grátis</p><p className="mt-1 text-lg font-semibold text-violet-200">{creditWallet.free_credits.toFixed(2)}</p></div>
               <div className="rounded-2xl bg-emerald-400/[0.10] p-3"><p className="text-[11px] text-white/55">Comprados</p><p className="mt-1 text-lg font-semibold text-emerald-200">{creditWallet.purchased_credits.toFixed(2)}</p></div>
             </div>
@@ -2824,7 +3029,7 @@ function Workspace() {
                                       readingCharIndex,
                                     )}
                                   </div>
-                                ) : <RichResponse content={message.content} onActionRequest={handleResponseAction} />}
+                                ) : <RichResponse content={message.content} messageId={message.id} onActionRequest={handleResponseAction} />}
                               </div>
 
                               <div className="mt-3 flex items-center gap-1 text-white/35">
@@ -2925,7 +3130,7 @@ function Workspace() {
                             <>
                               {message.toolLabel && (
                                 <span className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-medium text-white/80">
-                                  <FileText size={12} /> {message.toolLabel}
+                                  {message.toolId === "create_image" ? <ImageIcon size={12} /> : message.toolId === "create_text_image" ? <Type size={12} /> : <FileText size={12} />} {message.toolLabel}
                                 </span>
                               )}
                               <div className="whitespace-pre-wrap">{message.content}</div>
@@ -3008,8 +3213,8 @@ function Workspace() {
             {selectedTool && (
               <div className="mb-2 flex items-center justify-between gap-3 rounded-2xl border border-violet-300/20 bg-violet-400/[0.08] px-3 py-2">
                 <span className="flex min-w-0 items-center gap-2 text-xs">
-                  <FileText size={15} className="shrink-0 text-violet-200" />
-                  <span><span className="text-white/45">Ativo neste envio · </span><strong className="font-medium text-violet-100">{selectedTool.label}</strong></span>
+                  {selectedTool.id === "create_image" ? <ImageIcon size={15} className="shrink-0 text-violet-200" /> : selectedTool.id === "create_text_image" ? <Type size={15} className="shrink-0 text-violet-200" /> : <FileText size={15} className="shrink-0 text-violet-200" />}
+                  <span><span className="text-white/45">Ativo neste envio · </span><strong className="font-medium text-violet-100">{selectedTool.label} · {selectedTool.costLabel}</strong></span>
                 </span>
                 <button type="button" onClick={() => setSelectedTool(null)} className="rounded-lg p-1 text-white/45 transition hover:bg-white/10 hover:text-white" aria-label="Desativar ferramenta selecionada"><X size={14} /></button>
               </div>

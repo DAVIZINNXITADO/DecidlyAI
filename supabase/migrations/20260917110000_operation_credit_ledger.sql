@@ -13,6 +13,7 @@ create table if not exists public.credit_operations (
 
 create index if not exists credit_operations_user_created_idx on public.credit_operations(user_id, created_at desc);
 alter table public.credit_operations enable row level security;
+drop policy if exists "Users can read own credit operations" on public.credit_operations;
 create policy "Users can read own credit operations" on public.credit_operations for select using (auth.uid() = user_id);
 
 comment on table public.credit_operations is 'Ledger de reserva e ajuste de créditos por operação, separado de tokens.';

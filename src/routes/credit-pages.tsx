@@ -137,7 +137,7 @@ export function FreePage() {
             </div>
           </div>
           <p className="mt-5 text-sm text-white/50">
-            Créditos diários: {dailyBalance.toFixed(0)}/
+            Créditos diários: {dailyBalance.toFixed(2)}/
             {wallet.daily_credits_limit >= 9999 ? "♾" : wallet.daily_credits_limit}
           </p>
         </div>
