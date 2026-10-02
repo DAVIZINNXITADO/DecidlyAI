@@ -45,6 +45,7 @@ import { streamAi } from "../lib/ai-stream";
 import { requestTtsAudio } from "../lib/tts";
 import { createPdfBlob } from "../lib/pdf";
 import { createTextImage } from "../lib/text-image";
+import { ensureToolActionResponse } from "../lib/tool-actions";
 import { useLanguageContext } from "../lib/LanguageProvider";
 import { RichResponse, responseProtocolInstructions, type ResponseAction } from "../components/RichResponse";
 import { ToolCenter, type SelectedTool, type ToolId } from "../components/ToolCenter";
@@ -67,14 +68,6 @@ type ChatMessage = {
   toolLabel?: string;
   toolId?: ToolId;
 };
-
-function ensureActionRequestIds(content: string) {
-  return content.replace(/\[action\b([^\]]*)\]/gi, (match, rawAttributes: string) => {
-    if (/\b(?:request_id|id)\s*=/i.test(rawAttributes)) return match;
-    const attributes = rawAttributes.trim();
-    return `[action request_id="${crypto.randomUUID()}"${attributes ? ` ${attributes}` : ""}]`;
-  });
-}
 
 function replaceActionWithArtifact(content: string, requestId: string, replacement: string) {
   const escapedId = requestId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -222,7 +215,7 @@ function Workspace() {
     setInstallPrompt(null);
     setInstallOpen(false);
   }, [installPrompt]);
-  const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(0);
 
   const [listening, setListening] = useState(false);
   const [likes, setLikes] = useState<Record<string, boolean>>({});
@@ -310,7 +303,7 @@ function Workspace() {
       const defaultName = artifact.kind === "file"
         ? "DecidlyAI.pdf"
         : `DecidlyAI-imagem.${artifact.path.toLowerCase().endsWith(".png") ? "png" : "jpg"}`;
-      const safeName = (artifact.fileName || defaultName).replace(/[\"<>]/g, "");
+      const safeName = (artifact.fileName || defaultName).replace(/["<>]/g, "");
       const replacement = artifact.kind === "file"
         ? `[generated_file path="${artifact.path}" name="${safeName}"][/generated_file]`
         : `[generated_image path="${artifact.path}" name="${safeName}" alt="${artifact.alt || "Imagem gerada"}"][/generated_image]`;
@@ -541,51 +534,29 @@ function Workspace() {
 
 
   useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      !window.visualViewport
-    ) {
-      return;
-    }
+    const viewport = window.visualViewport;
+    let lastHeight = 0;
+    const updateViewportHeight = () => {
+      const nextHeight = Math.round(viewport?.height ?? window.innerHeight);
+      if (!nextHeight || nextHeight === lastHeight) return;
+      lastHeight = nextHeight;
+      setViewportHeight(nextHeight);
 
-    const viewport =
-      window.visualViewport;
-
-    const updateKeyboard = () => {
-      const height = Math.max(
-        0,
-        Math.round(
-          window.innerHeight -
-            viewport.height -
-            viewport.offsetTop,
-        ),
-      );
-
-      setKeyboardOffset(height);
+      if (document.activeElement === textareaRef.current) {
+        requestAnimationFrame(() => {
+          if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
+        });
+      }
     };
 
-    updateKeyboard();
-
-    viewport.addEventListener(
-      "resize",
-      updateKeyboard,
-    );
-
-    viewport.addEventListener(
-      "scroll",
-      updateKeyboard,
-    );
-
+    updateViewportHeight();
+    window.addEventListener("resize", updateViewportHeight);
+    viewport?.addEventListener("resize", updateViewportHeight);
+    viewport?.addEventListener("scroll", updateViewportHeight);
     return () => {
-      viewport.removeEventListener(
-        "resize",
-        updateKeyboard,
-      );
-
-      viewport.removeEventListener(
-        "scroll",
-        updateKeyboard,
-      );
+      window.removeEventListener("resize", updateViewportHeight);
+      viewport?.removeEventListener("resize", updateViewportHeight);
+      viewport?.removeEventListener("scroll", updateViewportHeight);
     };
   }, []);
 
@@ -1526,7 +1497,7 @@ function Workspace() {
         });
 
         if (pendingFrame !== null) window.cancelAnimationFrame(pendingFrame);
-        const answer = ensureActionRequestIds(streamedAnswer);
+        const answer = ensureToolActionResponse(streamedAnswer, toolForRequest, text);
         latestAccumulated = answer;
         flushAssistant();
 
@@ -1683,6 +1654,7 @@ function Workspace() {
   };
 
   const handleTextareaFocus = () => {
+    autoScrollRef.current = true;
     requestAnimationFrame(() => {
       if (chatRef.current) {
         chatRef.current.scrollTop =
@@ -2923,7 +2895,10 @@ function Workspace() {
           CHAT
           ====================================================== */}
 
-      <main className="relative z-10 h-[100dvh] min-h-0 overflow-hidden">
+      <main
+        className="relative z-10 flex min-h-0 flex-col overflow-hidden"
+        style={{ height: viewportHeight > 0 ? `${viewportHeight}px` : "100dvh" }}
+      >
         <div
           ref={chatRef}
           onScroll={() => {
@@ -2931,12 +2906,12 @@ function Workspace() {
             const distanceFromBottom = chatRef.current.scrollHeight - chatRef.current.scrollTop - chatRef.current.clientHeight;
             autoScrollRef.current = distanceFromBottom < 120;
           }}
-          className="h-full overflow-y-auto px-4 pb-40 pt-4 sm:px-6"
+          className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-4 sm:px-6"
         >
           <div className="mx-auto w-full max-w-3xl">
             {messages.length ===
               0 && (
-              <div className="flex min-h-[calc(100dvh-180px)] flex-col items-center justify-center px-4">
+              <div className="flex min-h-full flex-col items-center justify-center px-4 py-8">
                 <img
                   src="/appicon.png"
                   alt="DecidlyAI"
@@ -3190,15 +3165,8 @@ function Workspace() {
             ====================================================== */}
 
         <div
-          className="fixed left-0 right-0 z-[50] px-3 pb-3 sm:px-6 sm:pb-5"
-          style={{
-            bottom:
-              keyboardOffset > 0
-                ? `${keyboardOffset}px`
-                : "0px",
-            transition:
-              "bottom 100ms ease-out",
-          }}
+          className="relative z-[50] w-full shrink-0 px-3 pt-2 sm:px-6 sm:pt-3"
+          style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
         >
           <div className="relative mx-auto max-w-3xl">
             {pendingQuestion && (
