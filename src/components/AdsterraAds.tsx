@@ -1,6 +1,4 @@
-import { Link } from "@tanstack/react-router";
-import { Crown, Info, X } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { COOKIE_CONSENT_CHANGED_EVENT, hasAdsConsent } from "../lib/ad-consent";
 
 const SOCIAL_BAR_SRC = "https://cheflobesofficer.com/47/22/20/4722201050555ac91066f4314c7f7b0f.js";
@@ -275,20 +273,6 @@ export function AdsterraSocialBar() {
   return null;
 }
 
-function getExposedDestination(slot: HTMLDivElement) {
-  const href = slot.querySelector<HTMLAnchorElement>("a[href]")?.getAttribute("href");
-  if (!href) return null;
-
-  try {
-    const destination = new URL(href, window.location.href);
-    return destination.protocol === "https:" || destination.protocol === "http:"
-      ? destination.href
-      : null;
-  } catch {
-    return null;
-  }
-}
-
 export function AdsterraNativeBanner({
   placement = "standard",
 }: { placement?: AdsterraBannerPlacement } = {}) {
@@ -299,9 +283,6 @@ export function AdsterraNativeBanner({
   const [nearViewport, setNearViewport] = useState(false);
   const [hasCreative, setHasCreative] = useState(false);
   const [noFill, setNoFill] = useState(false);
-  const [destinationUrl, setDestinationUrl] = useState<string | null>(null);
-  const [infoOpen, setInfoOpen] = useState(false);
-  const adDetailsId = useId();
 
   useEffect(() => {
     if (!adsConsent) {
@@ -354,6 +335,7 @@ export function AdsterraNativeBanner({
       scaledElement = null;
       appliedScale = 1;
       frame.style.removeProperty("--adsterra-mobile-scale");
+      frame.style.setProperty("--adsterra-creative-half-width", `${zone.width / 2}px`);
     };
     const noFillTimer = window.setTimeout(() => {
       if (!active) return;
@@ -391,6 +373,10 @@ export function AdsterraNativeBanner({
         appliedScale = Math.min(1.25, slotWidth / unscaledWidth);
         if (appliedScale > 1.01) {
           frame.style.setProperty("--adsterra-mobile-scale", String(appliedScale));
+          frame.style.setProperty(
+            "--adsterra-creative-half-width",
+            `${(zone.width * appliedScale) / 2}px`,
+          );
           scaleTarget.setAttribute("data-decidly-mobile-scaled", "true");
           scaledElement = scaleTarget;
         } else {
@@ -403,7 +389,6 @@ export function AdsterraNativeBanner({
       const hasAd = Boolean(creative);
       setHasCreative(hasAd);
       if (hasAd) setNoFill(false);
-      setDestinationUrl(getExposedDestination(slot));
     };
     const observer = new MutationObserver(updateCreative);
     observer.observe(slot, {
@@ -435,15 +420,6 @@ export function AdsterraNativeBanner({
     };
   }, [adsConsent, nearViewport, zone]);
 
-  useEffect(() => {
-    if (!infoOpen) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setInfoOpen(false);
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [infoOpen]);
-
   if (!adsConsent) return null;
 
   return (
@@ -456,82 +432,16 @@ export function AdsterraNativeBanner({
         className={`adsterra-banner-frame${hasCreative ? " has-ad" : ""}`}
         style={{ minHeight: `${zone?.height ?? 250}px` }}
       >
-        <div className="adsterra-banner-card-head">
-          {hasCreative && <p className="adsterra-banner-label">Anúncio</p>}
-          <div className="adsterra-banner-controls">
-            <div className="adsterra-banner-control-group">
-              <button
-                type="button"
-                onClick={() => setInfoOpen((open) => !open)}
-                aria-label="Informações do anúncio"
-                aria-controls={adDetailsId}
-                aria-expanded={infoOpen}
-                title="Informações do anúncio"
-                className="adsterra-banner-control"
-              >
-                <Info size={14} />
-              </button>
-              <Link
-                to="/vip"
-                aria-label="Remover anúncios com o plano VIP — em breve"
-                title="Plano VIP sem anúncios — em breve"
-                className="adsterra-banner-vip"
-              >
-                <Crown size={13} className="text-violet-300/90" />
-                <span>VIP</span>
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {infoOpen && (
-          <div
-            id={adDetailsId}
-            role="region"
-            aria-label="Detalhes do anúncio"
-            className="adsterra-banner-details"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <p className="font-semibold text-white/85">Sobre este anúncio</p>
-              <button
-                type="button"
-                onClick={() => setInfoOpen(false)}
-                aria-label="Fechar detalhes do anúncio"
-                className="rounded px-1 text-white/45 transition hover:bg-white/10 hover:text-white"
-              >
-                <X size={14} />
-              </button>
-            </div>
-            <p className="mt-2">
-              Provedor: <strong className="font-semibold text-white/85">Adsterra</strong>
-            </p>
-            <p className="mt-1">
-              Formato: {zone ? `${zone.width} × ${zone.height}` : "indisponível nesta largura"}
-            </p>
-            <p className="mt-1">URL do destino:</p>
-            {destinationUrl ? (
-              <p className="break-all rounded-lg bg-white/[0.06] p-2 font-mono text-[10px] text-violet-200">
-                {destinationUrl}
-              </p>
-            ) : (
-              <p className="mt-1 text-white/45">
-                {hasCreative
-                  ? "O criativo está isolado no formato do provedor, que não expõe o destino à página. Não mostramos o endereço do script como se fosse o destino do anúncio."
-                  : "Ainda não há um destino disponível. O endereço aparece aqui somente se o próprio criativo o expuser à página."}
-              </p>
-            )}
-            <p className="mt-2 text-white/40">
-              A troca manual está desativada enquanto não houver um método seguro da Adsterra;
-              repetir o script pode duplicar anúncios.
-            </p>
-          </div>
-        )}
-
         <div
           id={zone ? `container-${zone.key}` : undefined}
           ref={slotRef}
           className="adsterra-banner-slot"
         />
+        {hasCreative && (
+          <span className="adsterra-banner-label" aria-label="Publicidade" role="note">
+            AD
+          </span>
+        )}
       </div>
     </section>
   );

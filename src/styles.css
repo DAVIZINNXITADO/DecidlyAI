@@ -575,10 +575,6 @@ html[data-theme="light"] .workspace-shell [class*="border-white/"] {
   justify-content: center;
 }
 
-.adsterra-banner-frame.has-ad {
-  min-height: 90px;
-}
-
 .adsterra-banner-frame[data-placement="top-right"][data-zone-size="728x90"] {
   margin-right: 0;
   margin-left: auto;
@@ -618,7 +614,7 @@ html[data-theme="light"] .workspace-shell [class*="border-white/"] {
   object-fit: contain;
 }
 
-/* Keep ad controls in a dedicated card header, never on top of the clickable creative. */
+/* Collapse empty/loading zones; only the small disclosure label overlays a filled creative. */
 .adsterra-banner-frame[data-zone-size="unselected"] {
   height: 0;
   min-height: 0 !important;
@@ -637,133 +633,27 @@ html[data-theme="light"] .workspace-shell [class*="border-white/"] {
   display: none;
 }
 
-.adsterra-banner-frame.has-ad {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
+.adsterra-banner-frame.has-ad .adsterra-banner-slot {
   min-height: 0;
-  outline: 1px solid var(--border);
-  border-radius: var(--radius-3xl);
-  background: var(--card);
-  color: var(--card-foreground);
-}
-
-.adsterra-banner-card-head {
-  display: none;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.adsterra-banner-frame.has-ad .adsterra-banner-card-head {
-  display: flex;
 }
 
 .adsterra-banner-label {
-  display: inline-flex;
-  align-items: center;
+  position: absolute;
+  top: 4px;
+  left: calc(50% - var(--adsterra-creative-half-width, 160px) + 4px);
+  z-index: 3;
+  display: inline-block;
   margin: 0;
-  padding: 4px 10px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--muted);
-  color: var(--muted-foreground);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  line-height: 1.5;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.32);
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
   pointer-events: none;
   text-transform: uppercase;
-}
-
-.adsterra-banner-controls {
-  position: static;
-  display: flex;
-  align-items: center;
-  pointer-events: auto;
-}
-
-.adsterra-banner-control-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--background);
-}
-
-.adsterra-banner-control,
-.adsterra-banner-vip {
-  display: inline-flex;
-  width: 32px;
-  min-width: 32px;
-  height: 32px;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: var(--secondary);
-  color: var(--secondary-foreground);
-  font: inherit;
-  font-size: 10px;
-  line-height: 1;
-  text-decoration: none;
-  transition:
-    background-color 120ms ease,
-    color 120ms ease,
-    opacity 120ms ease;
-}
-
-.adsterra-banner-control {
-  cursor: pointer;
-}
-
-.adsterra-banner-control:hover:not(:disabled),
-.adsterra-banner-vip:hover {
-  background: var(--accent);
-  color: var(--accent-foreground);
-}
-
-.adsterra-banner-control:focus-visible,
-.adsterra-banner-vip:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-
-.adsterra-banner-control svg,
-.adsterra-banner-vip svg {
-  flex: none;
-}
-
-.adsterra-banner-vip {
-  width: auto;
-  min-width: 52px;
-  gap: 4px;
-  padding-inline: 8px;
-  font-weight: 600;
-}
-
-.adsterra-banner-details {
-  position: relative;
-  width: 100%;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  background: var(--popover);
-  padding: 12px;
-  color: var(--popover-foreground);
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.adsterra-banner-details p {
-  margin: 0;
-}
-
-.adsterra-banner-details p + p {
-  margin-top: 4px;
 }
 
 .adsterra-banner-frame[data-zone-size="300x250"],
