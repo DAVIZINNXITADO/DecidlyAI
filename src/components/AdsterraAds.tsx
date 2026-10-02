@@ -20,8 +20,8 @@ type AdsterraBannerPlacement =
   | "native-300x250"
   | "rail-160x300"
   | "rail-160x600";
-const SOCIAL_BAR_DELAY_MS = 90_000;
-const SOCIAL_BAR_SESSION_KEY = "decidly-socialbar-loaded";
+const SOCIAL_BAR_INITIAL_DELAY_MS = 2_000;
+const SOCIAL_BAR_SESSION_KEY = "decidly-socialbar-loaded-v2";
 
 function useAdsConsent() {
   const [consent, setConsent] = useState(false);
@@ -190,7 +190,7 @@ function isTextEntryFocused() {
   );
 }
 
-/** Loads the Social Bar once per tab session, 90 seconds after workspace mount/consent. */
+/** Loads the Social Bar once per tab session after a short Workspace entry delay; never polls or refreshes. */
 export function AdsterraSocialBar() {
   const adsConsent = useAdsConsent();
 
@@ -198,6 +198,7 @@ export function AdsterraSocialBar() {
     if (!adsConsent || hasSocialBarBeenAttempted()) return;
 
     let timerId: number | undefined;
+    let waitingForFocusOut = false;
 
     const schedule = () => {
       if (timerId !== undefined) {
@@ -210,8 +211,12 @@ export function AdsterraSocialBar() {
 
       timerId = window.setTimeout(() => {
         timerId = undefined;
-        if (document.visibilityState !== "visible" || isTextEntryFocused()) {
-          schedule();
+        if (document.visibilityState !== "visible") return;
+        if (isTextEntryFocused()) {
+          if (!waitingForFocusOut) {
+            waitingForFocusOut = true;
+            document.addEventListener("focusout", onFocusOut);
+          }
           return;
         }
         if (document.querySelector('script[data-decidly-adsterra="social-bar"]')) {
@@ -225,8 +230,27 @@ export function AdsterraSocialBar() {
         script.async = true;
         script.setAttribute("data-cfasync", "false");
         script.dataset["decidlyAdsterra"] = "social-bar";
+        script.addEventListener(
+          "error",
+          () => {
+            try {
+              window.sessionStorage.removeItem(SOCIAL_BAR_SESSION_KEY);
+            } catch {
+              // A later Workspace entry can retry; there is no automatic retry loop.
+            }
+            script.remove();
+          },
+          { once: true },
+        );
         document.body.appendChild(script);
-      }, SOCIAL_BAR_DELAY_MS);
+      }, SOCIAL_BAR_INITIAL_DELAY_MS);
+    };
+
+    const onFocusOut = () => {
+      if (isTextEntryFocused()) return;
+      waitingForFocusOut = false;
+      document.removeEventListener("focusout", onFocusOut);
+      schedule();
     };
 
     const onVisibilityChange = () => {
@@ -243,6 +267,7 @@ export function AdsterraSocialBar() {
 
     return () => {
       if (timerId !== undefined) window.clearTimeout(timerId);
+      if (waitingForFocusOut) document.removeEventListener("focusout", onFocusOut);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [adsConsent]);
