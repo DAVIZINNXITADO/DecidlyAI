@@ -45,7 +45,7 @@ import { streamAi } from "../lib/ai-stream";
 import { requestTtsAudio } from "../lib/tts";
 import { createPdfBlob } from "../lib/pdf";
 import { createTextImage } from "../lib/text-image";
-import { ensureToolActionResponse } from "../lib/tool-actions";
+import { ensureToolActionResponse, resolveSelectedToolForRequest } from "../lib/tool-actions";
 import { useLanguageContext } from "../lib/LanguageProvider";
 import { RichResponse, responseProtocolInstructions, type ResponseAction } from "../components/RichResponse";
 import { ToolCenter, type SelectedTool, type ToolId } from "../components/ToolCenter";
@@ -1395,7 +1395,7 @@ function Workspace() {
       setInput("");
       setExtraGuidance("");
       setToolsOpen(false);
-      const toolForRequest = selectedTool;
+      const toolForRequest = resolveSelectedToolForRequest(selectedTool, text);
       setRequestTool(toolForRequest);
       // A ferramenta selecionada vale somente para esta mensagem.
       // Mantê-la ativa fazia a IA interpretar mensagens futuras como novos pedidos de PDF.

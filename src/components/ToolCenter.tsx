@@ -33,7 +33,7 @@ const availableTools: Array<SelectedTool & { description: string; icon: typeof F
     label: "Imagem de texto",
     cost: 0.5,
     costLabel: "0,5 crédito",
-    description: "Renderiza uma frase curta em fundo escuro, sem chamada a um gerador externo.",
+    description: "Renderiza frases curtas em imagem; não gera redações longas.",
     limit: "5/dia Free · 15/dia VIP · até 220 caracteres",
     icon: Type,
   },
