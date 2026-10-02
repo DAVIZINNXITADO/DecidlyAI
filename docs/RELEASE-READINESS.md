@@ -35,7 +35,7 @@ O workspace, autenticação, conversas, streaming, respostas ricas, créditos e 
 
 O código ainda não está ativo em produção até completar todos estes passos:
 
-1. Aplicar todas as migrations pendentes, incluindo `20261002100000_ai_artifact_limits_and_storage.sql`.
+1. Aplicar primeiro a migration-base `20260917110000_operation_credit_ledger.sql` (a tabela `credit_operations` ainda não existe na produção verificada) e depois `20261002100000_ai_artifact_limits_and_storage.sql`.
 2. Implantar `generate-ai-image` e a versão atualizada de `groq-free`.
 3. Configurar `FAL_KEY` em **Supabase Edge Function Secrets**, nunca em `VITE_*`, frontend ou Git.
 4. Revogar e substituir a chave FAL compartilhada em conversa antes de configurar o secret; ela deve ser tratada como exposta.
