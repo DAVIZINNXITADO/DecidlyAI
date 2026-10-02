@@ -1,7 +1,7 @@
-import { Check, FileText, X } from "lucide-react";
+import { Check, FileText, Image as ImageIcon, Type, X } from "lucide-react";
 
-export type ToolId = "create_pdf";
-export type SelectedTool = { id: ToolId; label: string };
+export type ToolId = "create_pdf" | "create_image" | "create_text_image";
+export type SelectedTool = { id: ToolId; label: string; cost: number };
 
 type Props = {
   selected: SelectedTool | null;
@@ -9,22 +9,42 @@ type Props = {
   onClose: () => void;
 };
 
-const exportPdfTool: SelectedTool = {
-  id: "create_pdf",
-  label: "Exportar resposta em PDF",
-};
+const availableTools: Array<SelectedTool & { description: string; icon: typeof FileText; limit: string }> = [
+  {
+    id: "create_pdf",
+    label: "Criar PDF",
+    cost: 3,
+    description: "Exporta uma resposta curta em PDF; não lê arquivos enviados.",
+    limit: "1 PDF por execução · até 8 páginas",
+    icon: FileText,
+  },
+  {
+    id: "create_image",
+    label: "Imagem por IA",
+    cost: 6,
+    description: "Gera uma imagem quadrada com FLUX.1 Schnell.",
+    limit: "1 imagem por execução · saldo de créditos necessário",
+    icon: ImageIcon,
+  },
+  {
+    id: "create_text_image",
+    label: "Imagem de texto",
+    cost: 6,
+    description: "Renderiza uma frase curta em fundo escuro, sem chamada a um gerador externo.",
+    limit: "1 imagem por execução · até 220 caracteres",
+    icon: Type,
+  },
+];
 
 export function ToolCenter({ selected, onSelect, onClose }: Props) {
-  const isSelected = selected?.id === exportPdfTool.id;
-
   return (
     <div
-      className="absolute bottom-[calc(100%+10px)] left-0 z-50 w-[270px] overflow-hidden rounded-2xl border border-white/10 bg-[#21152d]/[.98] p-1.5 shadow-2xl shadow-black/35 backdrop-blur-xl"
+      className="absolute bottom-[calc(100%+10px)] left-0 z-50 w-[300px] overflow-hidden rounded-2xl border border-white/10 bg-[#21152d]/[.98] p-1.5 shadow-2xl shadow-black/35 backdrop-blur-xl"
       role="menu"
       aria-label="Ferramentas disponíveis"
     >
       <div className="flex items-center justify-between border-b border-white/[0.08] px-3 py-2">
-        <span className="text-[11px] font-semibold text-white/65">Disponível agora</span>
+        <span className="text-[11px] font-semibold text-white/65">Ferramentas opcionais · custo por uso</span>
         <button
           type="button"
           onClick={onClose}
@@ -34,23 +54,34 @@ export function ToolCenter({ selected, onSelect, onClose }: Props) {
           <X size={14} />
         </button>
       </div>
-      <button
-        type="button"
-        role="menuitemcheckbox"
-        aria-checked={isSelected}
-        onClick={() => {
-          onSelect(exportPdfTool);
-          onClose();
-        }}
-        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[12px] text-white/80 transition hover:bg-violet-400/[0.13] hover:text-white"
-      >
-        <FileText size={15} className="shrink-0 text-violet-300" />
-        <span className="flex-1">{exportPdfTool.label}</span>
-        {isSelected && <Check size={14} className="text-emerald-300" />}
-      </button>
-      <p className="px-3 pb-2 pt-1 text-[10px] leading-4 text-white/40">
-        Gera um PDF simples com o texto preparado pela IA. Ainda não lê PDFs enviados.
-      </p>
+      {availableTools.map((tool) => {
+        const isSelected = selected?.id === tool.id;
+        const Icon = tool.icon;
+        return (
+          <button
+            key={tool.id}
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={isSelected}
+            onClick={() => {
+              onSelect({ id: tool.id, label: tool.label, cost: tool.cost });
+              onClose();
+            }}
+            className="flex w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-left text-[12px] text-white/80 transition hover:bg-violet-400/[0.13] hover:text-white"
+          >
+            <Icon size={15} className="mt-0.5 shrink-0 text-violet-300" />
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center justify-between gap-2">
+                <strong className="font-medium">{tool.label}</strong>
+                <span className="shrink-0 text-[10px] text-violet-200">{tool.cost} crédito{tool.cost === 1 ? "" : "s"}</span>
+              </span>
+              <span className="mt-1 block text-[10px] leading-4 text-white/45">{tool.description}</span>
+              <span className="mt-0.5 block text-[10px] leading-4 text-white/35">{tool.limit}</span>
+            </span>
+            {isSelected && <Check size={14} className="mt-0.5 shrink-0 text-emerald-300" />}
+          </button>
+        );
+      })}
     </div>
   );
 }

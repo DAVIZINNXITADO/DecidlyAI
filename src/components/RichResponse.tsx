@@ -1,11 +1,26 @@
-import { memo, useMemo, useState, type ReactNode } from "react";
+import { memo, useEffect, useMemo, useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { AlertTriangle, Check, Copy, ExternalLink, Info, Lightbulb, ShieldAlert, Sparkles, TriangleAlert } from "lucide-react";
+import { AlertTriangle, Check, Copy, Download, ExternalLink, FileText, Image as ImageIcon, Info, Lightbulb, Loader2, ShieldAlert, Sparkles, TriangleAlert, Type } from "lucide-react";
+import { supabase } from "../lib/supabase";
 
 export type Variant = "info" | "success" | "warning" | "danger" | "tip" | "important" | "advantage" | "disadvantage" | "observation" | "recommendation" | "decision" | "neutral";
-type Block = { kind: "markdown" | "callout" | "highlight" | "copy" | "link" | "action" | "question" | "color"; value: string; variant?: Variant; color?: string; title?: string; language?: string; href?: string; actionType?: string };
-export type ResponseAction = { type: string; title: string; description: string };
+type Block = {
+  kind: "markdown" | "callout" | "highlight" | "copy" | "link" | "action" | "question" | "color" | "file" | "image";
+  value: string;
+  variant?: Variant;
+  color?: string;
+  title?: string;
+  language?: string;
+  href?: string;
+  actionType?: string;
+  requestId?: string;
+  path?: string;
+  fileName?: string;
+  alt?: string;
+};
+export type ResponseAction = { type: string; title: string; description: string; requestId: string };
+type ArtifactResult = { kind: "file" | "image"; path: string; fileName?: string; alt?: string };
 
 const variants: Record<Variant, { label: string; className: string; icon: ReactNode }> = {
   info: { label: "Informação", className: "border-sky-300/20 bg-sky-400/[0.08] text-sky-50", icon: <Info size={16} /> },
@@ -32,7 +47,6 @@ const highlightColors: Record<string, string> = {
   pink: "bg-pink-300/25 text-pink-50 ring-1 ring-pink-300/30",
   red: "bg-rose-300/25 text-rose-50 ring-1 ring-rose-300/30",
 };
-
 const safeTextColors: Record<string, string> = { red: "#fb7185", orange: "#fb923c", yellow: "#fde047", green: "#86efac", blue: "#7dd3fc", cyan: "#67e8f9", purple: "#c4b5fd", pink: "#f9a8d4", white: "#ffffff" };
 
 function normalizeLegacyMarkup(content: string) {
@@ -44,19 +58,19 @@ function normalizeLegacyMarkup(content: string) {
 function keepOnlyRequestedAction(content: string) {
   const action = content.match(/\[action(?:\s+[^\]]*)?\][\s\S]*?\[\/action\]/i);
   if (!action) return content;
-  const isSupportedPdfExport = /type\s*=\s*["']?create_pdf["']?/i.test(action[0]);
+  const supported = /type\s*=\s*["']?(create_pdf|create_image|create_text_image)["']?/i.test(action[0]);
   const remainingText = content.replace(action[0], "").trim();
-  return isSupportedPdfExport ? action[0] : remainingText || "Essa ferramenta ainda não está disponível.";
+  return supported ? action[0] : remainingText || "Essa ferramenta ainda não está disponível.";
 }
 
 function attributes(raw: string | undefined) {
-  return Object.fromEntries(Array.from(raw?.matchAll(/(variant|color|title|language|href|label|type|description)=(?:"([^"]*)"|'([^']*)'|([^\s]+))/gi) ?? []).map((item) => [item[1]?.toLowerCase(), item[2] ?? item[3] ?? item[4] ?? ""]));
+  return Object.fromEntries(Array.from(raw?.matchAll(/([\w-]+)=(?:"([^"]*)"|'([^']*)'|([^\s]+))/gi) ?? []).map((item) => [item[1]?.toLowerCase(), item[2] ?? item[3] ?? item[4] ?? ""]));
 }
 
 export function parseBlocks(content: string): Block[] {
   content = normalizeLegacyMarkup(keepOnlyRequestedAction(content));
   const blocks: Block[] = [];
-  const pattern = /\[(callout|highlight|copy_block|link|action|question|color)(?:\s+([^\]]+))?\]([\s\S]*?)\[\/(callout|highlight|copy_block|link|action|question|color)\]/gi;
+  const pattern = /\[(callout|highlight|copy_block|link|action|question|color|generated_file|generated_image)(?:\s+([^\]]+))?\]([\s\S]*?)\[\/(callout|highlight|copy_block|link|action|question|color|generated_file|generated_image)\]/gi;
   let cursor = 0;
   for (const match of content.matchAll(pattern)) {
     const start = match.index ?? 0;
@@ -65,13 +79,18 @@ export function parseBlocks(content: string): Block[] {
     const attr = attributes(match[2]);
     const value = (match[3] ?? "").trim();
     const variant = attr.variant as Variant | undefined;
-    const block: Block = { kind: rawKind === "copy_block" ? "copy" : rawKind as Block["kind"], value, variant: variant && variant in variants ? variant : "info", color: attr.color?.toLowerCase() };
+    const kind: Block["kind"] = rawKind === "copy_block" ? "copy" : rawKind === "generated_file" ? "file" : rawKind === "generated_image" ? "image" : rawKind as Block["kind"];
+    const block: Block = { kind, value, variant: variant && variant in variants ? variant : "info", color: attr.color?.toLowerCase() };
     if (attr.title) block.title = attr.title;
     if (attr.language) block.language = attr.language;
     if (attr.href) block.href = attr.href;
     if (attr.type) block.actionType = attr.type;
+    if (attr.request_id || attr.id) block.requestId = attr.request_id || attr.id;
+    if (attr.path) block.path = attr.path;
+    if (attr.name || attr.file_name) block.fileName = attr.name || attr.file_name;
+    if (attr.alt) block.alt = attr.alt;
     if (rawKind === "link") block.title = attr.label || value;
-    if (rawKind === "action") block.title = attr.title || value;
+    if (rawKind === "action") block.title = attr.title || "Ação da IA";
     blocks.push(block);
     cursor = start + match[0].length;
   }
@@ -105,24 +124,99 @@ function LinkBlock({ block }: { block: Block }) {
   return <a href={block.href || "#"} target="_blank" rel="noreferrer" className="my-3 flex items-center gap-3 rounded-2xl border border-sky-300/15 bg-sky-400/[0.06] px-4 py-3 transition hover:border-sky-300/35 hover:bg-sky-400/[0.12]"><ExternalLink size={17} className="shrink-0 text-sky-300" /><span className="min-w-0 flex-1"><strong className="block truncate text-sm text-sky-100">{block.title || "Abrir link"}</strong><span className="mt-0.5 block truncate text-xs text-white/40">{block.href}</span></span><span className="text-[10px] text-amber-200/75">Atenção: site externo</span></a>;
 }
 
-function ActionBlock({ block, onActionRequest }: { block: Block; onActionRequest?: ((action: ResponseAction) => void) | undefined }) {
-  const [requested, setRequested] = useState(false);
-  const action = { type: block.actionType || "tool", title: block.title || "Ação da IA", description: block.value };
-  return <div className="my-4 rounded-2xl border border-violet-300/20 bg-violet-400/[0.08] px-4 py-3"><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-violet-100"><Sparkles size={16} />Permissão necessária</div><p className="mt-2 text-sm text-white/80">{action.description}</p><button type="button" disabled={requested} onClick={() => { setRequested(true); onActionRequest?.(action); }} className="mt-3 rounded-xl bg-violet-500 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-400 disabled:opacity-60">{requested ? "Autorizado" : `Permitir ${action.title}`}</button></div>;
+const actionCosts: Record<string, number> = { create_pdf: 3, create_image: 6, create_text_image: 6 };
+const actionNames: Record<string, string> = { create_pdf: "Criar PDF", create_image: "Gerar imagem por IA", create_text_image: "Criar imagem de texto" };
+
+function ActionBlock({ block, messageId, onActionRequest }: { block: Block; messageId?: string | undefined; onActionRequest?: ((action: ResponseAction, messageId: string) => Promise<void>) | undefined }) {
+  const [busy, setBusy] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const type = block.actionType || "";
+  const cost = actionCosts[type];
+  const title = block.title || actionNames[type] || "Ação da IA";
+  const requestId = block.requestId || "";
+  const canRun = Boolean(cost && requestId && messageId && onActionRequest);
+  const run = async () => {
+    if (!canRun || !messageId || !onActionRequest) return;
+    setBusy(true);
+    setErrorMessage("");
+    try {
+      await onActionRequest({ type, title, description: block.value, requestId }, messageId);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Não foi possível concluir a ação.");
+      setBusy(false);
+    }
+  };
+  const limit = type === "create_pdf" ? "1 PDF por execução · até 8 páginas" : type === "create_text_image" ? "1 imagem por execução · até 220 caracteres" : "1 imagem por execução · prompt até 1.500 caracteres";
+  const Icon = type === "create_pdf" ? FileText : type === "create_text_image" ? Type : ImageIcon;
+  return <div className="my-4 rounded-2xl border border-violet-300/20 bg-violet-400/[0.08] px-4 py-3"><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-violet-100"><Sparkles size={16} />Ação pronta para executar</div><p className="mt-2 whitespace-pre-wrap text-sm text-white/80">{block.value}</p><p className="mt-2 text-[11px] text-white/45">{limit}</p><button type="button" disabled={!canRun || busy} onClick={() => void run()} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-violet-500 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-60">{busy ? <Loader2 size={14} className="animate-spin" /> : <Icon size={14} />}{busy ? "Preparando…" : `${actionNames[type] || title} · ${cost ?? "—"} crédito${cost === 1 ? "" : "s"}`}</button>{errorMessage && <p role="alert" className="mt-2 text-xs text-rose-200">{errorMessage}</p>}{!canRun && <p className="mt-2 text-xs text-white/40">Ação indisponível nesta conversa.</p>}</div>;
 }
 
-export const RichResponse = memo(function RichResponse({ content, onActionRequest }: { content: string; onActionRequest?: (action: ResponseAction) => void }) {
+function useArtifactUrl(path?: string) {
+  const [url, setUrl] = useState("");
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let active = true;
+    setUrl("");
+    setFailed(false);
+    if (!path) {
+      setFailed(true);
+      return () => { active = false; };
+    }
+    void supabase.storage.from("decidlyai-artifacts").createSignedUrl(path, 60 * 60).then(({ data, error }) => {
+      if (!active) return;
+      if (error || !data?.signedUrl) setFailed(true);
+      else setUrl(data.signedUrl);
+    });
+    return () => { active = false; };
+  }, [path]);
+  return { url, failed };
+}
+
+function ArtifactBlock({ block, kind }: { block: Block; kind: ArtifactResult["kind"] }) {
+  const { url, failed } = useArtifactUrl(block.path);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
+  const fileName = block.fileName || (kind === "file" ? "DecidlyAI.pdf" : `DecidlyAI-imagem.${block.path?.toLowerCase().endsWith(".png") ? "png" : "jpg"}`);
+  const downloadArtifact = async () => {
+    if (!url || downloading) return;
+    setDownloading(true);
+    setDownloadError("");
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("download_failed");
+      const objectUrl = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000);
+    } catch {
+      setDownloadError("Não foi possível baixar o arquivo. Tente novamente.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+  if (failed) return <p role="alert" className="my-3 rounded-xl border border-rose-300/15 bg-rose-400/[0.06] px-3 py-2 text-xs text-rose-200">O arquivo não está disponível ou você não tem acesso a ele.</p>;
+  if (!url) return <div className="my-3 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/60"><Loader2 size={14} className="animate-spin" />Abrindo arquivo privado…</div>;
+  if (kind === "image") return <figure className="my-4 overflow-hidden rounded-2xl border border-white/10 bg-black/20"><img src={url} alt={block.alt || "Imagem gerada"} className="max-h-[560px] w-full object-contain" loading="lazy" /><figcaption className="flex items-center justify-between gap-3 border-t border-white/10 px-3 py-2"><span className="text-xs text-white/55">{block.alt || "Imagem gerada"}</span><button type="button" onClick={() => void downloadArtifact()} disabled={downloading} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-violet-200 hover:bg-white/10 disabled:opacity-60">{downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}{downloading ? "Baixando…" : "Baixar"}</button></figcaption>{downloadError && <p role="alert" className="px-3 pb-2 text-xs text-rose-200">{downloadError}</p>}</figure>;
+  return <div className="my-3 rounded-2xl border border-violet-300/15 bg-violet-400/[0.06] px-4 py-3"><div className="flex items-center gap-3"><FileText size={19} className="shrink-0 text-violet-200" /><span className="min-w-0 flex-1"><strong className="block truncate text-sm text-violet-100">{fileName}</strong><span className="mt-0.5 block text-xs text-white/45">PDF privado · disponível nesta conversa</span></span><button type="button" onClick={() => void downloadArtifact()} disabled={downloading} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-violet-500 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-400 disabled:opacity-60">{downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}{downloading ? "Baixando…" : "Baixar"}</button></div>{downloadError && <p role="alert" className="mt-2 text-xs text-rose-200">{downloadError}</p>}</div>;
+}
+
+export const RichResponse = memo(function RichResponse({ content, messageId, onActionRequest }: { content: string; messageId?: string; onActionRequest?: (action: ResponseAction, messageId: string) => Promise<void> }) {
   const blocks = useMemo(() => parseBlocks(content), [content]);
   return <div className="text-[15px] leading-7 text-white/90">{blocks.map((block, index) => {
     if (block.kind === "markdown") return <Markdown key={index}>{block.value}</Markdown>;
     if (block.kind === "copy") return <CopyBlock key={index} block={block} />;
     if (block.kind === "link") return <LinkBlock key={index} block={block} />;
-    if (block.kind === "action") return <ActionBlock key={index} block={block} onActionRequest={onActionRequest} />;
+    if (block.kind === "action") return <ActionBlock key={index} block={block} messageId={messageId} onActionRequest={onActionRequest} />;
+    if (block.kind === "file" || block.kind === "image") return <ArtifactBlock key={index} block={block} kind={block.kind} />;
     if (block.kind === "question") return null;
     if (block.kind === "color") {
       const rawColor = block.color || "white";
       const color = safeTextColors[rawColor] || (/^#[0-9a-f]{3,8}$/i.test(rawColor) ? rawColor : safeTextColors["white"]);
-      return <span key={index} style={{ color: color || safeTextColors["white"] }}><Markdown>{block.value}</Markdown></span>;
+      return <span key={index} style={{ color }}><Markdown>{block.value}</Markdown></span>;
     }
     const style = variants[block.variant || "info"];
     const highlightClass = block.kind === "highlight" && block.color ? highlightColors[block.color] : "";
@@ -131,7 +225,7 @@ export const RichResponse = memo(function RichResponse({ content, onActionReques
 });
 
 export function responseProtocolInstructions() {
-  return "O único recurso atual do menu + é exportar texto em um PDF simples. Se a mensagem vier com a ferramenta 'Exportar resposta em PDF' selecionada, prepare o conteúdo solicitado em texto simples e retorne exatamente um bloco [action type=create_pdf title=\"Exportar resposta em PDF\"]conteúdo final[/action]; se faltar dado indispensável, faça uma única pergunta consolidada antes. Sem essa seleção, só gere o bloco de ação se o usuário pedir explicitamente a exportação para PDF. Não alegue que pode pesquisar na web, gerar imagens, ler PDFs ou processar anexos/arquivos; esses recursos ainda não estão disponíveis. Se forem solicitados, explique isso com clareza e ofereça uma alternativa textual. Se a mensagem do usuário já contém informação suficiente, responda ou prepare a exportação sem perguntar. Nunca repita pergunta já respondida nem pergunte 'quer adicionar mais alguma coisa?' por padrão. Use [question id=clarify]1. ...\n2. ...[/question] para uma única pergunta consolidada. Não peça confirmação redundante para uma ação que o usuário pediu explicitamente; o bloco de ação apresenta a permissão de exportação. Use emojis com moderação e callouts para Vantagens, Desvantagens, Observação, Recomendação e Decisão quando ajudarem. Use [highlight variant=warning color=yellow]trecho importante[/highlight], [color color=red]texto colorido[/color], [link href=\"https://exemplo.com\" label=\"Abrir página\"]https://exemplo.com[/link] e [copy_block language=text]conteúdo[/copy_block] quando apropriado. Nunca gere HTML, CSS ou JavaScript.";
+  return "DecidlyAI é principalmente uma IA de conversa; arquivos são ferramentas opcionais, sempre acionadas manualmente pelo usuário e com custo. Recursos disponíveis: PDF simples de até 12.000 caracteres/8 páginas (3 créditos por execução); imagem FLUX.1 Schnell em 1024×1024 (6 créditos por execução, prompt até 1.500 caracteres); imagem determinística de texto em fundo #141414 (6 créditos por execução, até 220 caracteres). Cada ação pode criar no máximo um artefato; execuções adicionais dependem do saldo de créditos. Estes recursos não leem PDFs, não aceitam anexos, não pesquisam na web, não editam imagens e não devem ser prometidos como concluídos antes da ação terminar. Só prepare um bloco de ação se o usuário pediu explicitamente a ferramenta ou se uma ferramenta está selecionada; não execute nada por conta própria. Para PDF, retorne exatamente um bloco [action type=create_pdf title=\"Criar PDF\"]conteúdo final conciso[/action]. Para uma ilustração, retorne [action type=create_image title=\"Gerar imagem\"]prompt visual final[/action]. Para renderizar palavras curtas sobre fundo escuro, retorne [action type=create_text_image title=\"Criar imagem de texto\"]texto exato da imagem[/action]. O app adicionará um identificador idempotente; nunca invente um. Se faltar uma informação indispensável, faça uma única pergunta consolidada antes de criar o bloco. Não gere HTML, CSS ou JavaScript. Nunca afirme que o arquivo já foi criado antes de o usuário acionar e concluir a ação. Se a mensagem já tem informação suficiente, siga sem perguntas redundantes. Use [question id=clarify]1. ...\n2. ...[/question] para uma única pergunta consolidada. Use [highlight variant=warning color=yellow]trecho importante[/highlight], [color color=red]texto colorido[/color], [link href=\"https://exemplo.com\" label=\"Abrir página\"]https://exemplo.com[/link] e [copy_block language=text]conteúdo[/copy_block] quando apropriado.";
 }
 
 export function flattenResponse(content: string) { return parseBlocks(content).map((block) => block.value).join("\n\n"); }
