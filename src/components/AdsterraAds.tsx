@@ -341,11 +341,20 @@ export function AdsterraNativeBanner({
   useEffect(() => {
     if (!adsConsent || !nearViewport || !zone) return;
     const slot = slotRef.current;
-    if (!slot) return;
+    const frame = frameRef.current;
+    if (!slot || !frame) return;
 
     let active = true;
+    let scaledElement: Element | null = null;
+    let appliedScale = 1;
     setHasCreative(false);
     setNoFill(false);
+    const clearMobileScale = () => {
+      scaledElement?.removeAttribute("data-decidly-mobile-scaled");
+      scaledElement = null;
+      appliedScale = 1;
+      frame.style.removeProperty("--adsterra-mobile-scale");
+    };
     const noFillTimer = window.setTimeout(() => {
       if (!active) return;
       const creative = slot.querySelector("iframe, img, video, canvas, object, embed, a[href]");
@@ -354,6 +363,43 @@ export function AdsterraNativeBanner({
     const updateCreative = () => {
       if (!active) return;
       const creative = slot.querySelector("iframe, img, video, canvas, object, embed, a[href]");
+      const media = slot.querySelector<HTMLElement>("iframe, img, video, canvas, object, embed");
+      const link = slot.querySelector<HTMLElement>("a[href]");
+      const mediaWidth = media?.getBoundingClientRect().width ?? 0;
+      const linkWidth = link?.getBoundingClientRect().width ?? 0;
+      const scaleTarget =
+        media && link && Math.abs(mediaWidth - linkWidth) <= 2 ? link : media || link;
+      const unscaledWidth =
+        scaleTarget && scaleTarget === scaledElement
+          ? scaleTarget.getBoundingClientRect().width / appliedScale
+          : (scaleTarget?.getBoundingClientRect().width ?? 0);
+      if (scaledElement && scaledElement !== scaleTarget) {
+        scaledElement.removeAttribute("data-decidly-mobile-scaled");
+        scaledElement = null;
+        appliedScale = 1;
+      }
+
+      const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+      const slotWidth = slot.getBoundingClientRect().width;
+      if (
+        scaleTarget &&
+        zone.width === ADSTERRA_BANNER_ZONES.mobile.width &&
+        viewportWidth < 640 &&
+        unscaledWidth > 0 &&
+        slotWidth > unscaledWidth
+      ) {
+        appliedScale = Math.min(1.25, slotWidth / unscaledWidth);
+        if (appliedScale > 1.01) {
+          frame.style.setProperty("--adsterra-mobile-scale", String(appliedScale));
+          scaleTarget.setAttribute("data-decidly-mobile-scaled", "true");
+          scaledElement = scaleTarget;
+        } else {
+          clearMobileScale();
+        }
+      } else {
+        clearMobileScale();
+      }
+
       const hasAd = Boolean(creative);
       setHasCreative(hasAd);
       if (hasAd) setNoFill(false);
@@ -366,6 +412,8 @@ export function AdsterraNativeBanner({
       attributes: true,
       attributeFilter: ["height", "style", "width"],
     });
+    window.addEventListener("resize", updateCreative);
+    window.visualViewport?.addEventListener("resize", updateCreative);
 
     // Serialize units because Adsterra's invoke.js reads shared window.atOptions.
     const cancelQueuedInjection = enqueueAdsterraBanner({
@@ -379,6 +427,9 @@ export function AdsterraNativeBanner({
       active = false;
       window.clearTimeout(noFillTimer);
       observer.disconnect();
+      window.removeEventListener("resize", updateCreative);
+      window.visualViewport?.removeEventListener("resize", updateCreative);
+      clearMobileScale();
       cancelQueuedInjection();
       slot.replaceChildren();
     };

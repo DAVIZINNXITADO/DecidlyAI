@@ -782,3 +782,16 @@ html[data-theme="light"] .workspace-shell [class*="border-white/"] {
 .adsterra-banner-frame[data-zone-size="320x50"] {
   width: 100%;
 }
+
+@media (max-width: 639px) {
+  .adsterra-banner-frame[data-zone-size="320x50"] .adsterra-banner-slot {
+    min-height: calc(50px * var(--adsterra-mobile-scale, 1));
+  }
+
+  .adsterra-banner-frame[data-zone-size="320x50"]
+    .adsterra-banner-slot [data-decidly-mobile-scaled="true"] {
+    display: inline-block;
+    transform: scale(var(--adsterra-mobile-scale, 1));
+    transform-origin: center center;
+  }
+}
