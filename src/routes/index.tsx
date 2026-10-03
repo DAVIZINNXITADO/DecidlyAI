@@ -3,7 +3,6 @@ import {
   ArrowRight,
   BrainCircuit,
   Check,
-  ChevronDown,
   CircleHelp,
   Coins,
   Gauge,
@@ -14,9 +13,11 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { AppShell } from "@/components/AppShell";
+import { SeoFaqSection } from "../components/SeoArticlePage";
 import { Navbar } from "../components/Navbar";
+import { HOME_FAQS } from "../lib/seo";
 import { supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/")({
@@ -125,6 +126,59 @@ function Index() {
             </div>
           </section>
 
+          <section
+            id="decisoes-na-pratica"
+            className="mx-auto max-w-7xl px-6 py-24 md:px-8 md:py-32"
+            aria-label="Guias para suas escolhas"
+          >
+            <SectionHeading
+              eyebrow="GUIAS PARA SUAS ESCOLHAS"
+              title="Uma conversa útil para cada tipo de decisão."
+              description="Explore orientações práticas para negócios, escolhas complexas e estudos. A IA organiza possibilidades; seus critérios e sua decisão continuam no centro."
+            />
+            <div className="mt-12 grid gap-5 md:grid-cols-3">
+              <article className="rounded-2xl border border-white/10 bg-[#10101d] p-6">
+                <h3 className="text-xl font-semibold">IA para empreendedores</h3>
+                <p className="mt-3 leading-7 text-slate-400">
+                  Estruture hipóteses de negócio, compare contratações e pense na alocação de
+                  recursos com critérios explícitos e atenção ao que ainda precisa ser validado.
+                </p>
+                <Link
+                  to="/ia-para-empreendedores"
+                  className="mt-5 inline-flex items-center gap-2 font-semibold text-violet-200 hover:text-white"
+                >
+                  Explorar decisões de negócio <ArrowRight size={16} />
+                </Link>
+              </article>
+              <article className="rounded-2xl border border-white/10 bg-[#10101d] p-6">
+                <h3 className="text-xl font-semibold">Como tomar decisões difíceis</h3>
+                <p className="mt-3 leading-7 text-slate-400">
+                  Defina o dilema, separe fatos de suposições e compare caminhos sem exigir uma
+                  certeza que talvez não exista.
+                </p>
+                <Link
+                  to="/como-tomar-decisoes-dificeis"
+                  className="mt-5 inline-flex items-center gap-2 font-semibold text-violet-200 hover:text-white"
+                >
+                  Ver um método de decisão <ArrowRight size={16} />
+                </Link>
+              </article>
+              <article className="rounded-2xl border border-white/10 bg-[#10101d] p-6">
+                <h3 className="text-xl font-semibold">Ajuda para escolher faculdade</h3>
+                <p className="mt-3 leading-7 text-slate-400">
+                  Compare cursos, rotina, custos e possibilidades profissionais sem tratar um teste
+                  ou uma resposta automática como destino.
+                </p>
+                <Link
+                  to="/ajuda-para-escolher-faculdade"
+                  className="mt-5 inline-flex items-center gap-2 font-semibold text-violet-200 hover:text-white"
+                >
+                  Explorar opções de estudo <ArrowRight size={16} />
+                </Link>
+              </article>
+            </div>
+          </section>
+
           <section id="planos" className="mx-auto max-w-7xl px-6 py-24 md:px-8 md:py-32">
             <SectionHeading eyebrow="PLANO FREE" title="Comece sem pagar. Entenda antes de avançar." description="Você recebe créditos gratuitos diariamente para experimentar o DecidlyAI de verdade — sem cartão e sem promessa escondida." />
             <div className="mx-auto mt-14 grid max-w-5xl gap-5 lg:grid-cols-[1fr_.82fr]">
@@ -156,7 +210,11 @@ function Index() {
             </div>
           </section>
 
-          <FaqSection />
+          <SeoFaqSection
+            items={HOME_FAQS}
+            eyebrow="DÚVIDAS FREQUENTES"
+            title="Transparência antes de começar."
+          />
 
           <section className="mx-auto max-w-7xl px-6 py-24 md:px-8 md:py-32"><div className="relative overflow-hidden rounded-[2rem] border border-violet-300/25 bg-gradient-to-br from-violet-500/20 via-[#17132b] to-[#0e0d1c] px-6 py-16 text-center md:px-12 md:py-20"><div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(196,181,253,.18),transparent_55%)]" /><div className="relative"><p className="text-sm font-semibold uppercase tracking-[0.18em] text-violet-200">A próxima decisão começa aqui</p><h2 className="mx-auto mt-5 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">Você não precisa ter todas as respostas para começar.</h2><p className="mx-auto mt-5 max-w-xl leading-7 text-slate-300">Dê forma à sua dúvida. O DecidlyAI ajuda você a encontrar clareza no caminho.</p><Link to="/login" className="interactive-lift mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-7 py-4 font-semibold text-[#151322] hover:bg-violet-100">Começar gratuitamente <ArrowRight className="h-5 w-5" /></Link></div></div></section>
         </div>
@@ -218,14 +276,4 @@ function TrustItem({ icon, text }: { icon: React.ReactNode; text: string }) { re
 function Step({ number, icon, title, description }: { number: string; icon: React.ReactNode; title: string; description: string }) { return <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-7 transition duration-200 hover:-translate-y-1 hover:border-violet-300/30"><div className="flex items-center justify-between"><span className="text-sm font-bold tracking-[0.2em] text-violet-300">{number}</span><span className="text-violet-300">{icon}</span></div><h3 className="mt-12 text-xl font-semibold">{title}</h3><p className="mt-3 leading-7 text-slate-400">{description}</p></div>; }
 function Feature({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) { return <div className="rounded-2xl border border-white/10 bg-[#10101d] p-6 transition duration-200 hover:-translate-y-1 hover:border-violet-300/30"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-400/15 text-violet-300">{icon}</div><h3 className="mt-6 font-semibold">{title}</h3><p className="mt-3 text-sm leading-6 text-slate-400">{description}</p></div>; }
 function PlanItem({ children }: { children: React.ReactNode }) { return <li className="flex gap-3"><Check className="mt-0.5 h-4 w-4 shrink-0 text-violet-300" />{children}</li>; }
-function FaqSection() {
-  const [open, setOpen] = useState<number | null>(0);
-  const items = [
-    ["Como os créditos são consumidos?", "O sistema estima o uso pelo volume de texto enviado (incluindo o contexto da conversa) e pela resposta gerada. Conversas mais longas podem consumir mais. É uma estimativa, não a contagem exata reportada pelo provedor."],
-    ["Os créditos gratuitos acumulam?", "O saldo diário renovável tem limite de 5 créditos. Créditos obtidos por convites e créditos comprados ficam em saldos separados e seguem suas próprias regras."],
-    ["Quando o plano VIP estará disponível?", "Ainda não há data, preço, limites ou benefícios confirmados. Nenhum pagamento ou cadastro VIP está disponível; as condições serão publicadas antes de qualquer oferta."],
-  ];
-  return <section className="mx-auto max-w-4xl px-6 py-24 md:px-8 md:py-32"><div className="text-center"><p className="text-sm font-semibold tracking-[0.18em] text-violet-300">DÚVIDAS FREQUENTES</p><h2 className="mt-5 text-4xl font-semibold tracking-tight md:text-5xl">Transparência antes de começar.</h2></div><div className="mt-12 divide-y divide-white/10 rounded-2xl border border-white/10 bg-white/[0.025] px-6">{items.map(([question, answer], index) => <div key={question}><button type="button" aria-expanded={open === index} onClick={() => setOpen(open === index ? null : index)} className="flex w-full items-center justify-between gap-5 py-5 text-left font-medium text-slate-100"><span>{question}</span><ChevronDown className={`h-5 w-5 shrink-0 text-violet-300 transition-transform ${open === index ? "rotate-180" : ""}`} /></button>{open === index && <p className="max-w-3xl pb-5 pr-8 text-sm leading-7 text-slate-400">{answer}</p>}</div>)}</div></section>;
-}
-
 export default Index;

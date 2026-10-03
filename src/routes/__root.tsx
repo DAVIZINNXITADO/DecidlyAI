@@ -17,12 +17,43 @@ import { LanguageProvider } from "../lib/LanguageProvider";
 import { CookieConsent } from "../components/CookieConsent";
 import { resolveRouteSeo, SITE_URL } from "../lib/seo";
 
+const organizationSchema = {
+  "@type": "Organization",
+  "@id": `${SITE_URL}/#organization`,
+  name: "DecidlyAI",
+  url: SITE_URL,
+  logo: `${SITE_URL}/appicon-512.png`,
+  description: "Inteligência artificial para organizar decisões com clareza e autonomia.",
+};
+
 const websiteSchema = {
   "@context": "https://schema.org",
-  "@type": "WebSite",
-  name: "DecidlyAI",
-  alternateName: ["Decidly AI", "DecidlyAI"],
-  url: SITE_URL,
+  "@graph": [
+    organizationSchema,
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      name: "DecidlyAI",
+      alternateName: ["Decidly AI", "DecidlyAI"],
+      url: SITE_URL,
+      publisher: { "@id": `${SITE_URL}/#organization` },
+      inLanguage: "pt-BR",
+    },
+    {
+      "@type": "WebApplication",
+      "@id": `${SITE_URL}/#webapplication`,
+      name: "DecidlyAI",
+      url: SITE_URL,
+      applicationCategory: "ProductivityApplication",
+      operatingSystem: "Web",
+      isAccessibleForFree: true,
+      image: `${SITE_URL}/social-preview.png`,
+      description:
+        "Organize dilemas, compare critérios e explore possibilidades com inteligência artificial, mantendo a decisão final com você.",
+      publisher: { "@id": `${SITE_URL}/#organization` },
+      inLanguage: "pt-BR",
+    },
+  ],
 };
 
 function NotFoundComponent() {
@@ -127,8 +158,7 @@ export const Route = createRootRouteWithContext<{
 
         {
           name: "keywords",
-          content:
-            "DecidlyAI, inteligência artificial, IA, decisões, tomada de decisão, produtividade, análise, organização",
+          content: seo.keywords,
         },
 
         {
@@ -183,7 +213,7 @@ export const Route = createRootRouteWithContext<{
 
         {
           property: "og:type",
-          content: "website",
+          content: seo.ogType ?? "website",
         },
 
         ...(seo.canonical ? [{ property: "og:url" as const, content: seo.canonical }] : []),
@@ -274,6 +304,25 @@ export const Route = createRootRouteWithContext<{
           type: "application/ld+json",
           children: JSON.stringify(websiteSchema),
         },
+        ...(seo.faqs?.length
+          ? [
+              {
+                type: "application/ld+json",
+                children: JSON.stringify({
+                  "@context": "https://schema.org",
+                  "@type": "FAQPage",
+                  mainEntity: seo.faqs.map(({ question, answer }) => ({
+                    "@type": "Question",
+                    name: question,
+                    acceptedAnswer: {
+                      "@type": "Answer",
+                      text: answer,
+                    },
+                  })),
+                }),
+              },
+            ]
+          : []),
       ],
     };
   },

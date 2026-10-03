@@ -1,19 +1,7 @@
-# DecidlyAI - Robots
-
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
+# DecidlyAI: as páginas públicas podem ser rastreadas.
+# Telas de conta e rotas privadas recebem meta robots noindex; não são bloqueadas aqui
+# para que os mecanismos de busca possam ler a diretiva noindex.
 User-agent: *
 Allow: /
 
-# Sitemap oficial
 Sitemap: https://decidlyai.lovable.app/sitemap.xml
