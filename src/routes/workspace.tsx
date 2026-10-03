@@ -3005,7 +3005,7 @@ function Workspace() {
                                       readingCharIndex,
                                     )}
                                   </div>
-                                ) : <RichResponse content={message.content} messageId={message.id} onActionRequest={handleResponseAction} />}
+                                ) : <RichResponse content={message.content} messageId={message.id} onActionRequest={handleResponseAction} onImageEditRequest={(prompt) => { setSelectedTool({ id: "create_text_image", label: "Imagem de texto", cost: 0.5, costLabel: "0,5 crédito" }); setInput(prompt); requestAnimationFrame(() => textareaRef.current?.focus()); }} />}
                               </div>
 
                               <div className="mt-3 flex items-center gap-1 text-white/35">

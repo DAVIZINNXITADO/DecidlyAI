@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { AlertTriangle, Check, Copy, Download, ExternalLink, FileText, Image as ImageIcon, Info, Lightbulb, Loader2, ShieldAlert, Sparkles, TriangleAlert, Type } from "lucide-react";
+import { AlertTriangle, Check, Copy, Download, ExternalLink, FileText, Image as ImageIcon, Info, Lightbulb, Loader2, Maximize2, MessageCircle, Minus, Plus, ShieldAlert, Sparkles, TriangleAlert, Type, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { normalizeActionProtocolMarkup, toPlainArtifactText } from "../lib/rich-markup";
 import { countTextImageChars, MAX_TEXT_IMAGE_CHARS, parseTextImagePayload } from "../lib/text-image";
@@ -200,10 +200,13 @@ function useArtifactUrl(path?: string) {
   return { url, failed };
 }
 
-function ArtifactBlock({ block, kind }: { block: Block; kind: ArtifactResult["kind"] }) {
+function ArtifactBlock({ block, kind, onImageEditRequest }: { block: Block; kind: ArtifactResult["kind"]; onImageEditRequest?: ((prompt: string) => void) | undefined }) {
   const { url, failed } = useArtifactUrl(block.path);
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState("");
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [editPrompt, setEditPrompt] = useState("");
   const fileName = block.fileName || (kind === "file" ? "DecidlyAI.pdf" : `DecidlyAI-imagem.${block.path?.toLowerCase().endsWith(".png") ? "png" : "jpg"}`);
   const downloadArtifact = async () => {
     if (!url || downloading) return;
@@ -226,20 +229,66 @@ function ArtifactBlock({ block, kind }: { block: Block; kind: ArtifactResult["ki
       setDownloading(false);
     }
   };
+  useEffect(() => {
+    if (!viewerOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setViewerOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [viewerOpen]);
+  const requestEdit = () => {
+    const request = editPrompt.trim();
+    if (!request || !onImageEditRequest) return;
+    onImageEditRequest(`Quero recriar a imagem de texto acima com esta alteração: ${request}`);
+    setEditPrompt("");
+    setViewerOpen(false);
+  };
   if (failed) return <p role="alert" className="my-3 rounded-xl border border-rose-300/15 bg-rose-400/[0.06] px-3 py-2 text-xs text-rose-200">O arquivo não está disponível ou você não tem acesso a ele.</p>;
   if (!url) return <div className="my-3 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/60"><Loader2 size={14} className="animate-spin" />Abrindo arquivo privado…</div>;
-  if (kind === "image") return <figure className="my-4 overflow-hidden rounded-2xl border border-white/10 bg-black/20"><img src={url} alt={block.alt || "Imagem gerada"} className="max-h-[560px] w-full object-contain" loading="lazy" /><figcaption className="flex items-center justify-between gap-3 border-t border-white/10 px-3 py-2"><span className="text-xs text-white/55">{block.alt || "Imagem gerada"}</span><button type="button" onClick={() => void downloadArtifact()} disabled={downloading} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-violet-200 hover:bg-white/10 disabled:opacity-60">{downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}{downloading ? "Baixando…" : "Baixar"}</button></figcaption>{downloadError && <p role="alert" className="px-3 pb-2 text-xs text-rose-200">{downloadError}</p>}</figure>;
+  if (kind === "image") return <>
+    <figure className="my-4 overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+      <button type="button" onClick={() => { setZoom(1); setViewerOpen(true); }} className="group relative block w-full cursor-zoom-in" aria-label="Abrir imagem em tela cheia">
+        <img src={url} alt={block.alt || "Imagem gerada"} className="max-h-[560px] w-full object-contain transition group-hover:opacity-90" loading="lazy" />
+        <span className="pointer-events-none absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-lg bg-black/65 px-2.5 py-1.5 text-xs text-white/90 opacity-0 backdrop-blur transition group-hover:opacity-100"><Maximize2 size={13} />Tela cheia</span>
+      </button>
+      <figcaption className="flex items-center justify-between gap-3 border-t border-white/10 px-3 py-2"><span className="text-xs text-white/55">Clique para ampliar</span><button type="button" onClick={() => void downloadArtifact()} disabled={downloading} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-violet-200 hover:bg-white/10 disabled:opacity-60">{downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}{downloading ? "Baixando…" : "Baixar"}</button></figcaption>
+      {downloadError && <p role="alert" className="px-3 pb-2 text-xs text-rose-200">{downloadError}</p>}
+    </figure>
+    {viewerOpen && <div className="fixed inset-0 z-[220] flex flex-col bg-black/95 text-white" role="dialog" aria-modal="true" aria-label="Visualizador de imagem">
+      <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-black/40 px-4 py-3 backdrop-blur sm:px-6">
+        <span className="truncate text-sm text-white/70">{block.alt || "Imagem gerada"}</span>
+        <div className="flex items-center gap-1.5">
+          <button type="button" onClick={() => setZoom((value) => Math.max(0.5, Number((value - 0.25).toFixed(2))))} className="rounded-lg p-2 text-white/70 hover:bg-white/10 hover:text-white" aria-label="Diminuir zoom"><Minus size={17} /></button>
+          <span className="min-w-14 text-center text-xs tabular-nums text-white/60">{Math.round(zoom * 100)}%</span>
+          <button type="button" onClick={() => setZoom((value) => Math.min(3, Number((value + 0.25).toFixed(2))))} className="rounded-lg p-2 text-white/70 hover:bg-white/10 hover:text-white" aria-label="Aumentar zoom"><Plus size={17} /></button>
+          <button type="button" onClick={() => setZoom(1)} className="rounded-lg px-2 py-2 text-xs text-white/60 hover:bg-white/10 hover:text-white">Resetar</button>
+          <button type="button" onClick={() => void downloadArtifact()} disabled={downloading} className="inline-flex items-center gap-1.5 rounded-lg bg-violet-500 px-3 py-2 text-xs font-semibold hover:bg-violet-400 disabled:opacity-60">{downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}Baixar</button>
+          <button type="button" onClick={() => setViewerOpen(false)} className="rounded-lg p-2 text-white/70 hover:bg-white/10 hover:text-white" aria-label="Fechar visualizador"><X size={19} /></button>
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto p-4 sm:p-8" onWheel={(event) => { if (event.ctrlKey) { event.preventDefault(); setZoom((value) => Math.min(3, Math.max(0.5, Number((value + (event.deltaY < 0 ? 0.1 : -0.1)).toFixed(2))))); } }}>
+        <div className="flex min-h-full min-w-full items-center justify-center"><img src={url} alt={block.alt || "Imagem gerada"} className="max-h-none max-w-none origin-center rounded-lg object-contain shadow-2xl transition-transform duration-150" style={{ width: `min(90vw, 1200px)`, transform: `scale(${zoom})` }} /></div>
+      </div>
+      {onImageEditRequest && <form onSubmit={(event) => { event.preventDefault(); requestEdit(); }} className="border-t border-white/10 bg-black/50 p-3 backdrop-blur sm:px-6"><div className="mx-auto flex max-w-3xl items-center gap-2 rounded-2xl border border-white/15 bg-white/[0.06] px-3 py-1.5"><MessageCircle size={17} className="shrink-0 text-violet-300" /><input value={editPrompt} onChange={(event) => setEditPrompt(event.target.value)} placeholder="Peça uma alteração nesta imagem…" className="min-w-0 flex-1 bg-transparent py-2 text-sm text-white outline-none placeholder:text-white/35" /><button type="submit" disabled={!editPrompt.trim()} className="rounded-xl bg-violet-500 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-40">Pedir alteração</button></div></form>}
+    </div>}
+  </>;
   return <div className="my-3 rounded-2xl border border-violet-300/15 bg-violet-400/[0.06] px-4 py-3"><div className="flex items-center gap-3"><FileText size={19} className="shrink-0 text-violet-200" /><span className="min-w-0 flex-1"><strong className="block truncate text-sm text-violet-100">{fileName}</strong><span className="mt-0.5 block text-xs text-white/45">PDF privado · disponível nesta conversa</span></span><button type="button" onClick={() => void downloadArtifact()} disabled={downloading} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-violet-500 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-400 disabled:opacity-60">{downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}{downloading ? "Baixando…" : "Baixar"}</button></div>{downloadError && <p role="alert" className="mt-2 text-xs text-rose-200">{downloadError}</p>}</div>;
 }
 
-export const RichResponse = memo(function RichResponse({ content, messageId, onActionRequest }: { content: string; messageId?: string; onActionRequest?: (action: ResponseAction, messageId: string) => Promise<void> }) {
+export const RichResponse = memo(function RichResponse({ content, messageId, onActionRequest, onImageEditRequest }: { content: string; messageId?: string; onActionRequest?: (action: ResponseAction, messageId: string) => Promise<void>; onImageEditRequest?: (prompt: string) => void }) {
   const blocks = useMemo(() => parseBlocks(content), [content]);
   return <div className="text-[15px] leading-7 text-white/90">{blocks.map((block, index) => {
     if (block.kind === "markdown") return <Markdown key={index}>{block.value}</Markdown>;
     if (block.kind === "copy") return <CopyBlock key={index} block={block} />;
     if (block.kind === "link") return <LinkBlock key={index} block={block} />;
     if (block.kind === "action") return <ActionBlock key={index} block={block} messageId={messageId} onActionRequest={onActionRequest} />;
-    if (block.kind === "file" || block.kind === "image") return <ArtifactBlock key={index} block={block} kind={block.kind} />;
+    if (block.kind === "file" || block.kind === "image") return <ArtifactBlock key={index} block={block} kind={block.kind} onImageEditRequest={onImageEditRequest} />;
     if (block.kind === "question") return null;
     if (block.kind === "color") {
       const rawColor = block.color || "white";
