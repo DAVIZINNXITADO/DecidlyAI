@@ -1,8 +1,4 @@
-import {
-  createFileRoute,
-  Link,
-  useNavigate,
-} from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
   ArrowRight,
@@ -11,6 +7,7 @@ import {
   KeyRound,
   Loader2,
   Mail,
+  MailCheck,
   User,
   ShieldCheck,
 } from "lucide-react";
@@ -32,42 +29,22 @@ declare global {
     google?: {
       accounts: {
         id: {
-          initialize: (
-            configuration: {
-              client_id: string;
-              callback: (
-                response: GoogleCredentialResponse,
-              ) => void;
-              auto_select?: boolean;
-              cancel_on_tap_outside?: boolean;
-            },
-          ) => void;
+          initialize: (configuration: {
+            client_id: string;
+            callback: (response: GoogleCredentialResponse) => void;
+            auto_select?: boolean;
+            cancel_on_tap_outside?: boolean;
+          }) => void;
 
           renderButton: (
             parent: HTMLElement,
             options: {
               type?: "standard" | "icon";
-              theme?:
-                | "outline"
-                | "filled_blue"
-                | "filled_black";
-              size?:
-                | "large"
-                | "medium"
-                | "small";
-              text?:
-                | "signin_with"
-                | "signup_with"
-                | "continue_with"
-                | "signin";
-              shape?:
-                | "rectangular"
-                | "pill"
-                | "circle"
-                | "square";
-              logo_alignment?:
-                | "left"
-                | "center";
+              theme?: "outline" | "filled_blue" | "filled_black";
+              size?: "large" | "medium" | "small";
+              text?: "signin_with" | "signup_with" | "continue_with" | "signin";
+              shape?: "rectangular" | "pill" | "circle" | "square";
+              logo_alignment?: "left" | "center";
               width?: number;
               locale?: string;
             },
@@ -89,15 +66,14 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-type Mode =
-  | "login"
-  | "signup"
-  | "recover";
+type Mode = "login" | "signup" | "recover";
 
 type Feedback = {
   type: "success" | "error";
   message: string;
 } | null;
+
+type MarketingPrompt = "signup" | "google" | null;
 
 function maskedReferralName(value: string): string {
   const parts = value.trim().split(/\s+/).filter(Boolean);
@@ -118,96 +94,60 @@ function createUniqueUsername(fullName: string): string {
   return `${slug || "usuario"}_${suffix}`;
 }
 
-const GOOGLE_CLIENT_ID =
-  "895354448430-qs5ilh31kgp5qqlb0c6s6abiag9s8vti.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "895354448430-qs5ilh31kgp5qqlb0c6s6abiag9s8vti.apps.googleusercontent.com";
 
-const TURNSTILE_SITE_KEY =
-  "0x4AAAAAAErVWNfAdys_3TD5";
+const TURNSTILE_SITE_KEY = "0x4AAAAAAErVWNfAdys_3TD5";
 
 function LoginPage() {
   const navigate = useNavigate();
 
-  const googleButtonRef =
-    useRef<HTMLDivElement>(null);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
 
-  const googleInitializedRef =
-    useRef(false);
+  const googleInitializedRef = useRef(false);
 
-  const turnstileContainerRef =
-    useRef<HTMLDivElement>(null);
+  const turnstileContainerRef = useRef<HTMLDivElement>(null);
 
-  const turnstileWidgetIdRef =
-    useRef<string | number | null>(null);
+  const turnstileWidgetIdRef = useRef<string | number | null>(null);
 
-  const [mode, setMode] =
-    useState<Mode>("login");
+  const [mode, setMode] = useState<Mode>("login");
 
-  const [name, setName] =
-    useState("");
+  const [name, setName] = useState("");
 
-  const [email, setEmail] =
-    useState("");
+  const [email, setEmail] = useState("");
 
-  const [password, setPassword] =
-    useState("");
+  const [password, setPassword] = useState("");
 
-  const [
-    confirmPassword,
-    setConfirmPassword,
-  ] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
-  const [
-    showPassword,
-    setShowPassword,
-  ] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const [
-    showConfirmPassword,
-    setShowConfirmPassword,
-  ] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [loading, setLoading] =
-    useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const [
-    googleLoading,
-    setGoogleLoading,
-  ] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
-  const [
-    googleReady,
-    setGoogleReady,
-  ] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
 
-  const [
-    verifyEmail,
-    setVerifyEmail,
-  ] = useState("");
+  const [verifyEmail, setVerifyEmail] = useState("");
 
-  const [
-    verifyLoading,
-    setVerifyLoading,
-  ] = useState(false);
+  const [verifyLoading, setVerifyLoading] = useState(false);
 
-  const [
-    captchaToken,
-    setCaptchaToken,
-  ] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
 
   const captchaTokenRef = useRef("");
 
-  const [
-    captchaLoading,
-    setCaptchaLoading,
-  ] = useState(false);
+  const [captchaLoading, setCaptchaLoading] = useState(false);
 
-  const [
-    captchaError,
-    setCaptchaError,
-  ] = useState(false);
+  const [captchaError, setCaptchaError] = useState(false);
 
-  const [feedback, setFeedback] =
-    useState<Feedback>(null);
+  const [feedback, setFeedback] = useState<Feedback>(null);
+
+  const [marketingPrompt, setMarketingPrompt] = useState<MarketingPrompt>(null);
+
+  const [marketingDestination, setMarketingDestination] = useState<"workspace" | "login" | null>(
+    null,
+  );
 
   const [referralCode, setReferralCode] = useState("");
   const [referralCampaign, setReferralCampaign] = useState("");
@@ -230,21 +170,28 @@ function LoginPage() {
     window.sessionStorage.setItem("decidly-pending-referral-code", code);
     window.sessionStorage.setItem("decidly-pending-referral-campaign", campaign);
     void (async () => {
-      const { data: referral } = await supabase.from("referral_codes").select("user_id").eq("code", code).maybeSingle();
+      const { data: referral } = await supabase
+        .from("referral_codes")
+        .select("user_id")
+        .eq("code", code)
+        .maybeSingle();
       if (!referral?.user_id) return;
-      const { data: profile } = await supabase.from("profiles").select("full_name,username").eq("id", referral.user_id).maybeSingle();
-      setReferrerName(maskedReferralName(profile?.full_name?.trim() || profile?.username?.trim() || "Alguém"));
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name,username")
+        .eq("id", referral.user_id)
+        .maybeSingle();
+      setReferrerName(
+        maskedReferralName(profile?.full_name?.trim() || profile?.username?.trim() || "Alguém"),
+      );
     })();
   }, []);
 
-  const isSignUp =
-    mode === "signup";
+  const isSignUp = mode === "signup";
 
-  const isRecover =
-    mode === "recover";
+  const isRecover = mode === "recover";
 
-  const needsCaptcha =
-    mode === "login" || isSignUp || isRecover;
+  const needsCaptcha = isSignUp;
 
   function clearFeedback() {
     setFeedback(null);
@@ -254,23 +201,16 @@ function LoginPage() {
     setCaptchaToken("");
     setCaptchaError(false);
 
-    if (
-      window.turnstile &&
-      turnstileWidgetIdRef.current !== null
-    ) {
+    if (window.turnstile && turnstileWidgetIdRef.current !== null) {
       try {
-        window.turnstile.reset(
-          turnstileWidgetIdRef.current,
-        );
+        window.turnstile.reset(turnstileWidgetIdRef.current);
       } catch {
         // Ignora erros ao resetar o widget.
       }
     }
   }
 
-  function changeMode(
-    newMode: Mode,
-  ) {
+  function changeMode(newMode: Mode) {
     setMode(newMode);
 
     clearFeedback();
@@ -282,22 +222,60 @@ function LoginPage() {
     setCaptchaError(false);
   }
 
-  function showError(
-    message: string,
-  ) {
+  function showError(message: string) {
     setFeedback({
       type: "error",
       message,
     });
   }
 
-  function showSuccess(
-    message: string,
-  ) {
+  function showSuccess(message: string) {
     setFeedback({
       type: "success",
       message,
     });
+  }
+
+  async function syncStoredMarketingConsent() {
+    const storedChoice = window.localStorage.getItem("decidly-marketing-email-consent");
+    if (storedChoice !== "accepted" && storedChoice !== "declined") return;
+
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) return;
+
+    await supabase
+      .from("profiles")
+      .update({
+        marketing_email_opt_in: storedChoice === "accepted",
+        marketing_email_consent_at: new Date().toISOString(),
+        marketing_email_consent_source: "signup",
+      })
+      .eq("id", auth.user.id);
+    window.localStorage.removeItem("decidly-marketing-email-consent");
+  }
+
+  async function saveMarketingChoice(optIn: boolean) {
+    const destination = marketingDestination;
+    const prompt = marketingPrompt;
+    setMarketingPrompt(null);
+    setMarketingDestination(null);
+    window.localStorage.setItem("decidly-marketing-email-consent", optIn ? "accepted" : "declined");
+
+    const { data: auth } = await supabase.auth.getUser();
+    if (auth.user) {
+      await supabase
+        .from("profiles")
+        .update({
+          marketing_email_opt_in: optIn,
+          marketing_email_consent_at: new Date().toISOString(),
+          marketing_email_consent_source: prompt === "google" ? "google_first_login" : "signup",
+        })
+        .eq("id", auth.user.id);
+    }
+
+    if (destination === "workspace") {
+      navigate({ to: "/workspace" });
+    }
   }
 
   /*
@@ -315,16 +293,11 @@ function LoginPage() {
     let cancelled = false;
 
     function renderTurnstile() {
-      if (
-        cancelled ||
-        !window.turnstile ||
-        !turnstileContainerRef.current
-      ) {
+      if (cancelled || !window.turnstile || !turnstileContainerRef.current) {
         return;
       }
 
-      const container =
-        turnstileContainerRef.current;
+      const container = turnstileContainerRef.current;
 
       container.innerHTML = "";
 
@@ -333,79 +306,51 @@ function LoginPage() {
       setCaptchaToken("");
 
       try {
-        const widgetId =
-          window.turnstile.render(
-            container,
-            {
-              sitekey:
-                TURNSTILE_SITE_KEY,
+        const widgetId = window.turnstile.render(container, {
+          sitekey: TURNSTILE_SITE_KEY,
 
-              theme: "dark",
+          theme: "dark",
 
-              size: "normal",
+          size: "normal",
 
-              callback: (
-                token: string,
-              ) => {
-                if (cancelled) {
-                  return;
-                }
+          callback: (token: string) => {
+            if (cancelled) {
+              return;
+            }
 
-                setCaptchaToken(
-                  token,
-                );
+            setCaptchaToken(token);
 
-                setCaptchaLoading(
-                  false,
-                );
+            setCaptchaLoading(false);
 
-                setCaptchaError(
-                  false,
-                );
-              },
+            setCaptchaError(false);
+          },
 
-              "expired-callback":
-                () => {
-                  if (cancelled) {
-                    return;
-                  }
+          "expired-callback": () => {
+            if (cancelled) {
+              return;
+            }
 
-                  setCaptchaToken(
-                    "",
-                  );
+            setCaptchaToken("");
 
-                  setCaptchaError(
-                    true,
-                  );
+            setCaptchaError(true);
 
-                  setCaptchaLoading(
-                    false,
-                  );
-                },
+            setCaptchaLoading(false);
+          },
 
-              "error-callback":
-                () => {
-                  if (cancelled) {
-                    return;
-                  }
+          "error-callback": () => {
+            if (cancelled) {
+              return;
+            }
 
-                  setCaptchaToken(
-                    "",
-                  );
+            setCaptchaToken("");
 
-                  setCaptchaError(
-                    true,
-                  );
+            setCaptchaError(true);
 
-                  setCaptchaLoading(
-                    false,
-                  );
-                },
-            },
-          );
+            setCaptchaLoading(false);
+          },
+        });
 
-        turnstileWidgetIdRef.current =
-          widgetId;
+        turnstileWidgetIdRef.current = widgetId;
       } catch {
         if (!cancelled) {
           setCaptchaLoading(false);
@@ -424,39 +369,26 @@ function LoginPage() {
         return;
       }
 
-      const existingScript =
-        document.getElementById(
-          "cloudflare-turnstile-script",
-        );
+      const existingScript = document.getElementById("cloudflare-turnstile-script");
 
       if (existingScript) {
-        existingScript.addEventListener(
-          "load",
-          renderTurnstile,
-          {
-            once: true,
-          },
-        );
+        existingScript.addEventListener("load", renderTurnstile, {
+          once: true,
+        });
 
         return;
       }
 
-      const script =
-        document.createElement(
-          "script",
-        );
+      const script = document.createElement("script");
 
-      script.id =
-        "cloudflare-turnstile-script";
+      script.id = "cloudflare-turnstile-script";
 
-      script.src =
-        "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 
       script.async = true;
       script.defer = true;
 
-      script.onload =
-        renderTurnstile;
+      script.onload = renderTurnstile;
 
       script.onerror = () => {
         if (cancelled) {
@@ -470,9 +402,7 @@ function LoginPage() {
         setCaptchaToken("");
       };
 
-      document.head.appendChild(
-        script,
-      );
+      document.head.appendChild(script);
     }
 
     loadTurnstile();
@@ -480,27 +410,17 @@ function LoginPage() {
     return () => {
       cancelled = true;
 
-      if (
-        window.turnstile &&
-        turnstileWidgetIdRef.current !==
-          null
-      ) {
+      if (window.turnstile && turnstileWidgetIdRef.current !== null) {
         try {
-          window.turnstile.remove(
-            turnstileWidgetIdRef.current,
-          );
+          window.turnstile.remove(turnstileWidgetIdRef.current);
         } catch {
           // Ignora erros na desmontagem.
         }
 
-        turnstileWidgetIdRef.current =
-          null;
+        turnstileWidgetIdRef.current = null;
       }
     };
-  }, [
-    needsCaptcha,
-    mode,
-  ]);
+  }, [needsCaptcha, mode]);
 
   /*
    * GOOGLE LOGIN
@@ -513,36 +433,21 @@ function LoginPage() {
 
     let cancelled = false;
 
-    let resizeObserver:
-      | ResizeObserver
-      | undefined;
+    let resizeObserver: ResizeObserver | undefined;
 
-    let resizeTimeout:
-      | ReturnType<
-          typeof setTimeout
-        >
-      | undefined;
+    let resizeTimeout: ReturnType<typeof setTimeout> | undefined;
 
-    async function handleGoogleCredential(
-      response: GoogleCredentialResponse,
-    ) {
+    async function handleGoogleCredential(response: GoogleCredentialResponse) {
       clearFeedback();
 
       if (!response.credential) {
-        showError(
-          "Não foi possível receber a credencial do Google.",
-        );
+        showError("Não foi possível receber a credencial do Google.");
 
         return;
       }
 
-      const currentCaptchaToken =
-        captchaTokenRef.current;
-
-      if (!currentCaptchaToken) {
-        showError(
-          "Conclua a verificação de segurança antes de entrar.",
-        );
+      if (isSignUp && !captchaTokenRef.current) {
+        showError("Conclua a verificação de segurança antes de criar sua conta.");
 
         return;
       }
@@ -550,34 +455,23 @@ function LoginPage() {
       setGoogleLoading(true);
 
       try {
-        const { error } =
-          await supabase.auth.signInWithIdToken({
-            provider: "google",
-            token:
-              response.credential,
-            options: {
-              captchaToken: currentCaptchaToken,
-            },
-          });
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: "google",
+          token: response.credential,
+          ...(isSignUp && captchaTokenRef.current
+            ? { options: { captchaToken: captchaTokenRef.current } }
+            : {}),
+        });
 
         if (error) {
           resetCaptcha();
 
-          const errorMessage =
-            error.message.toLowerCase();
+          const errorMessage = error.message.toLowerCase();
 
-          if (
-            errorMessage.includes(
-              "provider is not enabled",
-            )
-          ) {
-            showError(
-              "O login com o Google ainda não está ativado.",
-            );
+          if (errorMessage.includes("provider is not enabled")) {
+            showError("O login com o Google ainda não está ativado.");
           } else {
-            showError(
-              error.message,
-            );
+            showError(error.message);
           }
 
           return;
@@ -586,7 +480,10 @@ function LoginPage() {
         const pendingReferralCode = referralBlocked
           ? ""
           : referralCode || window.sessionStorage.getItem("decidly-pending-referral-code") || "";
-        const pendingReferralCampaign = referralCampaign || window.sessionStorage.getItem("decidly-pending-referral-campaign") || "";
+        const pendingReferralCampaign =
+          referralCampaign ||
+          window.sessionStorage.getItem("decidly-pending-referral-campaign") ||
+          "";
         if (pendingReferralCode) {
           await supabase.rpc("claim_referral_for_user", {
             invited_code: pendingReferralCode,
@@ -597,75 +494,68 @@ function LoginPage() {
           await supabase.rpc("claim_ad_campaign_bonus", { campaign: "ad-25" });
         }
 
+        const createdAt = data.user?.created_at ? Date.parse(data.user.created_at) : 0;
+        const lastSignInAt = data.user?.last_sign_in_at ? Date.parse(data.user.last_sign_in_at) : 0;
+        const isFirstGoogleLogin =
+          createdAt > 0 && lastSignInAt > 0 && Math.abs(lastSignInAt - createdAt) < 15_000;
+
+        if (isFirstGoogleLogin) {
+          setMarketingPrompt("google");
+          setMarketingDestination("workspace");
+          return;
+        }
+
+        await syncStoredMarketingConsent();
+
         navigate({
           to: "/workspace",
         });
       } catch {
         resetCaptcha();
 
-        showError(
-          "Não foi possível concluir o login com o Google.",
-        );
+        showError("Não foi possível concluir o login com o Google.");
       } finally {
         setGoogleLoading(false);
       }
     }
 
     function renderGoogleButton() {
-      if (
-        cancelled ||
-        !window.google ||
-        !googleButtonRef.current
-      ) {
+      if (cancelled || !window.google || !googleButtonRef.current) {
         return;
       }
 
-      const container =
-        googleButtonRef.current;
+      const container = googleButtonRef.current;
 
-      const containerWidth =
-        Math.floor(
-          container.getBoundingClientRect()
-            .width,
-        );
+      const containerWidth = Math.floor(container.getBoundingClientRect().width);
 
       if (containerWidth < 200) {
         return;
       }
 
       try {
-        if (
-          !googleInitializedRef.current
-        ) {
+        if (!googleInitializedRef.current) {
           window.google.accounts.id.initialize({
-            client_id:
-              GOOGLE_CLIENT_ID,
-            callback:
-              handleGoogleCredential,
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleCredential,
             auto_select: false,
             cancel_on_tap_outside: true,
           });
 
-          googleInitializedRef.current =
-            true;
+          googleInitializedRef.current = true;
         }
 
         container.innerHTML = "";
 
-        window.google.accounts.id.renderButton(
-          container,
-          {
-            type: "standard",
-            theme: "filled_black",
-            size: "large",
-            shape: "pill",
-            text: "continue_with",
-            logo_alignment: "left",
-            width:
-              containerWidth,
-            locale: "pt-BR",
-          },
-        );
+        window.google.accounts.id.renderButton(container, {
+          type: "standard",
+          theme: "filled_black",
+          size: "large",
+          shape: "pill",
+          text: "continue_with",
+          logo_alignment: "left",
+          width: containerWidth,
+          locale: "pt-BR",
+        });
 
         if (!cancelled) {
           setGoogleReady(true);
@@ -674,112 +564,76 @@ function LoginPage() {
         if (!cancelled) {
           setGoogleReady(false);
 
-          showError(
-            "Não foi possível carregar o login com o Google.",
-          );
+          showError("Não foi possível carregar o login com o Google.");
         }
       }
     }
 
     function loadGoogleScript() {
-      const existingScript =
-        document.getElementById(
-          "google-identity-services",
-        );
+      const existingScript = document.getElementById("google-identity-services");
 
       if (window.google) {
-        requestAnimationFrame(
-          renderGoogleButton,
-        );
+        requestAnimationFrame(renderGoogleButton);
 
         return;
       }
 
       if (existingScript) {
-        existingScript.addEventListener(
-          "load",
-          renderGoogleButton,
-          {
-            once: true,
-          },
-        );
+        existingScript.addEventListener("load", renderGoogleButton, {
+          once: true,
+        });
 
         return;
       }
 
-      const script =
-        document.createElement(
-          "script",
-        );
+      const script = document.createElement("script");
 
-      script.id =
-        "google-identity-services";
+      script.id = "google-identity-services";
 
-      script.src =
-        "https://accounts.google.com/gsi/client";
+      script.src = "https://accounts.google.com/gsi/client";
 
       script.async = true;
       script.defer = true;
 
-      script.onload =
-        renderGoogleButton;
+      script.onload = renderGoogleButton;
 
       script.onerror = () => {
         if (!cancelled) {
           setGoogleReady(false);
 
-          showError(
-            "Não foi possível carregar o Google. Verifique sua conexão e tente novamente.",
-          );
+          showError("Não foi possível carregar o Google. Verifique sua conexão e tente novamente.");
         }
       };
 
-      document.head.appendChild(
-        script,
-      );
+      document.head.appendChild(script);
     }
 
     loadGoogleScript();
 
-    if (
-      googleButtonRef.current &&
-      typeof ResizeObserver !==
-        "undefined"
-    ) {
-      resizeObserver =
-        new ResizeObserver(() => {
-          if (resizeTimeout) {
-            clearTimeout(
-              resizeTimeout,
-            );
-          }
+    if (googleButtonRef.current && typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(() => {
+        if (resizeTimeout) {
+          clearTimeout(resizeTimeout);
+        }
 
-          resizeTimeout =
-            setTimeout(() => {
-              renderGoogleButton();
-            }, 150);
-        });
+        resizeTimeout = setTimeout(() => {
+          renderGoogleButton();
+        }, 150);
+      });
 
-      resizeObserver.observe(
-        googleButtonRef.current,
-      );
+      resizeObserver.observe(googleButtonRef.current);
     }
 
     return () => {
       cancelled = true;
 
       if (resizeTimeout) {
-        clearTimeout(
-          resizeTimeout,
-        );
+        clearTimeout(resizeTimeout);
       }
 
       resizeObserver?.disconnect();
     };
-  }, [
-    isRecover,
-    navigate,
-  ]);
+  }, [isRecover, navigate]);
 
   /*
    * LOGIN
@@ -788,43 +642,22 @@ function LoginPage() {
   async function handleSignIn() {
     clearFeedback();
 
-    const cleanEmail =
-      email
-        .trim()
-        .toLowerCase();
+    const cleanEmail = email.trim().toLowerCase();
 
     if (!cleanEmail) {
-      showError(
-        "Informe seu e-mail.",
-      );
+      showError("Informe seu e-mail.");
 
       return;
     }
 
-    if (
-      !cleanEmail.includes("@")
-    ) {
-      showError(
-        "Informe um e-mail válido.",
-      );
+    if (!cleanEmail.includes("@")) {
+      showError("Informe um e-mail válido.");
 
       return;
     }
 
     if (!password) {
-      showError(
-        "Informe sua senha.",
-      );
-
-      return;
-    }
-
-    if (!captchaToken) {
-      showError(
-        captchaError
-          ? "A verificação de segurança expirou ou falhou. Conclua novamente para entrar."
-          : "Conclua a verificação de segurança para entrar.",
-      );
+      showError("Informe sua senha.");
 
       return;
     }
@@ -832,20 +665,15 @@ function LoginPage() {
     setLoading(true);
 
     try {
-      const { error } =
-        await supabase.auth.signInWithPassword({
-          email: cleanEmail,
-          password,
-          options: {
-            captchaToken,
-          },
-        });
+      const { error } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password,
+      });
 
       if (error) {
         resetCaptcha();
 
-        const errorMessage =
-          error.message.toLowerCase();
+        const errorMessage = error.message.toLowerCase();
 
         if (errorMessage.includes("captcha")) {
           showError(
@@ -856,41 +684,29 @@ function LoginPage() {
         }
 
         if (
-          errorMessage.includes(
-            "invalid login credentials",
-          ) ||
-          errorMessage.includes(
-            "invalid credentials",
-          )
+          errorMessage.includes("invalid login credentials") ||
+          errorMessage.includes("invalid credentials")
         ) {
-          showError(
-            "E-mail ou senha incorretos.",
-          );
+          showError("E-mail ou senha incorretos.");
 
           return;
         }
 
         if (
-          errorMessage.includes(
-            "email not confirmed",
-          ) ||
-          errorMessage.includes(
-            "email_not_confirmed",
-          )
+          errorMessage.includes("email not confirmed") ||
+          errorMessage.includes("email_not_confirmed")
         ) {
-          showError(
-            "Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada.",
-          );
+          showError("Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada.");
 
           return;
         }
 
-        showError(
-          "Não foi possível entrar agora. Confira seus dados e tente novamente.",
-        );
+        showError("Não foi possível entrar agora. Confira seus dados e tente novamente.");
 
         return;
       }
+
+      await syncStoredMarketingConsent();
 
       navigate({
         to: "/workspace",
@@ -898,9 +714,7 @@ function LoginPage() {
     } catch {
       resetCaptcha();
 
-      showError(
-        "Não foi possível conectar ao servidor. Tente novamente.",
-      );
+      showError("Não foi possível conectar ao servidor. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -913,62 +727,36 @@ function LoginPage() {
   async function handleSignUp() {
     clearFeedback();
 
-    const cleanName =
-      name.trim();
+    const cleanName = name.trim();
 
-    const cleanEmail =
-      email
-        .trim()
-        .toLowerCase();
+    const cleanEmail = email.trim().toLowerCase();
 
-    if (
-      cleanName.length < 2
-    ) {
-      showError(
-        "Informe seu nome.",
-      );
+    if (cleanName.length < 2) {
+      showError("Informe seu nome.");
 
       return;
     }
 
-    if (
-      cleanName.length > 24
-    ) {
-      showError(
-        "O nome pode ter no máximo 24 caracteres.",
-      );
+    if (cleanName.length > 24) {
+      showError("O nome pode ter no máximo 24 caracteres.");
 
       return;
     }
 
-    if (
-      !cleanEmail ||
-      !cleanEmail.includes("@")
-    ) {
-      showError(
-        "Informe um e-mail válido.",
-      );
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      showError("Informe um e-mail válido.");
 
       return;
     }
 
-    if (
-      password.length < 6
-    ) {
-      showError(
-        "Sua senha precisa ter pelo menos 6 caracteres.",
-      );
+    if (password.length < 6) {
+      showError("Sua senha precisa ter pelo menos 6 caracteres.");
 
       return;
     }
 
-    if (
-      password !==
-      confirmPassword
-    ) {
-      showError(
-        "As senhas não são iguais.",
-      );
+    if (password !== confirmPassword) {
+      showError("As senhas não são iguais.");
 
       return;
     }
@@ -986,86 +774,68 @@ function LoginPage() {
     setLoading(true);
 
     try {
-      const pendingReferralCode = window.sessionStorage.getItem("decidly-pending-referral-code") || "";
-      const pendingReferralCampaign = window.sessionStorage.getItem("decidly-pending-referral-campaign") || "";
-      const eligibleReferralCode = referralBlocked ? undefined : referralCode || pendingReferralCode || undefined;
+      const pendingReferralCode =
+        window.sessionStorage.getItem("decidly-pending-referral-code") || "";
+      const pendingReferralCampaign =
+        window.sessionStorage.getItem("decidly-pending-referral-campaign") || "";
+      const eligibleReferralCode = referralBlocked
+        ? undefined
+        : referralCode || pendingReferralCode || undefined;
       const eligibleReferralCampaign = referralCampaign || pendingReferralCampaign;
       const username = createUniqueUsername(cleanName);
-      const {
-        data,
-        error,
-      } =
-        await supabase.auth.signUp({
-          email: cleanEmail,
-          password,
+      const { data, error } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password,
 
-          options: {
-            emailRedirectTo:
-              `${window.location.origin}/login`,
+        options: {
+          emailRedirectTo: `${window.location.origin}/login`,
 
-            captchaToken,
+          captchaToken,
 
-              data: {
-                name:
-                  cleanName,
-                username,
-                full_name: cleanName,
-                ...(eligibleReferralCode ? { referral_code: eligibleReferralCode } : {}),
-                ...(eligibleReferralCampaign ? { referral_campaign: eligibleReferralCampaign } : {}),
-
-              },
+          data: {
+            name: cleanName,
+            username,
+            full_name: cleanName,
+            ...(eligibleReferralCode ? { referral_code: eligibleReferralCode } : {}),
+            ...(eligibleReferralCampaign ? { referral_campaign: eligibleReferralCampaign } : {}),
           },
-        });
+        },
+      });
 
       if (error) {
-        const errorMessage =
-          error.message.toLowerCase();
+        const errorMessage = error.message.toLowerCase();
 
         resetCaptcha();
 
         if (
-          errorMessage.includes(
-            "already registered",
-          ) ||
-          errorMessage.includes(
-            "already been registered",
-          )
+          errorMessage.includes("already registered") ||
+          errorMessage.includes("already been registered")
         ) {
-          showError(
-            "Este e-mail já possui uma conta. Tente entrar.",
-          );
+          showError("Este e-mail já possui uma conta. Tente entrar.");
 
           return;
         }
 
-        if (
-          errorMessage.includes(
-            "captcha",
-          )
-        ) {
-          showError(
-            "A verificação de segurança expirou ou falhou. Tente novamente.",
-          );
+        if (errorMessage.includes("captcha")) {
+          showError("A verificação de segurança expirou ou falhou. Tente novamente.");
 
           return;
         }
 
         if (errorMessage.includes("rate limit") || errorMessage.includes("too many requests")) {
-          showError("Muitas tentativas de cadastro em pouco tempo. Aguarde alguns minutos e tente novamente.");
+          showError(
+            "Muitas tentativas de cadastro em pouco tempo. Aguarde alguns minutos e tente novamente.",
+          );
           return;
         }
 
-        showError(
-          `Não foi possível criar sua conta. ${error.message}`,
-        );
+        showError(`Não foi possível criar sua conta. ${error.message}`);
 
         return;
       }
 
       if (!data.user) {
-        showError(
-          "Não foi possível concluir a criação da conta.",
-        );
+        showError("Não foi possível concluir a criação da conta.");
 
         resetCaptcha();
 
@@ -1075,6 +845,7 @@ function LoginPage() {
       window.localStorage.setItem("decidly-account-created", "1");
       window.sessionStorage.removeItem("decidly-pending-referral-code");
       window.sessionStorage.removeItem("decidly-pending-referral-campaign");
+      setMarketingPrompt("signup");
 
       if (!data.session) {
         showSuccess(
@@ -1084,19 +855,16 @@ function LoginPage() {
         setPassword("");
         setConfirmPassword("");
         setMode("login");
+        setMarketingDestination("login");
 
         return;
       }
 
-      navigate({
-        to: "/workspace",
-      });
+      setMarketingDestination("workspace");
     } catch {
       resetCaptcha();
 
-      showError(
-        "Não foi possível conectar ao servidor. Tente novamente.",
-      );
+      showError("Não foi possível conectar ao servidor. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -1109,18 +877,10 @@ function LoginPage() {
   async function handleRecoverySubmit() {
     clearFeedback();
 
-    const cleanEmail =
-      verifyEmail
-        .trim()
-        .toLowerCase();
+    const cleanEmail = verifyEmail.trim().toLowerCase();
 
-    if (
-      !cleanEmail ||
-      !cleanEmail.includes("@")
-    ) {
-      showError(
-        "Informe um e-mail válido.",
-      );
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      showError("Informe um e-mail válido.");
 
       return;
     }
@@ -1128,38 +888,24 @@ function LoginPage() {
     setVerifyLoading(true);
 
     try {
-      const { error } =
-        await supabase.auth.resetPasswordForEmail(
-          cleanEmail,
-          {
-            redirectTo:
-              `${window.location.origin}/reset-password`,
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
 
-            ...(captchaToken ? { captchaToken } : {}),
-          },
-        );
+        ...(captchaToken ? { captchaToken } : {}),
+      });
 
       if (error) {
         resetCaptcha();
 
-        const errorMessage =
-          error.message.toLowerCase();
+        const errorMessage = error.message.toLowerCase();
 
-        if (
-          errorMessage.includes(
-            "captcha",
-          )
-        ) {
-          showError(
-            "A verificação de segurança expirou ou falhou. Tente novamente.",
-          );
+        if (errorMessage.includes("captcha")) {
+          showError("A verificação de segurança expirou ou falhou. Tente novamente.");
 
           return;
         }
 
-        showError(
-          "Não foi possível enviar o link agora. Tente novamente em instantes.",
-        );
+        showError("Não foi possível enviar o link agora. Tente novamente em instantes.");
 
         return;
       }
@@ -1172,17 +918,13 @@ function LoginPage() {
     } catch {
       resetCaptcha();
 
-      showError(
-        "Não foi possível enviar o e-mail de recuperação.",
-      );
+      showError("Não foi possível enviar o e-mail de recuperação.");
     } finally {
       setVerifyLoading(false);
     }
   }
 
-  function handleSubmit(
-    event: FormEvent<HTMLFormElement>,
-  ) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (isSignUp) {
@@ -1226,7 +968,6 @@ function LoginPage() {
           className="interactive-lift inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-slate-900 hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
-
           Voltar para o início
         </Link>
       </div>
@@ -1248,13 +989,9 @@ function LoginPage() {
           </div>
 
           <span className="text-3xl font-bold leading-none tracking-tight sm:text-4xl">
-            <span className="text-white">
-              Decidly
-            </span>
+            <span className="text-white">Decidly</span>
 
-            <span className="text-violet-400">
-              AI
-            </span>
+            <span className="text-violet-400">AI</span>
           </span>
         </Link>
 
@@ -1270,21 +1007,13 @@ function LoginPage() {
 
           {isRecover ? (
             <div>
-              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                Recuperar senha
-              </h1>
+              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Recuperar senha</h1>
 
               <p className="mt-4 text-base leading-relaxed text-slate-400 sm:text-lg">
-                Digite seu e-mail e
-                enviaremos um link para
-                você criar uma nova senha.
+                Digite seu e-mail e enviaremos um link para você criar uma nova senha.
               </p>
 
-              {feedback ? (
-                <FeedbackBox
-                  feedback={feedback}
-                />
-              ) : null}
+              {feedback ? <FeedbackBox feedback={feedback} /> : null}
 
               <form
                 className="mt-8 space-y-6"
@@ -1301,38 +1030,22 @@ function LoginPage() {
                   value={verifyEmail}
                   onChange={setVerifyEmail}
                   placeholder="seuemail@exemplo.com"
-                  icon={
-                    <Mail className="h-5 w-5" />
-                  }
-                />
-
-                <CaptchaBox
-                  loading={captchaLoading}
-                  error={captchaError}
-                  containerRef={
-                    turnstileContainerRef
-                  }
+                  icon={<Mail className="h-5 w-5" />}
                 />
 
                 <button
                   type="submit"
-                  disabled={
-                    verifyLoading ||
-                    captchaLoading ||
-                    !captchaToken
-                  }
+                  disabled={verifyLoading}
                   className="interactive-lift group flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {verifyLoading ? (
                     <>
                       <Loader2 className="h-5 w-5 animate-spin" />
-
                       Enviando...
                     </>
                   ) : (
                     <>
                       Enviar link
-
                       <ArrowRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-1" />
                     </>
                   )}
@@ -1341,9 +1054,7 @@ function LoginPage() {
 
               <button
                 type="button"
-                onClick={() =>
-                  changeMode("login")
-                }
+                onClick={() => changeMode("login")}
                 className="mt-7 w-full rounded-xl py-2 text-center text-sm font-medium text-violet-400 transition hover:text-violet-300"
               >
                 Voltar para o login
@@ -1353,12 +1064,12 @@ function LoginPage() {
             <>
               <div>
                 <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                  {isSignUp
-                    ? "Criar conta"
-                    : "Entrar"}
+                  {isSignUp ? "Criar conta" : "Entrar"}
                 </h1>
 
-                <p className={`mt-4 text-base leading-relaxed sm:text-lg ${isSignUp && referralCode && !referralBlocked ? "font-semibold text-violet-100" : "text-slate-300"}`}>
+                <p
+                  className={`mt-4 text-base leading-relaxed sm:text-lg ${isSignUp && referralCode && !referralBlocked ? "font-semibold text-violet-100" : "text-slate-300"}`}
+                >
                   {isSignUp
                     ? referralCode && !referralBlocked
                       ? `Você recebeu um convite para conhecer o DecidlyAI${referrerName ? ` de ${referrerName}` : ""}! Crie sua conta e ganhe ${referralCampaign === "invite-30" ? "30" : "25"} créditos para organizar suas decisões, comparar caminhos e encontrar mais clareza. É gratuito para começar.`
@@ -1376,27 +1087,17 @@ function LoginPage() {
                         : "border-slate-700 text-slate-100"
                     }`}
                   >
-                    <img
-                      src="/isos/googleicon.png"
-                      alt=""
-                      className="h-6 w-6 shrink-0"
-                    />
+                    <img src="/isos/googleicon.png" alt="" className="h-6 w-6 shrink-0" />
 
-                    <span>
-                      Continuar com o Google
-                    </span>
+                    <span>Continuar com o Google</span>
                   </div>
 
                   <div
                     ref={googleButtonRef}
                     aria-label="Continuar com o Google"
-                    aria-disabled={!captchaToken || googleLoading}
+                    aria-disabled={googleLoading}
                     className={`botao-google-real absolute inset-0 z-10 h-full w-full ${
-                      googleReady &&
-                      !googleLoading &&
-                      captchaToken
-                        ? "opacity-0"
-                        : "pointer-events-none opacity-0"
+                      googleReady && !googleLoading ? "opacity-0" : "pointer-events-none opacity-0"
                     }`}
                   />
 
@@ -1420,16 +1121,11 @@ function LoginPage() {
 
               {feedback ? (
                 <div className="mb-7">
-                  <FeedbackBox
-                    feedback={feedback}
-                  />
+                  <FeedbackBox feedback={feedback} />
                 </div>
               ) : null}
 
-              <form
-                className="space-y-6"
-                onSubmit={handleSubmit}
-              >
+              <form className="space-y-6" onSubmit={handleSubmit}>
                 {isSignUp ? (
                   <InputField
                     id="name"
@@ -1438,9 +1134,7 @@ function LoginPage() {
                     onChange={setName}
                     placeholder="Como podemos te chamar?"
                     autoComplete="nickname"
-                    icon={
-                      <User className="h-5 w-5" />
-                    }
+                    icon={<User className="h-5 w-5" />}
                   />
                 ) : null}
 
@@ -1451,9 +1145,7 @@ function LoginPage() {
                   value={email}
                   onChange={setEmail}
                   placeholder="seuemail@exemplo.com"
-                  icon={
-                    <Mail className="h-5 w-5" />
-                  }
+                  icon={<Mail className="h-5 w-5" />}
                 />
 
                 <PasswordField
@@ -1463,28 +1155,18 @@ function LoginPage() {
                   onChange={setPassword}
                   show={showPassword}
                   setShow={setShowPassword}
-                    autoComplete={
-                      isSignUp
-                        ? "new-password"
-                        : "current-password"
-                    }
-                  />
+                  autoComplete={isSignUp ? "new-password" : "current-password"}
+                />
 
-                  {isSignUp ? (
-                    <PasswordStrength password={password} />
-                  ) : null}
+                {isSignUp ? <PasswordStrength password={password} /> : null}
 
                 {!isSignUp ? (
                   <button
                     type="button"
                     onClick={() => {
-                      setVerifyEmail(
-                        email,
-                      );
+                      setVerifyEmail(email);
 
-                      changeMode(
-                        "recover",
-                      );
+                      changeMode("recover");
                     }}
                     className="rounded-lg py-1 text-sm font-medium text-violet-400 transition hover:text-violet-300"
                   >
@@ -1496,49 +1178,37 @@ function LoginPage() {
                   <PasswordField
                     id="confirm-password"
                     label="Confirmar senha"
-                    value={
-                      confirmPassword
-                    }
-                    onChange={
-                      setConfirmPassword
-                    }
-                    show={
-                      showConfirmPassword
-                    }
-                    setShow={
-                      setShowConfirmPassword
-                    }
+                    value={confirmPassword}
+                    onChange={setConfirmPassword}
+                    show={showConfirmPassword}
+                    setShow={setShowConfirmPassword}
                     autoComplete="new-password"
                   />
                 ) : null}
 
-                <CaptchaBox
-                  loading={captchaLoading}
-                  error={captchaError}
-                  containerRef={turnstileContainerRef}
-                />
+                {isSignUp ? (
+                  <CaptchaBox
+                    loading={captchaLoading}
+                    error={captchaError}
+                    containerRef={turnstileContainerRef}
+                  />
+                ) : null}
 
                 <button
                   type="submit"
                   disabled={
-                    loading ||
-                    googleLoading ||
-                    captchaLoading ||
-                    !captchaToken
+                    loading || googleLoading || (isSignUp && (captchaLoading || !captchaToken))
                   }
                   className="interactive-lift group flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 hover:shadow-violet-950/50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {loading ? (
                     <>
                       <Loader2 className="h-5 w-5 animate-spin" />
-
                       Aguarde...
                     </>
                   ) : (
                     <>
-                      {isSignUp
-                        ? "Criar minha conta"
-                        : "Entrar na minha conta"}
+                      {isSignUp ? "Criar minha conta" : "Entrar na minha conta"}
 
                       <ArrowRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-1" />
                     </>
@@ -1547,56 +1217,39 @@ function LoginPage() {
               </form>
 
               <p className="mt-8 text-center text-sm text-slate-400">
-                {isSignUp
-                  ? "Já possui uma conta? "
-                  : "Ainda não possui uma conta? "}
+                {isSignUp ? "Já possui uma conta? " : "Ainda não possui uma conta? "}
 
                 <button
                   type="button"
-                  onClick={() =>
-                    changeMode(
-                      isSignUp
-                        ? "login"
-                        : "signup",
-                    )
-                  }
+                  onClick={() => changeMode(isSignUp ? "login" : "signup")}
                   className="rounded-lg py-1 font-semibold text-violet-400 transition hover:text-violet-300"
                 >
-                  {isSignUp
-                    ? "Entrar"
-                    : "Criar conta"}
+                  {isSignUp ? "Entrar" : "Criar conta"}
                 </button>
               </p>
 
               <p className="mt-7 text-center text-xs leading-relaxed text-slate-500">
-                Ao continuar, você
-                concorda com os{" "}
-
+                Ao continuar, você concorda com os{" "}
                 <Link
                   to="/terms"
                   className="text-slate-400 underline underline-offset-2 transition hover:text-violet-300"
                 >
                   Termos de Uso
-                </Link>
-
-                {" "}e reconhece nossa{" "}
-
+                </Link>{" "}
+                e reconhece nossa{" "}
                 <Link
                   to="/privacy"
                   className="text-slate-400 underline underline-offset-2 transition hover:text-violet-300"
                 >
                   Política de Privacidade
-                </Link>
-
-                {" "}e{" "}
-
+                </Link>{" "}
+                e{" "}
                 <Link
                   to="/cookies"
                   className="text-slate-400 underline underline-offset-2 transition hover:text-violet-300"
                 >
                   Política de Cookies
                 </Link>
-
                 .
               </p>
 
@@ -1632,6 +1285,14 @@ function LoginPage() {
           }
         />
       ) : null}
+
+      {marketingPrompt ? (
+        <MarketingConsentDialog
+          kind={marketingPrompt}
+          onChoice={(optIn) => void saveMarketingChoice(optIn)}
+        />
+      ) : null}
+
       <style>{`
         .botao-google-real,
         .botao-google-real > div,
@@ -1650,6 +1311,74 @@ function LoginPage() {
   );
 }
 
+function MarketingConsentDialog({
+  kind,
+  onChoice,
+}: {
+  kind: Exclude<MarketingPrompt, null>;
+  onChoice: (optIn: boolean) => void;
+}) {
+  const [checked, setChecked] = useState(false);
+
+  return (
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/75 px-5 backdrop-blur-md">
+      <div
+        className="w-full max-w-md rounded-3xl border border-violet-300/25 bg-slate-900 p-6 shadow-2xl shadow-violet-950/40 sm:p-8"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="marketing-consent-title"
+      >
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-500/15 text-violet-300">
+          <MailCheck className="h-6 w-6" />
+        </div>
+
+        <h2 id="marketing-consent-title" className="mt-5 text-xl font-semibold text-white">
+          Quer receber novidades do DecidlyAI?
+        </h2>
+
+        <p className="mt-3 text-sm leading-6 text-slate-400">
+          Enviaremos novidades, dicas e lançamentos por e-mail. Você pode cancelar quando quiser e
+          nunca compartilharemos seu endereço para publicidade de terceiros.
+        </p>
+
+        <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-700 bg-slate-950/60 p-4 text-sm leading-6 text-slate-200">
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(event) => setChecked(event.target.checked)}
+            className="mt-1 h-4 w-4 accent-violet-500"
+          />
+          <span>Sim, quero receber e-mails de marketing do DecidlyAI.</span>
+        </label>
+
+        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={() => onChoice(false)}
+            className="rounded-xl border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-slate-500 hover:text-white"
+          >
+            Agora não
+          </button>
+          <button
+            type="button"
+            onClick={() => onChoice(true)}
+            disabled={!checked}
+            className="rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Salvar escolha
+          </button>
+        </div>
+
+        <p className="mt-4 text-center text-xs text-slate-500">
+          {kind === "google"
+            ? "Esta pergunta aparece uma única vez no primeiro acesso."
+            : "Sua escolha fica registrada na sua conta."}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function CaptchaBox({
   loading,
   error,
@@ -1663,7 +1392,6 @@ function CaptchaBox({
     <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
       <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-300">
         <ShieldCheck className="h-4 w-4 text-violet-400" />
-
         Verificação de segurança
       </div>
 
@@ -1671,38 +1399,25 @@ function CaptchaBox({
         Usamos esta verificação para proteger sua conta contra cadastros automáticos.
       </p>
 
-      <div
-        ref={containerRef}
-        className="flex min-h-[65px] items-center justify-center"
-      />
+      <div ref={containerRef} className="flex min-h-[65px] items-center justify-center" />
 
       {loading ? (
         <div className="mt-3 flex items-center justify-center gap-2 text-xs text-slate-500">
           <Loader2 className="h-4 w-4 animate-spin" />
-
           Carregando verificação...
         </div>
       ) : null}
 
       {error ? (
         <p className="mt-3 text-center text-xs text-red-400">
-          Não foi possível carregar a
-          verificação. Atualize a página
-          e tente novamente.
+          Não foi possível carregar a verificação. Atualize a página e tente novamente.
         </p>
       ) : null}
     </div>
   );
 }
 
-function FeedbackBox({
-  feedback,
-}: {
-  feedback: Exclude<
-    Feedback,
-    null
-  >;
-}) {
+function FeedbackBox({ feedback }: { feedback: Exclude<Feedback, null> }) {
   return (
     <div
       className={`mt-7 rounded-2xl border p-5 text-sm leading-relaxed ${
@@ -1730,19 +1445,14 @@ function InputField({
   label: string;
   type?: string;
   value: string;
-  onChange: (
-    value: string,
-  ) => void;
+  onChange: (value: string) => void;
   placeholder: string;
   autoComplete?: string;
   icon: ReactNode;
 }) {
   return (
     <div>
-      <label
-        htmlFor={id}
-        className="mb-2 block text-sm font-medium text-slate-200"
-      >
+      <label htmlFor={id} className="mb-2 block text-sm font-medium text-slate-200">
         {label}
       </label>
 
@@ -1755,11 +1465,7 @@ function InputField({
           id={id}
           type={type}
           value={value}
-          onChange={(event) =>
-            onChange(
-              event.target.value,
-            )
-          }
+          onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
           autoComplete={autoComplete}
           maxLength={160}
@@ -1782,21 +1488,14 @@ function PasswordField({
   id: string;
   label: string;
   value: string;
-  onChange: (
-    value: string,
-  ) => void;
+  onChange: (value: string) => void;
   show: boolean;
-  setShow: Dispatch<
-    SetStateAction<boolean>
-  >;
+  setShow: Dispatch<SetStateAction<boolean>>;
   autoComplete: string;
 }) {
   return (
     <div>
-      <label
-        htmlFor={id}
-        className="mb-2 block text-sm font-medium text-slate-200"
-      >
+      <label htmlFor={id} className="mb-2 block text-sm font-medium text-slate-200">
         {label}
       </label>
 
@@ -1805,17 +1504,9 @@ function PasswordField({
 
         <input
           id={id}
-          type={
-            show
-              ? "text"
-              : "password"
-          }
+          type={show ? "text" : "password"}
           value={value}
-          onChange={(event) =>
-            onChange(
-              event.target.value,
-            )
-          }
+          onChange={(event) => onChange(event.target.value)}
           placeholder="Digite sua senha"
           autoComplete={autoComplete}
           maxLength={1000}
@@ -1824,24 +1515,11 @@ function PasswordField({
 
         <button
           type="button"
-          onClick={() =>
-            setShow(
-              (current) =>
-                !current,
-            )
-          }
-          aria-label={
-            show
-              ? "Ocultar senha"
-              : "Mostrar senha"
-          }
+          onClick={() => setShow((current) => !current)}
+          aria-label={show ? "Ocultar senha" : "Mostrar senha"}
           className="interactive-scale absolute right-0 top-0 flex h-14 w-14 items-center justify-center text-slate-500 transition hover:text-white"
         >
-          {show ? (
-            <EyeOff className="h-5 w-5" />
-          ) : (
-            <Eye className="h-5 w-5" />
-          )}
+          {show ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
         </button>
       </div>
     </div>
@@ -1863,10 +1541,15 @@ function PasswordStrength({ password }: { password: string }) {
     <div className="-mt-3 space-y-2" aria-live="polite">
       <div className="flex gap-1.5" aria-hidden="true">
         {[0, 1, 2, 3].map((item) => (
-          <span key={item} className={`h-1.5 flex-1 rounded-full ${item < score ? color : "bg-slate-800"}`} />
+          <span
+            key={item}
+            className={`h-1.5 flex-1 rounded-full ${item < score ? color : "bg-slate-800"}`}
+          />
         ))}
       </div>
-      <p className="text-xs text-slate-500">{password ? label : "Use pelo menos 6 caracteres, com letras e números."}</p>
+      <p className="text-xs text-slate-500">
+        {password ? label : "Use pelo menos 6 caracteres, com letras e números."}
+      </p>
     </div>
   );
 }
