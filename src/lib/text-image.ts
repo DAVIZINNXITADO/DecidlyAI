@@ -67,9 +67,17 @@ export function fitTextImageText(text: string, maxCharacters: number) {
 
 function safeColor(value: unknown, fallback: string) {
   return typeof value === "string" &&
-    /^(#[0-9a-f]{3,8}|rgba?\([^)]*\)|hsla?\([^)]*\))$/i.test(value.trim())
+    /^(#[0-9a-f]{3,8}|rgba?\([^)]*\)|hsla?\([^)]*\)|transparent|white|black|red|blue|green|purple|violet|orange|yellow|pink|gray|grey)$/i.test(value.trim())
     ? value.trim()
     : fallback;
+}
+
+function gradientStops(value: unknown): [string, string] | null {
+  if (typeof value !== "string") return null;
+  const match = value.match(
+    /(?:linear-gradient|gradient)\([^,]+,\s*(#[0-9a-f]{3,8}|[a-z]+)\s*,\s*(#[0-9a-f]{3,8}|[a-z]+)\s*\)/i,
+  );
+  return match?.[1] && match[2] ? [match[1], match[2]] : null;
 }
 
 function parseDesign(raw: string | undefined): TextImageDesign {
@@ -95,6 +103,7 @@ function parseDesign(raw: string | undefined): TextImageDesign {
       : DEFAULT_DESIGN.weight;
     const align =
       input["align"] === "left" || input["align"] === "right" ? input["align"] : "center";
+    const gradient = gradientStops(input["background"]);
     return {
       page,
       orientation,
@@ -103,8 +112,14 @@ function parseDesign(raw: string | undefined): TextImageDesign {
       heightMm:
         orientation === "landscape" && page !== "custom" ? Math.min(widthMm, heightMm) : heightMm,
       marginMm,
-      background: safeColor(input["background"], DEFAULT_DESIGN.background),
-      backgroundEnd: safeColor(input["backgroundEnd"], DEFAULT_DESIGN.backgroundEnd),
+      background: safeColor(
+        input["backgroundStart"] ?? gradient?.[0] ?? input["background"],
+        DEFAULT_DESIGN.background,
+      ),
+      backgroundEnd: safeColor(
+        input["backgroundEnd"] ?? gradient?.[1],
+        DEFAULT_DESIGN.backgroundEnd,
+      ),
       textColor: safeColor(input["textColor"], DEFAULT_DESIGN.textColor),
       accentColor: safeColor(input["accentColor"], DEFAULT_DESIGN.accentColor),
       font: input["font"] === "serif" || input["font"] === "mono" ? input["font"] : "sans",
