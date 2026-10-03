@@ -104,7 +104,7 @@ export function CookieConsent() {
                     {t(language, "cookies.title")}
                   </h2>
 
-                  <p className="mt-1 text-sm text-slate-500">
+                  <p className="mt-1 text-sm text-slate-400">
                     {t(language, "cookies.subtitle")}
                   </p>
                 </div>
@@ -126,7 +126,7 @@ export function CookieConsent() {
               {t(language, "cookies.description")}
             </p>
 
-            <p className="mt-4 text-sm leading-relaxed text-slate-500">
+            <p className="mt-4 text-sm leading-relaxed text-slate-400">
               {t(language, "cookies.optional")}
             </p>
 
@@ -153,7 +153,7 @@ export function CookieConsent() {
               <button
                 type="button"
                 onClick={handleAccept}
-                className="flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-950/40 transition hover:bg-violet-500"
+                className="flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-950/40 transition hover:bg-violet-700"
               >
                 <Check className="h-4 w-4" />
 
