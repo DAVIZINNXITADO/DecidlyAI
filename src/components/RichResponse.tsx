@@ -1,7 +1,8 @@
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent } from "react";
+import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { AlertTriangle, Check, Copy, Download, ExternalLink, FileText, Image as ImageIcon, Info, Lightbulb, Loader2, Maximize2, MessageCircle, Minus, Plus, ShieldAlert, Sparkles, TriangleAlert, Type, X } from "lucide-react";
+import { AlertTriangle, Check, Copy, Download, ExternalLink, FileText, Image as ImageIcon, Info, Lightbulb, Loader2, Maximize2, MessageCircle, ShieldAlert, Sparkles, TriangleAlert, Type, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { normalizeActionProtocolMarkup, toPlainArtifactText } from "../lib/rich-markup";
 import { countTextImageChars, MAX_TEXT_IMAGE_CHARS, parseTextImagePayload } from "../lib/text-image";
@@ -393,9 +394,9 @@ function ArtifactBlock({
             </p>
           )}
         </figure>
-        {viewerOpen && (
+        {viewerOpen && typeof document !== "undefined" && createPortal(
           <div
-            className="fixed inset-0 z-[220] flex flex-col bg-black/95 text-white"
+            className="fixed inset-0 z-[99999] flex flex-col bg-black/95 text-white"
             role="dialog"
             aria-modal="true"
             aria-label="Visualizador de imagem"
@@ -467,7 +468,8 @@ function ArtifactBlock({
                 </div>
               </form>
             )}
-          </div>
+          </div>,
+          document.body,
         )}
       </>
     );

@@ -42,7 +42,7 @@ export function toPlainArtifactText(value: string) {
       /\[\/?(?:callout|highlight|copy_block|color|question|action|generated_file|generated_image)\b[^\]]*\]/gi,
       "",
     )
-    .replace(/\[image_design\b[^\]]*\][\s\S]*?\[\/image_design\]/gi, "")
+    .replace(/\[\s*image_design\b[^\]]*\][\s\S]*?\[\s*\/\s*image_design\s*\]/gi, "")
     .replace(/A imagem de texto aceita até \d[\d.]* caracteres\.[\s\S]*$/i, "")
     .replace(/```[^\n]*\r?\n?/g, "")
     .replace(/`([^`\n]+)`/g, "$1")
