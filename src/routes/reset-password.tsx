@@ -1,9 +1,7 @@
 import {
   useEffect,
-  useRef,
   useState,
   type FormEvent,
-  type RefObject,
 } from "react";
 
 import {
@@ -26,9 +24,7 @@ import {
   KeyRound,
   Loader2,
   Mail,
-  RefreshCw,
   ShieldAlert,
-  ShieldCheck,
 } from "lucide-react";
 
 
@@ -37,19 +33,11 @@ export const Route =
     component: ResetPasswordPage,
   });
 
-const TURNSTILE_SITE_KEY =
-  "0x4AAAAAAErVWNfAdys_3TD5";
 
 type RecoveryStatus =
   | "checking"
   | "valid"
   | "missing-token"
-  | "expired";
-
-type CaptchaStatus =
-  | "checking"
-  | "valid"
-  | "error"
   | "expired";
 
 function Brand() {
@@ -84,14 +72,6 @@ function Brand() {
 function ResetPasswordPage() {
   const navigate = useNavigate();
 
-  const turnstileContainerRef =
-    useRef<HTMLDivElement>(null);
-
-  const turnstileWidgetIdRef =
-    useRef<string | number | null>(
-      null,
-    );
-
   const [password, setPassword] =
     useState("");
 
@@ -125,18 +105,6 @@ function ResetPasswordPage() {
   ] = useState<RecoveryStatus>(
     "checking",
   );
-
-  const [
-    captchaStatus,
-    setCaptchaStatus,
-  ] = useState<CaptchaStatus>(
-    "checking",
-  );
-
-  const [
-    captchaToken,
-    setCaptchaToken,
-  ] = useState("");
 
   /*
    * DETECTA SE EXISTE ALGUMA
@@ -232,218 +200,6 @@ function ResetPasswordPage() {
     };
   }, []);
 
-  /*
-   * CLOUDFLARE TURNSTILE
-   */
-
-  useEffect(() => {
-    let cancelled = false;
-
-    function renderTurnstile() {
-      if (
-        cancelled ||
-        !window.turnstile ||
-        !turnstileContainerRef.current
-      ) {
-        return;
-      }
-
-      const container =
-        turnstileContainerRef.current;
-
-      container.innerHTML = "";
-
-      setCaptchaStatus(
-        "checking",
-      );
-
-      setCaptchaToken("");
-
-      try {
-        const widgetId =
-          window.turnstile.render(
-            container,
-            {
-              sitekey:
-                TURNSTILE_SITE_KEY,
-
-              theme: "dark",
-
-              size: "normal",
-
-              callback: (
-                token: string,
-              ) => {
-                if (cancelled) {
-                  return;
-                }
-
-                setCaptchaToken(
-                  token,
-                );
-
-                setCaptchaStatus(
-                  "valid",
-                );
-              },
-
-              "expired-callback":
-                () => {
-                  if (cancelled) {
-                    return;
-                  }
-
-                  setCaptchaToken(
-                    "",
-                  );
-
-                  setCaptchaStatus(
-                    "expired",
-                  );
-                },
-
-              "error-callback":
-                () => {
-                  if (cancelled) {
-                    return;
-                  }
-
-                  setCaptchaToken(
-                    "",
-                  );
-
-                  setCaptchaStatus(
-                    "error",
-                  );
-                },
-            },
-          );
-
-        turnstileWidgetIdRef.current =
-          widgetId;
-      } catch {
-        if (cancelled) {
-          return;
-        }
-
-        setCaptchaToken("");
-
-        setCaptchaStatus(
-          "error",
-        );
-      }
-    }
-
-    function loadTurnstile() {
-      if (window.turnstile) {
-        renderTurnstile();
-
-        return;
-      }
-
-      const existingScript =
-        document.getElementById(
-          "cloudflare-turnstile-script",
-        );
-
-      if (existingScript) {
-        existingScript.addEventListener(
-          "load",
-          renderTurnstile,
-          {
-            once: true,
-          },
-        );
-
-        return;
-      }
-
-      const script =
-        document.createElement(
-          "script",
-        );
-
-      script.id =
-        "cloudflare-turnstile-script";
-
-      script.src =
-        "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-
-      script.async = true;
-
-      script.defer = true;
-
-      script.onload =
-        renderTurnstile;
-
-      script.onerror = () => {
-        if (cancelled) {
-          return;
-        }
-
-        setCaptchaToken("");
-
-        setCaptchaStatus(
-          "error",
-        );
-      };
-
-      document.head.appendChild(
-        script,
-      );
-    }
-
-    loadTurnstile();
-
-    return () => {
-      cancelled = true;
-
-      if (
-        window.turnstile &&
-        turnstileWidgetIdRef.current !==
-          null
-      ) {
-        try {
-          window.turnstile.remove(
-            turnstileWidgetIdRef.current,
-          );
-        } catch {
-          // Ignora erros durante
-          // a desmontagem.
-        }
-
-        turnstileWidgetIdRef.current =
-          null;
-      }
-    };
-  }, []);
-
-  function retryCaptcha() {
-    setCaptchaToken("");
-
-    setCaptchaStatus(
-      "checking",
-    );
-
-    if (
-      window.turnstile &&
-      turnstileWidgetIdRef.current !==
-        null
-    ) {
-      try {
-        window.turnstile.reset(
-          turnstileWidgetIdRef.current,
-        );
-
-        return;
-      } catch {
-        setCaptchaStatus(
-          "error",
-        );
-      }
-    }
-  }
-
   async function handleSubmit(
     event: FormEvent,
   ) {
@@ -456,17 +212,6 @@ function ResetPasswordPage() {
     ) {
       setErrorMessage(
         "Não foi possível confirmar a autorização deste link de recuperação.",
-      );
-
-      return;
-    }
-
-    if (
-      captchaStatus !== "valid" ||
-      !captchaToken
-    ) {
-      setErrorMessage(
-        "Conclua a verificação de segurança antes de continuar.",
       );
 
       return;
@@ -581,28 +326,8 @@ function ResetPasswordPage() {
                 </p>
               </div>
 
-              <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-                <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-300">
-                  <ShieldCheck className="h-4 w-4 text-violet-400" />
-
-                  Verificação de segurança
-                </div>
-
-                <div
-                  ref={
-                    turnstileContainerRef
-                  }
-                  className="flex min-h-[65px] items-center justify-center"
-                />
-
-                {captchaStatus ===
-                "checking" ? (
-                  <div className="mt-3 flex items-center justify-center gap-2 text-xs text-slate-500">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-
-                    Carregando verificação...
-                  </div>
-                ) : null}
+              <div className="mt-8 rounded-2xl border border-violet-300/15 bg-violet-400/[0.06] p-4 text-sm leading-6 text-slate-300">
+                Estamos validando o link com segurança. Em seguida, você poderá criar uma nova senha.
               </div>
             </div>
           </div>
@@ -761,152 +486,6 @@ function ResetPasswordPage() {
                   <ArrowLeft className="h-5 w-5" />
 
                   Voltar para o login
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  /*
-   * ERRO DO CAPTCHA
-   */
-
-  if (
-    captchaStatus ===
-    "error"
-  ) {
-    return (
-      <main className="min-h-screen overflow-hidden bg-slate-950 text-white">
-        <Background />
-
-        <div className="relative flex min-h-screen items-center justify-center px-6 py-10">
-          <div className="w-full max-w-md">
-            <div className="mb-8 flex justify-center">
-              <Brand />
-            </div>
-
-            <div className="overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-900/70 shadow-2xl backdrop-blur-xl">
-              <div className="h-1 w-full bg-red-500" />
-
-              <div className="p-8 text-center md:p-10">
-                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl border border-red-500/20 bg-red-500/10 text-red-400">
-                  <ShieldAlert className="h-10 w-10" />
-                </div>
-
-                <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-xs font-semibold tracking-wider text-red-300">
-                  <AlertTriangle className="h-4 w-4" />
-
-                  VERIFICAÇÃO INDISPONÍVEL
-                </div>
-
-                <h1 className="mt-6 text-3xl font-bold tracking-tight">
-                  Não foi possível
-                  concluir a verificação
-                  de segurança
-                </h1>
-
-                <p className="mt-4 leading-relaxed text-slate-400">
-                  O sistema de
-                  verificação não pôde
-                  ser carregado
-                  corretamente. Sua
-                  senha não foi alterada.
-                </p>
-
-                <div className="mt-7 rounded-2xl border border-slate-800 bg-slate-950/50 p-5 text-left">
-                  <div className="flex items-start gap-3">
-                    <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-violet-400" />
-
-                    <p className="text-sm leading-relaxed text-slate-400">
-                      Verifique sua
-                      conexão com a
-                      internet e tente
-                      novamente. Caso o
-                      problema continue,
-                      atualize a página.
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={retryCaptcha}
-                  className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-4 font-semibold text-white shadow-lg shadow-violet-950/40 transition hover:bg-violet-500"
-                >
-                  <RefreshCw className="h-5 w-5" />
-
-                  Tentar novamente
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    navigate({
-                      to: "/login",
-                    })
-                  }
-                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-700 px-5 py-3.5 font-semibold text-slate-200 transition hover:border-violet-500 hover:text-white"
-                >
-                  <ArrowLeft className="h-5 w-5" />
-
-                  Voltar para o login
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  /*
-   * CAPTCHA EXPIRADO
-   */
-
-  if (
-    captchaStatus ===
-    "expired"
-  ) {
-    return (
-      <main className="min-h-screen overflow-hidden bg-slate-950 text-white">
-        <Background />
-
-        <div className="relative flex min-h-screen items-center justify-center px-6 py-10">
-          <div className="w-full max-w-md">
-            <div className="mb-8 flex justify-center">
-              <Brand />
-            </div>
-
-            <div className="overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-900/70 shadow-2xl backdrop-blur-xl">
-              <div className="h-1 w-full bg-amber-400" />
-
-              <div className="p-8 text-center md:p-10">
-                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl border border-amber-400/20 bg-amber-400/10 text-amber-300">
-                  <ShieldAlert className="h-10 w-10" />
-                </div>
-
-                <h1 className="mt-6 text-3xl font-bold tracking-tight">
-                  A verificação expirou
-                </h1>
-
-                <p className="mt-4 leading-relaxed text-slate-400">
-                  Por segurança, a
-                  verificação precisa ser
-                  renovada antes de
-                  continuar.
-                </p>
-
-                <button
-                  type="button"
-                  onClick={retryCaptcha}
-                  className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-4 font-semibold text-white shadow-lg shadow-violet-950/40 transition hover:bg-violet-500"
-                >
-                  <RefreshCw className="h-5 w-5" />
-
-                  Renovar verificação
                 </button>
               </div>
             </div>
@@ -1144,12 +723,7 @@ function ResetPasswordPage() {
 
               <button
                 type="submit"
-                disabled={
-                  loading ||
-                  !captchaToken ||
-                  captchaStatus !==
-                    "valid"
-                }
+                disabled={loading}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-4 font-semibold text-white shadow-lg shadow-violet-950/40 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? (
@@ -1191,21 +765,6 @@ function ResetPasswordPage() {
         />
       ) : null}
     </main>
-  );
-}
-
-function CaptchaContainer({
-  containerRef,
-}: {
-  containerRef: RefObject<
-    HTMLDivElement | null
-  >;
-}) {
-  return (
-    <div
-      ref={containerRef}
-      className="flex min-h-[65px] items-center justify-center"
-    />
   );
 }
 

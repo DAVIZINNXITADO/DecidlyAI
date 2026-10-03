@@ -342,20 +342,7 @@ function RootShell({ children }: { children: ReactNode }) {
           rel="stylesheet"
           href={appCss}
           data-app-stylesheet="true"
-          media="print"
-          onLoad={(event) => {
-            event.currentTarget.media = "all";
-          }}
         />
-        <script
-          dangerouslySetInnerHTML={{
-            __html:
-              "document.querySelector('link[data-app-stylesheet]')?.setAttribute('media', 'all');",
-          }}
-        />
-        <noscript>
-          <link rel="stylesheet" href={appCss} />
-        </noscript>
       </head>
 
       <body>
