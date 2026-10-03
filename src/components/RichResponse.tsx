@@ -397,6 +397,7 @@ function ArtifactBlock({
         {viewerOpen && typeof document !== "undefined" && createPortal(
           <div
             className="fixed inset-0 z-[99999] flex flex-col bg-black/95 text-white"
+            style={{ zIndex: 2147483647 }}
             role="dialog"
             aria-modal="true"
             aria-label="Visualizador de imagem"

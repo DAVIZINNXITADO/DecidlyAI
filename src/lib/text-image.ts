@@ -130,10 +130,27 @@ function clampNumber(value: unknown, fallback: number, minimum: number, maximum:
   return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback;
 }
 
+const TECHNICAL_NOTE_LINE = /^\s*(?:page|orientation|widthMm|heightMm|marginMm|background|backgroundEnd|textColor|accentColor|font|weight|align|fontRatio|lineHeight|eyebrow|footer|radius)\s*[:=]/i;
+
+function removeTextImageNotebook(value: string) {
+  return value
+    .replace(/\[\s*image_design\b[^\]]*\][\s\S]*?\[\s*\/\s*image_design\s*\]/gi, "")
+    .replace(/\{\s*["']?(?:page|orientation|widthMm|heightMm|marginMm)["']?\s*[:=][\s\S]*?\}/gi, "")
+    .replace(/^\s*\[\s*image_design\b[^\]]*\][\s\S]*$/gim, "")
+    .replace(/^\s*A imagem de texto aceita até \d[\d.]* caracteres\.[^\r\n]*$/gim, "")
+    .replace(/A imagem de texto aceita até \d[\d.]* caracteres\.\s*O conteúdo foi mantido como texto e nenhum crédito foi consumido\.?/gi, "")
+    .split(/\r?\n/)
+    .filter((line) => !TECHNICAL_NOTE_LINE.test(line))
+    .filter((line) => !/^\s*(?:caracter[ií]sticas?|configura[cç][aã]o|design|papel|folha)\s*[:-]/i.test(line))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function parseTextImagePayload(value: string) {
   const match = value.match(/\[\s*image_design\b[^\]]*\]([\s\S]*?)\[\s*\/\s*image_design\s*\]/i);
   const rawText = match ? value.replace(match[0], "") : value;
-  const text = rawText
+  const text = removeTextImageNotebook(rawText)
     .replace(/\[\s*image_design\b[^\]]*\][\s\S]*?\[\s*\/\s*image_design\s*\]/gi, "")
     .replace(/^\s*\[\s*image_design\b[^\]]*\][\s\S]*$/gim, "")
     .replace(/A imagem de texto aceita até \d[\d.]* caracteres\.[\s\S]*$/i, "")
@@ -202,7 +219,7 @@ function drawRoundedRect(
 
 export async function createTextImage(text: string, rawDesign?: string): Promise<Blob> {
   const payload = parseTextImagePayload(text);
-  const content = payload.text;
+  const content = removeTextImageNotebook(payload.text);
   if (!content) throw new Error("A IA não preparou o texto para a imagem.");
   if (countTextImageChars(content) > MAX_TEXT_IMAGE_CHARS)
     throw new Error(`A imagem de texto aceita até ${MAX_TEXT_IMAGE_CHARS} caracteres.`);
