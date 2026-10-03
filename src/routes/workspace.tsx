@@ -44,7 +44,7 @@ import { supabase } from "../lib/supabase";
 import { streamAi } from "../lib/ai-stream";
 import { requestTtsAudio } from "../lib/tts";
 import { createPdfBlob } from "../lib/pdf";
-import { createTextImage } from "../lib/text-image";
+import { createTextImage, MAX_TEXT_IMAGE_CHARS } from "../lib/text-image";
 import { ensureToolActionResponse, resolveSelectedToolForRequest } from "../lib/tool-actions";
 import { useLanguageContext } from "../lib/LanguageProvider";
 import { RichResponse, responseProtocolInstructions, type ResponseAction } from "../components/RichResponse";
@@ -1465,7 +1465,7 @@ function Workspace() {
           ? `Perguntas opcionais respondidas pelo usuário para melhorar a análise:\n${guidance}`
           : "";
         const toolContext = toolForRequest
-          ? `Ferramenta selecionada pelo usuário: ${toolForRequest.label} (${toolForRequest.costLabel}). Gere uma única ação compatível com o tipo ${toolForRequest.id}. Para create_pdf, produza conteúdo final conciso; para create_image, produza um prompt visual; para create_text_image, retorne o texto exato, com até 220 caracteres. Não afirme que o arquivo já existe antes de a pessoa executar a ação.`
+          ? `Ferramenta selecionada pelo usuário: ${toolForRequest.label} (${toolForRequest.costLabel}). Gere uma única ação compatível com o tipo ${toolForRequest.id}. Para create_pdf, produza conteúdo final conciso; para create_image, produza um prompt visual; para create_text_image, prepare somente o texto solicitado para a imagem, até ${MAX_TEXT_IMAGE_CHARS} caracteres. Respeite qualquer quantidade de caracteres indicada, sem ultrapassá-la; se o texto de origem for maior, resuma-o fielmente para caber. Quando o usuário pedir "o mesmo texto", use o conteúdo relevante do histórico, sem inventar outro tema. Não acrescente explicações ao texto da imagem nem afirme que o arquivo existe antes de a pessoa executar a ação.`
           : "";
 
         const assistantId = crypto.randomUUID();

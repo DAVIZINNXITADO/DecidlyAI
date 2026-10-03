@@ -4,7 +4,7 @@ import remarkGfm from "remark-gfm";
 import { AlertTriangle, Check, Copy, Download, ExternalLink, FileText, Image as ImageIcon, Info, Lightbulb, Loader2, ShieldAlert, Sparkles, TriangleAlert, Type } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { normalizeActionProtocolMarkup, toPlainArtifactText } from "../lib/rich-markup";
-import { MAX_TEXT_IMAGE_CHARS } from "../lib/text-image";
+import { countTextImageChars, MAX_TEXT_IMAGE_CHARS } from "../lib/text-image";
 
 export type Variant = "info" | "success" | "warning" | "danger" | "tip" | "important" | "advantage" | "disadvantage" | "observation" | "recommendation" | "decision" | "neutral";
 type Block = {
@@ -90,7 +90,7 @@ export function parseBlocks(content: string): Block[] {
     const blockEnd = start + match[0].length;
     if (rawKind === "action" && attr.type === "create_text_image") {
       const plainText = toPlainArtifactText(value);
-      const tooLong = plainText.length > MAX_TEXT_IMAGE_CHARS;
+      const tooLong = countTextImageChars(plainText) > MAX_TEXT_IMAGE_CHARS;
       const missingRequestId = !(attr.request_id || attr.id);
       if (tooLong || missingRequestId) {
         const notice = tooLong
@@ -171,7 +171,7 @@ function ActionBlock({ block, messageId, onActionRequest }: { block: Block; mess
       setBusy(false);
     }
   };
-  const limit = type === "create_pdf" ? "Limite diário: 1/dia Free · 3/dia VIP · até 8 páginas" : type === "create_text_image" ? "Limite diário: 5/dia Free · 15/dia VIP · até 220 caracteres" : "Limite diário: 3/dia Free · 9/dia VIP · prompt até 1.500 caracteres";
+  const limit = type === "create_pdf" ? "Limite diário: 1/dia Free · 3/dia VIP · até 8 páginas" : type === "create_text_image" ? `Limite diário: 5/dia Free · 15/dia VIP · até ${MAX_TEXT_IMAGE_CHARS.toLocaleString("pt-BR")} caracteres` : "Limite diário: 3/dia Free · 9/dia VIP · prompt até 1.500 caracteres";
   const Icon = type === "create_pdf" ? FileText : type === "create_text_image" ? Type : ImageIcon;
   return <div className="my-4 rounded-2xl border border-violet-300/20 bg-violet-400/[0.08] px-4 py-3"><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-violet-100"><Sparkles size={16} />Ação pronta para executar</div><p className="mt-2 whitespace-pre-wrap text-sm text-white/80">{block.value}</p><p className="mt-2 text-[11px] text-white/45">{actionCostLabels[type] || "Custo por uso"} · {limit}</p><button type="button" disabled={!canRun || busy} onClick={() => void run()} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-violet-500 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-60">{busy ? <Loader2 size={14} className="animate-spin" /> : <Icon size={14} />}{busy ? "Preparando…" : `${actionNames[type] || title} · ${actionButtonCostLabels[type] || "ver custo"}`}</button>{errorMessage && <p role="alert" className="mt-2 text-xs text-rose-200">{errorMessage}</p>}{!canRun && <p className="mt-2 text-xs text-white/40">Ação indisponível nesta conversa.</p>}</div>;
 }
@@ -254,10 +254,10 @@ export function responseProtocolInstructions() {
     `DecidlyAI é principalmente uma IA de conversa; arquivos são ferramentas opcionais, acionadas pelo usuário.`,
     `PDF simples: até 12.000 caracteres/8 páginas; o arquivo custa 1 crédito por PDF, além do custo normal da resposta da IA pelo conteúdo; limite diário 1 Free ou 3 VIP.`,
     `Imagem profissional FLUX.1 Schnell 1024×1024: 2,5 créditos cada, prompt até 1.500 caracteres; limite 3/dia Free ou 9/dia VIP.`,
-    `Imagem básica de texto em fundo #141414: 0,5 crédito cada, até 220 caracteres; limite 5/dia Free ou 15/dia VIP. As cotas por tipo são separadas; cada ação cria no máximo um artefato e ainda exige saldo suficiente.`,
-    `Pedidos de redação, ensaio, fábula, conto ou texto completo são solicitações de conteúdo textual: escreva a obra integral no chat e nunca os converta em imagem. Imagem de texto serve apenas para frases curtas de até 220 caracteres.`,
+    `Imagem básica de texto em fundo #141414: 0,5 crédito cada, até ${MAX_TEXT_IMAGE_CHARS.toLocaleString("pt-BR")} caracteres em imagem quadrada ou pôster vertical; limite 5/dia Free ou 15/dia VIP. As cotas por tipo são separadas; cada ação cria no máximo um artefato e ainda exige saldo suficiente.`,
+    `Pedidos de redação, ensaio, fábula, conto ou texto completo são solicitações de conteúdo textual: escreva a obra integral no chat e não converta automaticamente em imagem. Se o usuário pedir explicitamente para renderizar o texto como imagem, pode preparar uma imagem de texto de até ${MAX_TEXT_IMAGE_CHARS.toLocaleString("pt-BR")} caracteres; selecionar a ferramenta sem pedir essa conversão não muda uma redação para imagem.`,
     `Estes recursos não leem PDFs, não aceitam anexos, não pesquisam na web, não editam imagens e não devem ser prometidos como concluídos antes da ação terminar. Só prepare um bloco de ação se o usuário pediu explicitamente a ferramenta ou se uma ferramenta está selecionada; não execute nada por conta própria.`,
-    `Para PDF, retorne exatamente um bloco [action type=create_pdf title="Criar PDF"]conteúdo final conciso[/action]. Para uma ilustração, retorne [action type=create_image title="Gerar imagem"]prompt visual final[/action]. Para renderizar palavras curtas sobre fundo escuro, retorne [action type=create_text_image title="Criar imagem de texto"]texto exato da imagem[/action].`,
+    `Para PDF, retorne exatamente um bloco [action type=create_pdf title="Criar PDF"]conteúdo final conciso[/action]. Para uma ilustração, retorne [action type=create_image title="Gerar imagem"]prompt visual final[/action]. Para imagem de texto, retorne [action type=create_text_image title="Criar imagem de texto"]somente o texto que deve aparecer na imagem[/action]. Se o usuário pedir um número específico, resuma fielmente o texto de origem para caber sem ultrapassar esse limite; se disser "o mesmo texto", use o texto relevante do histórico e não invente outro assunto.`,
     `Use sempre o fechamento exato [/action]. Nunca emita [action type="none"] nem deixe blocos de ação abertos; quando não houver ação compatível, responda diretamente em texto normal sem marcadores de ação.`,
     `O app adicionará um identificador idempotente; nunca invente um. Se faltar uma informação indispensável, faça uma única pergunta consolidada antes de criar o bloco. Não gere HTML, CSS ou JavaScript. Nunca afirme que o arquivo já foi criado antes de o usuário acionar e concluir a ação. Se a mensagem já tem informação suficiente, siga sem perguntas redundantes.`,
     `Use [question id=clarify]1. ...\n2. ...[/question] para uma única pergunta consolidada. Use [highlight variant=warning color=yellow]trecho importante[/highlight], [color color=red]texto colorido[/color], [link href="https://exemplo.com" label="Abrir página"]https://exemplo.com[/link] e [copy_block language=text]conteúdo[/copy_block] quando apropriado.`,
