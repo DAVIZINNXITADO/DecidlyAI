@@ -1,4 +1,5 @@
 import { Check, FileText, Image as ImageIcon, Type, X } from "lucide-react";
+import { MAX_TEXT_IMAGE_CHARS } from "../lib/text-image";
 
 export type ToolId = "create_pdf" | "create_image" | "create_text_image";
 export type SelectedTool = { id: ToolId; label: string; cost: number; costLabel: string };
@@ -33,8 +34,8 @@ const availableTools: Array<SelectedTool & { description: string; icon: typeof F
     label: "Imagem de texto",
     cost: 0.5,
     costLabel: "0,5 crédito",
-    description: "Renderiza frases curtas em imagem; não gera redações longas.",
-    limit: "5/dia Free · 15/dia VIP · até 220 caracteres",
+    description: "Renderiza textos como imagem; textos longos usam pôster vertical com fonte ajustada.",
+    limit: `5/dia Free · 15/dia VIP · até ${MAX_TEXT_IMAGE_CHARS.toLocaleString("pt-BR")} caracteres`,
     icon: Type,
   },
 ];

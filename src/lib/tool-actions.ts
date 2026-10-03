@@ -1,5 +1,5 @@
 import { normalizeActionProtocolMarkup, toPlainArtifactText } from "./rich-markup";
-import { MAX_TEXT_IMAGE_CHARS } from "./text-image";
+import { countTextImageChars, fitTextImageText, MAX_TEXT_IMAGE_CHARS } from "./text-image";
 
 type ToolSelection = {
   id: "create_pdf" | "create_image" | "create_text_image";
@@ -15,6 +15,8 @@ const LONG_FORM_WRITING_PATTERN =
 const COMPLETE_TEXT_PATTERN =
   /\b(?:texto|text|historia|story|poema|poem|carta|letter|roteiro|script)\b.{0,40}\b(?:inteiro|inteira|completo|completa|full|complete|entire|whole|long\s+form)\b/;
 const TEXT_IMAGE_LIMIT_NOTICE = `\n\nA imagem de texto aceita até ${MAX_TEXT_IMAGE_CHARS} caracteres. O conteúdo foi mantido como texto e nenhum crédito foi consumido.`;
+const TEXT_IMAGE_PROMPT_ADJUSTMENT_NOTICE =
+  "\n\nO conteúdo foi ajustado ao número de caracteres pedido para caber na imagem.";
 
 function normalizeIntentText(value: string) {
   return value
@@ -28,17 +30,47 @@ function isLongFormWritingRequest(value: string) {
   return LONG_FORM_WRITING_PATTERN.test(request) || COMPLETE_TEXT_PATTERN.test(request);
 }
 
+function explicitlyRequestsImage(value: string) {
+  const request = normalizeIntentText(value);
+  return (
+    /\b(?:em|como|para|pra|na|no|numa|num)\s+(?:uma?\s+)?(?:imagem|imagens|cartaz|poster|flyer)\b/.test(
+      request,
+    ) ||
+    /\b(?:crie|gere|faca|fazer|coloque|transforme|renderize|converta|exporte|mostre)\b.{0,60}\b(?:imagem|imagens|cartaz|poster|flyer)\b/.test(
+      request,
+    ) ||
+    /\b(?:imagem|cartaz|poster|flyer)\b.{0,50}\b(?:com|do|da|desse|deste)\s+(?:o\s+)?texto\b/.test(
+      request,
+    )
+  );
+}
+
+function requestedCharacterCount(value: string) {
+  const match = normalizeIntentText(value).match(/\b(\d{1,5})\s*(?:caracter(?:e|es)?|chars?)\b/);
+  if (!match) return null;
+  const count = Number(match[1]);
+  return Number.isInteger(count) && count > 0 ? count : null;
+}
+
+function shouldKeepLongFormInChat(value: string, selectedTool: ToolSelection | null) {
+  return (
+    isLongFormWritingRequest(value) &&
+    !(explicitlyRequestsImage(value) && (!selectedTool || selectedTool.id === "create_text_image"))
+  );
+}
+
 /**
- * The text-image tool is for short, exact copy (maximum 220 characters), not
- * for writing an essay, story, or other complete work. In that conflict, honor
- * the user's writing request as a normal chat response instead of preparing a
- * paid image action from the prompt or generated answer.
+ * Writing requests stay in chat by default. An explicit request to render that
+ * writing as an image may use the text-image tool within its character limit.
  */
 export function resolveSelectedToolForRequest<T extends ToolSelection>(
   selectedTool: T | null,
   userRequest: string,
 ): T | null {
-  if (selectedTool?.id === "create_text_image" && isLongFormWritingRequest(userRequest)) {
+  if (
+    selectedTool?.id === "create_text_image" &&
+    shouldKeepLongFormInChat(userRequest, selectedTool)
+  ) {
     return null;
   }
 
@@ -64,11 +96,23 @@ function withFreshRequestIds(content: string, createRequestId: () => string) {
   });
 }
 
-function removeOversizedTextImageActions(content: string) {
+function removeOversizedTextImageActions(content: string, userRequest: string) {
   return content.replace(ACTION_BLOCK_PATTERN, (whole, rawAttributes: string, body: string) => {
     if (attributes(rawAttributes)["type"] !== "create_text_image") return whole;
-    const payload = toPlainArtifactText(body);
-    return payload.length > MAX_TEXT_IMAGE_CHARS ? `${payload}${TEXT_IMAGE_LIMIT_NOTICE}` : whole;
+    let payload = toPlainArtifactText(body);
+    const requestedLimit = requestedCharacterCount(userRequest);
+    const canHonorRequestedLimit =
+      requestedLimit !== null && requestedLimit <= MAX_TEXT_IMAGE_CHARS;
+    const effectiveLimit = canHonorRequestedLimit ? requestedLimit : MAX_TEXT_IMAGE_CHARS;
+    const needsTruncation = countTextImageChars(payload) > effectiveLimit;
+
+    if (countTextImageChars(payload) > MAX_TEXT_IMAGE_CHARS && !canHonorRequestedLimit) {
+      return `${payload}${TEXT_IMAGE_LIMIT_NOTICE}`;
+    }
+    if (needsTruncation) payload = fitTextImageText(payload, effectiveLimit);
+    return needsTruncation
+      ? `[action${rawAttributes}]${payload}[/action]${TEXT_IMAGE_PROMPT_ADJUSTMENT_NOTICE}`
+      : whole;
   });
 }
 
@@ -86,7 +130,7 @@ export function ensureToolActionResponse(
 ) {
   const normalizedContent = normalizeActionProtocolMarkup(content);
 
-  if (isLongFormWritingRequest(userRequest)) {
+  if (shouldKeepLongFormInChat(userRequest, selectedTool)) {
     const responseAsText = normalizedContent.replace(
       ACTION_BLOCK_PATTERN,
       (whole, rawAttributes: string, body: string) =>
@@ -99,7 +143,10 @@ export function ensureToolActionResponse(
   }
 
   if (!selectedTool) {
-    return withFreshRequestIds(removeOversizedTextImageActions(normalizedContent), createRequestId);
+    return withFreshRequestIds(
+      removeOversizedTextImageActions(normalizedContent, userRequest),
+      createRequestId,
+    );
   }
 
   const actionMatches = Array.from(normalizedContent.matchAll(ACTION_BLOCK_PATTERN));
@@ -115,8 +162,22 @@ export function ensureToolActionResponse(
     payload = toPlainArtifactText(userRequest);
   }
   if (!payload) return withFreshRequestIds(normalizedContent, createRequestId);
-  if (selectedTool.id === "create_text_image" && payload.length > MAX_TEXT_IMAGE_CHARS) {
-    return `${payload}${TEXT_IMAGE_LIMIT_NOTICE}`;
+  if (selectedTool.id === "create_text_image") {
+    const requestedLimit = requestedCharacterCount(userRequest);
+    const canHonorRequestedLimit =
+      requestedLimit !== null && requestedLimit <= MAX_TEXT_IMAGE_CHARS;
+    const effectiveLimit = canHonorRequestedLimit ? requestedLimit : MAX_TEXT_IMAGE_CHARS;
+    const needsTruncation = countTextImageChars(payload) > effectiveLimit;
+
+    if (countTextImageChars(payload) > MAX_TEXT_IMAGE_CHARS && !canHonorRequestedLimit) {
+      return `${payload}${TEXT_IMAGE_LIMIT_NOTICE}`;
+    }
+    if (needsTruncation) payload = fitTextImageText(payload, effectiveLimit);
+
+    const action = `[action type="${selectedTool.id}" title="${selectedTool.label}" request_id="${createRequestId()}"]${payload}[/action]`;
+    return needsTruncation && canHonorRequestedLimit
+      ? `${action}${TEXT_IMAGE_PROMPT_ADJUSTMENT_NOTICE}`
+      : action;
   }
 
   return `[action type="${selectedTool.id}" title="${selectedTool.label}" request_id="${createRequestId()}"]${payload}[/action]`;
