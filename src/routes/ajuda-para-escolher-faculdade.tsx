@@ -54,7 +54,7 @@ function AjudaParaEscolherFaculdadePage() {
   return (
     <SeoArticlePage
       eyebrow="ESTUDOS E CARREIRA"
-      title="Ajuda para escolher faculdade e curso"
+      title="Como escolher faculdade e carreira: perguntas para decidir seu futuro"
       description="Compare interesses, currículos, rotina, custos e caminhos profissionais com perguntas estruturadas — sem tratar um teste como destino."
       sections={sections}
       faqs={SEO_FAQS["/ajuda-para-escolher-faculdade"]!}

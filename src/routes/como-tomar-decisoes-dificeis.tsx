@@ -54,7 +54,7 @@ function ComoTomarDecisoesDificeisPage() {
   return (
     <SeoArticlePage
       eyebrow="MÉTODO DE DECISÃO"
-      title="Como tomar decisões difíceis com apoio da IA"
+      title="Como tomar decisões difíceis: método guiado por IA para sair da paralisia"
       description="Um roteiro para definir o dilema, comparar alternativas e escolher o próximo passo sem exigir certeza absoluta."
       sections={sections}
       faqs={SEO_FAQS["/como-tomar-decisoes-dificeis"]!}

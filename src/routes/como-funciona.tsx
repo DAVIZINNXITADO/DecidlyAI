@@ -38,8 +38,9 @@ function ComoFuncionaPage() {
   return (
     <InnerPage
       eyebrow="DecidlyAI"
-      title="Como funciona"
+      title="Como funciona o DecidlyAI: tomada de decisão guiada por inteligência artificial"
       description="Uma forma mais clara e consciente de organizar decisões importantes."
+      backLinkRel="nofollow"
     >
       <div className="space-y-4">
         {steps.map(({ icon: Icon, title, text }, index) => (
@@ -70,6 +71,7 @@ function ComoFuncionaPage() {
               </p>
               <Link
                 to="/referral-history"
+                rel="nofollow"
                 className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-amber-200 hover:text-amber-100"
               >
                 Ver histórico de convites <ArrowRight size={16} />
@@ -139,6 +141,7 @@ function ComoFuncionaPage() {
           </p>
           <Link
             to="/login"
+            rel="nofollow"
             className="mt-5 inline-flex items-center gap-2 rounded-xl bg-violet-500 px-5 py-3 font-semibold text-white transition hover:bg-violet-400"
           >
             Começar agora <ArrowRight size={17} />
