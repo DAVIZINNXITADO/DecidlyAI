@@ -197,7 +197,7 @@ function LoginPage() {
 
   const isRecover = mode === "recover";
 
-  const needsCaptcha = isSignUp;
+  const needsCaptcha = isSignUp || isRecover;
 
   function clearFeedback() {
     setFeedback(null);
@@ -919,6 +919,16 @@ function LoginPage() {
       return;
     }
 
+    if (!captchaToken) {
+      showError(
+        captchaError
+          ? "A verificação de segurança expirou ou falhou. Conclua novamente e tente enviar o link."
+          : "Conclua a verificação de segurança para solicitar o link.",
+      );
+
+      return;
+    }
+
     setVerifyLoading(true);
 
     try {
@@ -1121,9 +1131,15 @@ function LoginPage() {
                   icon={<Mail className="h-5 w-5" />}
                 />
 
+                <CaptchaBox
+                  loading={captchaLoading}
+                  error={captchaError}
+                  containerRef={turnstileContainerRef}
+                />
+
                 <button
                   type="submit"
-                  disabled={verifyLoading}
+                  disabled={verifyLoading || captchaLoading || !captchaToken}
                   className="interactive-lift group flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {verifyLoading ? (
