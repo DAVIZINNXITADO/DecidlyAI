@@ -36,18 +36,18 @@ const DEFAULT_DESIGN: TextImageDesign = {
   widthMm: DEFAULT_WIDTH_MM,
   heightMm: DEFAULT_HEIGHT_MM,
   marginMm: 18,
-  background: "#0b1020",
-  backgroundEnd: "#182c4b",
-  textColor: "#f8fbff",
-  accentColor: "#70e1c1",
+  background: "#ffffff",
+  backgroundEnd: "#ffffff",
+  textColor: "#111111",
+  accentColor: "#111111",
   font: "sans",
   weight: 700,
   align: "center",
   fontRatio: 0.105,
   lineHeight: 1.25,
-  eyebrow: "DECIDLYAI",
-  footer: "DECIDIR É FÁCIL · DECIDIR BEM É DECIDLYAI",
-  radius: 24,
+  eyebrow: "",
+  footer: "",
+  radius: 0,
 };
 
 export function countTextImageChars(text: string) {
@@ -132,8 +132,25 @@ function clampNumber(value: unknown, fallback: number, minimum: number, maximum:
 
 export function parseTextImagePayload(value: string) {
   const match = value.match(/^\s*\[image_design\]([\s\S]*?)\[\/image_design\]\s*/i);
+  const rawText = match ? value.slice(match[0].length) : value;
+  const text = rawText
+    .replace(/\[image_design\][\s\S]*?\[\/image_design\]/gi, "")
+    .split(/\r?\n/)
+    .filter(
+      (line) =>
+        !/^\s*(?:caracter[ií]sticas?|configura[cç][aã]o|design|papel|folha)\s*[:-]/i.test(line),
+    )
+    .filter(
+      (line) =>
+        !/\b(?:widthMm|heightMm|fontRatio|backgroundEnd|textColor|accentColor)\b\s*[:=]/i.test(
+          line,
+        ),
+    )
+    .filter((line) => !/\bA4\b.*\b(?:orienta[cç][aã]o|margem|fundo|fonte)\b/i.test(line))
+    .join("\n")
+    .trim();
   return {
-    text: (match ? value.slice(match[0].length) : value).trim(),
+    text,
     design: match?.[1]?.trim(),
   };
 }
@@ -208,8 +225,8 @@ export async function createTextImage(text: string, rawDesign?: string): Promise
   let fontSize = Math.max(MIN_FONT_SIZE, Math.round(width * design.fontRatio));
   let lines = wrapCanvasText(context, content, fontSize, contentWidth, design);
   let lineHeight = fontSize * design.lineHeight;
-  const headerSpace = Math.round(height * 0.1);
-  const footerSpace = Math.round(height * 0.08);
+  const headerSpace = design.eyebrow ? Math.round(height * 0.1) : Math.round(height * 0.03);
+  const footerSpace = design.footer ? Math.round(height * 0.08) : Math.round(height * 0.03);
   const maxTextHeight = height - margin * 2 - headerSpace - footerSpace;
   while (lines.length * lineHeight > maxTextHeight && fontSize > MIN_FONT_SIZE) {
     fontSize -= 2;
@@ -239,9 +256,11 @@ export async function createTextImage(text: string, rawDesign?: string): Promise
   context.textBaseline = "middle";
   const textX =
     design.align === "left" ? margin : design.align === "right" ? width - margin : width / 2;
-  context.font = `600 ${Math.max(12, Math.round(width * 0.012))}px ${FONT_STACKS[design.font]}`;
-  context.fillStyle = design.accentColor;
-  context.fillText(design.eyebrow, textX, margin + headerSpace / 2);
+  if (design.eyebrow) {
+    context.font = `600 ${Math.max(12, Math.round(width * 0.012))}px ${FONT_STACKS[design.font]}`;
+    context.fillStyle = design.accentColor;
+    context.fillText(design.eyebrow, textX, margin + headerSpace / 2);
+  }
 
   context.font = `${design.weight} ${fontSize}px ${FONT_STACKS[design.font]}`;
   context.fillStyle = design.textColor;
@@ -250,9 +269,11 @@ export async function createTextImage(text: string, rawDesign?: string): Promise
     context.fillText(line, textX, startY + index * lineHeight, contentWidth),
   );
 
-  context.font = `500 ${Math.max(11, Math.round(width * 0.01))}px ${FONT_STACKS[design.font]}`;
-  context.fillStyle = design.accentColor;
-  context.fillText(design.footer, textX, height - margin - footerSpace / 2);
+  if (design.footer) {
+    context.font = `500 ${Math.max(11, Math.round(width * 0.01))}px ${FONT_STACKS[design.font]}`;
+    context.fillStyle = design.accentColor;
+    context.fillText(design.footer, textX, height - margin - footerSpace / 2);
+  }
 
   return await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
