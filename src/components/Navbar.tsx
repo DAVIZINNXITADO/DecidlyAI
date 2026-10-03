@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
-import decidlyaiMarkUrl from "../assets/decidlyai-mark-80.png";
+import decidlyaiMarkUrl from "../assets/decidlyai-mark-80.webp";
 import { useLanguageContext } from "../lib/LanguageProvider";
 import { t } from "../lib/i18n";
 

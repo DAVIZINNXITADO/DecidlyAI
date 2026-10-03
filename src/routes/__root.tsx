@@ -11,7 +11,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import decidlyaiMarkUrl from "../assets/decidlyai-mark-80.png";
+import decidlyaiMarkUrl from "../assets/decidlyai-mark-80.webp";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { hasStoredSupabaseSession } from "../lib/supabase-session";
 import { LanguageProvider } from "../lib/LanguageProvider";
@@ -284,7 +284,7 @@ export const Route = createRootRouteWithContext<{
         {
           rel: "icon",
           href: decidlyaiMarkUrl,
-          type: "image/png",
+          type: "image/webp",
         },
 
         ...(seo.canonical ? [{ rel: "canonical" as const, href: seo.canonical }] : []),
