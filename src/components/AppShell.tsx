@@ -3,13 +3,15 @@ import type { ReactNode } from "react";
 
 interface AppShellProps {
   children: ReactNode;
+  className?: string;
 }
 
 export function AppShell({
   children,
+  className,
 }: AppShellProps) {
   return (
-    <div className="flex min-h-screen flex-col bg-slate-950">
+    <div className={`flex min-h-screen flex-col bg-slate-950 ${className ?? ""}`.trim()}>
       <main className="flex-1">
         {children}
       </main>
