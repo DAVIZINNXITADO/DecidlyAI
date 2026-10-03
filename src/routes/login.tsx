@@ -8,11 +8,9 @@ import {
   ArrowRight,
   Eye,
   EyeOff,
-  Lightbulb,
   KeyRound,
   Loader2,
   Mail,
-  RefreshCw,
   Sparkles,
   User,
   ShieldCheck,
@@ -127,24 +125,6 @@ const GOOGLE_CLIENT_ID =
 const TURNSTILE_SITE_KEY =
   "0x4AAAAAAErVWNfAdys_3TD5";
 
-const DECISION_TIPS = [
-  {
-    eyebrow: "Uma pergunta para começar",
-    quote: "Decidir é fácil. Difícil é fazer a decisão certa.",
-    detail: "— Davi",
-  },
-  {
-    eyebrow: "Uma pausa de clareza",
-    quote: "Qual escolha combina com a vida que eu quero construir?",
-    detail: "Nem toda decisão precisa ser perfeita. Ela precisa fazer sentido para você.",
-  },
-  {
-    eyebrow: "Um olhar diferente",
-    quote: "O que eu aconselharia a alguém que estivesse no meu lugar?",
-    detail: "Mudar o ponto de vista pode revelar critérios que estavam escondidos.",
-  },
-] as const;
-
 function LoginPage() {
   const navigate = useNavigate();
 
@@ -230,14 +210,10 @@ function LoginPage() {
   const [feedback, setFeedback] =
     useState<Feedback>(null);
 
-  const [tipIndex, setTipIndex] = useState(0);
-
   const [referralCode, setReferralCode] = useState("");
   const [referralCampaign, setReferralCampaign] = useState("");
   const [referralBlocked, setReferralBlocked] = useState(false);
   const [referrerName, setReferrerName] = useState("");
-
-  const decisionTip = DECISION_TIPS[tipIndex] ?? DECISION_TIPS[0]!;
 
   useEffect(() => {
     captchaTokenRef.current = captchaToken;
@@ -1291,44 +1267,6 @@ function LoginPage() {
           <p className="mt-6 max-w-lg text-base leading-8 text-slate-400 sm:text-lg">
             Entre para organizar o que você pensa, enxergar seus caminhos e decidir com mais consciência — sem deixar a sua voz de lado.
           </p>
-
-          <div className="mt-8 max-w-lg rounded-[1.75rem] border border-violet-300/20 bg-gradient-to-br from-violet-500/[0.14] via-slate-900/80 to-slate-950/80 p-5 shadow-2xl shadow-violet-950/20 sm:p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3 text-sm font-semibold text-violet-200">
-                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-400/15 text-violet-300">
-                  <Lightbulb className="h-5 w-5" />
-                </span>
-                {decisionTip.eyebrow}
-              </div>
-
-              <button
-                type="button"
-                aria-label="Mostrar outra dica de decisão"
-                title="Mostrar outra dica"
-                onClick={() => setTipIndex((current) => (current + 1) % DECISION_TIPS.length)}
-                className="interactive-scale flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 text-slate-400 hover:border-violet-300/40 hover:text-violet-200"
-              >
-                <RefreshCw className="h-4 w-4" />
-              </button>
-            </div>
-
-            <p className="mt-5 text-xl font-medium leading-relaxed text-white sm:text-2xl">
-              “{decisionTip.quote}”
-            </p>
-
-            <p className="mt-3 text-sm leading-6 text-slate-400">
-              {decisionTip.detail}
-            </p>
-
-            <div className="mt-5 flex gap-1.5" aria-label={`Dica ${tipIndex + 1} de ${DECISION_TIPS.length}`}>
-              {DECISION_TIPS.map((tip, index) => (
-                <span
-                  key={tip.eyebrow}
-                  className={`h-1.5 rounded-full transition-all ${index === tipIndex ? "w-8 bg-violet-300" : "w-1.5 bg-slate-700"}`}
-                />
-              ))}
-            </div>
-          </div>
 
           <div className="mt-8 hidden items-center gap-6 text-xs text-slate-500 sm:flex">
             <span>Organize o contexto</span>
