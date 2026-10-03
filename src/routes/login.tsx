@@ -133,6 +133,12 @@ function LoginPage() {
 
   const [verifyLoading, setVerifyLoading] = useState(false);
 
+  const [emailVerificationPending, setEmailVerificationPending] = useState(false);
+
+  const [verificationEmail, setVerificationEmail] = useState("");
+
+  const [resendVerificationLoading, setResendVerificationLoading] = useState(false);
+
   const [captchaToken, setCaptchaToken] = useState("");
 
   const captchaTokenRef = useRef("");
@@ -213,6 +219,8 @@ function LoginPage() {
   function changeMode(newMode: Mode) {
     setMode(newMode);
 
+    setEmailVerificationPending(false);
+
     clearFeedback();
 
     setPassword("");
@@ -252,6 +260,27 @@ function LoginPage() {
       })
       .eq("id", auth.user.id);
     window.localStorage.removeItem("decidly-marketing-email-consent");
+  }
+
+  async function resendVerificationEmail() {
+    const cleanEmail = verificationEmail.trim().toLowerCase();
+    if (!cleanEmail) return;
+
+    setResendVerificationLoading(true);
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: cleanEmail,
+      options: {
+        emailRedirectTo: `${window.location.origin}/login`,
+      },
+    });
+
+    if (error) {
+      showError("Não foi possível reenviar agora. Aguarde um pouco e tente novamente.");
+    } else {
+      showSuccess("Enviamos um novo link de confirmação. Confira sua caixa de entrada e o spam.");
+    }
+    setResendVerificationLoading(false);
   }
 
   async function saveMarketingChoice(optIn: boolean) {
@@ -847,15 +876,20 @@ function LoginPage() {
       window.sessionStorage.removeItem("decidly-pending-referral-campaign");
       setMarketingPrompt("signup");
 
-      if (!data.session) {
-        showSuccess(
-          "Conta criada com sucesso! Confirme seu e-mail pelo link recebido e depois entre com seus dados.",
-        );
+      const requiresEmailVerification = !data.user.email_confirmed_at;
 
+      if (!data.session || requiresEmailVerification) {
+        if (data.session) {
+          await supabase.auth.signOut();
+        }
+
+        setVerificationEmail(cleanEmail);
+        setEmailVerificationPending(true);
         setPassword("");
         setConfirmPassword("");
         setMode("login");
         setMarketingDestination("login");
+        showSuccess("Conta criada. Confirme seu e-mail pelo link recebido antes de entrar.");
 
         return;
       }
@@ -1005,7 +1039,61 @@ function LoginPage() {
             </div>
           </div>
 
-          {isRecover ? (
+          {emailVerificationPending ? (
+            <div>
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-500/15 text-violet-300">
+                <MailCheck className="h-7 w-7" />
+              </div>
+
+              <h1 className="mt-6 text-3xl font-bold tracking-tight sm:text-4xl">
+                Confirme seu e-mail
+              </h1>
+
+              <p className="mt-4 text-base leading-relaxed text-slate-400 sm:text-lg">
+                Enviamos um link de confirmação para{" "}
+                <strong className="text-slate-200">{verificationEmail}</strong>. Clique nele para
+                ativar sua conta e depois entre normalmente.
+              </p>
+
+              <div className="mt-7 rounded-2xl border border-violet-300/15 bg-violet-400/[0.06] p-4 text-sm leading-6 text-slate-300">
+                Não encontrou? Verifique a pasta de spam ou promoções. O link pode levar alguns
+                minutos para chegar.
+              </div>
+
+              {feedback ? (
+                <div className="mt-6">
+                  <FeedbackBox feedback={feedback} />
+                </div>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={() => void resendVerificationEmail()}
+                disabled={resendVerificationLoading}
+                className="interactive-lift mt-7 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {resendVerificationLoading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Reenviando...
+                  </>
+                ) : (
+                  <>
+                    Reenviar confirmação
+                    <ArrowRight className="h-5 w-5" />
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => changeMode("login")}
+                className="mt-5 w-full rounded-xl py-2 text-center text-sm font-medium text-violet-400 transition hover:text-violet-300"
+              >
+                Já confirmei — voltar para entrar
+              </button>
+            </div>
+          ) : isRecover ? (
             <div>
               <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Recuperar senha</h1>
 
