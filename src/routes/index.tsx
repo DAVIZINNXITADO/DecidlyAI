@@ -64,7 +64,7 @@ function Index() {
         <div className="landing-content relative z-10">
           <Navbar className="landing-nav" />
 
-          <section className="landing-hero mx-auto grid max-w-7xl items-center gap-16 px-6 pb-24 pt-20 md:grid-cols-[1.02fr_.98fr] md:px-8 md:pb-32 md:pt-28">
+          <section className="landing-hero mx-auto grid max-w-7xl items-center gap-16 px-6 pb-24 pt-8 md:grid-cols-[1.02fr_.98fr] md:px-8 md:pb-32 md:pt-12">
             <div className="landing-hero-copy">
               <div className="eyebrow mb-7 inline-flex">
                 <Sparkles className="h-4 w-4" />
