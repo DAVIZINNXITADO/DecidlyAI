@@ -409,6 +409,19 @@ a {
   background: rgba(76, 29, 149, 0.22);
 }
 
+@media (max-width: 639px) {
+  .landing-orb {
+    filter: blur(36px);
+    opacity: 0.16;
+  }
+
+  .landing-orb-one,
+  .landing-orb-two {
+    width: 18rem;
+    height: 18rem;
+  }
+}
+
 .eyebrow {
   align-items: center;
   gap: 0.5rem;

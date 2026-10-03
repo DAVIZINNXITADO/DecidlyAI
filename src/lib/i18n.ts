@@ -55,8 +55,12 @@ export function t(language: Language, path: string): string {
 
 export function useLanguage(): Language {
   if (typeof window === "undefined") return "pt-BR";
-  const stored = window.localStorage.getItem("decidly-language");
-  return isLanguage(stored) ? stored : "pt-BR";
+  try {
+    const stored = window.localStorage.getItem("decidly-language");
+    return isLanguage(stored) ? stored : "pt-BR";
+  } catch {
+    return "pt-BR";
+  }
 }
 
 export function setLanguage(language: Language): void {

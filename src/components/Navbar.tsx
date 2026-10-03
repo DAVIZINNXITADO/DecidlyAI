@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
+import decidlyaiMarkUrl from "../assets/decidlyai-mark-80.png";
 import { useLanguageContext } from "../lib/LanguageProvider";
 import { t } from "../lib/i18n";
 
@@ -54,7 +55,7 @@ export function Navbar() {
   }
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-slate-800/70 bg-slate-950/80 backdrop-blur-xl transition-colors duration-200">
+    <nav className="sticky top-0 z-50 border-b border-slate-800/70 bg-slate-950/95 backdrop-blur-none transition-colors duration-200 md:bg-slate-950/80 md:backdrop-blur-xl">
       <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-6">
         {/* LOGO */}
 
@@ -75,8 +76,10 @@ export function Navbar() {
         >
           <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl">
             <img
-              src="/favicon.ico"
+              src={decidlyaiMarkUrl}
               alt="DecidlyAI"
+              width={40}
+              height={40}
               className="h-full w-full object-cover"
             />
           </div>
