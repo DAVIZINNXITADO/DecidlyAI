@@ -907,7 +907,6 @@ function LoginPage() {
 
         setVerificationEmail(cleanEmail);
         setEmailVerificationPending(true);
-        setVerificationResendCooldown(60);
         setPassword("");
         setConfirmPassword("");
         setMode("login");
