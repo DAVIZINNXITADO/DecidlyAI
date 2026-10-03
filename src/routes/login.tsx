@@ -8,9 +8,12 @@ import {
   ArrowRight,
   Eye,
   EyeOff,
+  Lightbulb,
   KeyRound,
   Loader2,
   Mail,
+  RefreshCw,
+  Sparkles,
   User,
   ShieldCheck,
 } from "lucide-react";
@@ -123,6 +126,24 @@ const GOOGLE_CLIENT_ID =
 const TURNSTILE_SITE_KEY =
   "0x4AAAAAAErVWNfAdys_3TD5";
 
+const DECISION_TIPS = [
+  {
+    eyebrow: "Uma pergunta para começar",
+    quote: "Decidir é fácil. Difícil é fazer a decisão certa.",
+    detail: "— Davi",
+  },
+  {
+    eyebrow: "Uma pausa de clareza",
+    quote: "Qual escolha combina com a vida que eu quero construir?",
+    detail: "Nem toda decisão precisa ser perfeita. Ela precisa fazer sentido para você.",
+  },
+  {
+    eyebrow: "Um olhar diferente",
+    quote: "O que eu aconselharia a alguém que estivesse no meu lugar?",
+    detail: "Mudar o ponto de vista pode revelar critérios que estavam escondidos.",
+  },
+] as const;
+
 function LoginPage() {
   const navigate = useNavigate();
 
@@ -208,10 +229,14 @@ function LoginPage() {
   const [feedback, setFeedback] =
     useState<Feedback>(null);
 
+  const [tipIndex, setTipIndex] = useState(0);
+
   const [referralCode, setReferralCode] = useState("");
   const [referralCampaign, setReferralCampaign] = useState("");
   const [referralBlocked, setReferralBlocked] = useState(false);
   const [referrerName, setReferrerName] = useState("");
+
+  const decisionTip = DECISION_TIPS[tipIndex] ?? DECISION_TIPS[0]!;
 
   useEffect(() => {
     captchaTokenRef.current = captchaToken;
@@ -1230,43 +1255,90 @@ function LoginPage() {
         </Link>
       </div>
 
-      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-xl flex-col items-center justify-center py-10">
-        <Link
-          to="/"
-          data-no-translate
-          className="interactive-scale group mb-10 flex items-center justify-center gap-3 rounded-2xl"
-        >
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-lg shadow-black/20 transition-transform duration-200 group-hover:scale-105">
-            <img
-              src={decidlyaiMarkUrl}
-              alt="DecidlyAI"
-              width={56}
-              height={56}
-              className="h-full w-full object-cover"
-            />
-          </div>
+      <div className="relative z-10 mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center gap-10 py-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(440px,0.75fr)] lg:gap-20 lg:py-16">
+        <aside className="flex flex-col justify-center lg:pb-8">
+          <Link
+            to="/"
+            data-no-translate
+            className="interactive-scale group mb-8 flex w-fit items-center gap-3 rounded-2xl"
+          >
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-lg shadow-black/20 transition-transform duration-200 group-hover:scale-105">
+              <img
+                src={decidlyaiMarkUrl}
+                alt="DecidlyAI"
+                width={56}
+                height={56}
+                className="h-full w-full object-cover"
+              />
+            </div>
 
-          <span className="text-3xl font-bold leading-none tracking-tight sm:text-4xl">
-            <span className="text-white">
-              Decidly
+            <span className="text-3xl font-bold leading-none tracking-tight sm:text-4xl">
+              <span className="text-white">Decidly</span>
+              <span className="text-violet-400">AI</span>
             </span>
+          </Link>
 
-            <span className="text-violet-400">
-              AI
-            </span>
-          </span>
-        </Link>
+          <p className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-violet-300">
+            <Sparkles className="h-4 w-4" />
+            Clareza para o próximo passo
+          </p>
 
-        <section className="w-full rounded-[2rem] border border-slate-800 bg-slate-900/70 p-7 shadow-2xl backdrop-blur-xl sm:p-10">
-          <div className="mb-8 hidden rounded-2xl border border-violet-300/15 bg-violet-400/[0.06] p-5 md:block">
-            <p className="text-sm font-semibold text-violet-200">Seu espaço para decidir melhor</p>
-            <div className="mt-4 grid grid-cols-3 gap-3 text-xs text-slate-400">
-              <span>Organize o contexto</span>
-              <span>Compare caminhos</span>
-              <span>Encontre clareza</span>
+          <h1 className="max-w-xl text-4xl font-semibold tracking-[-0.04em] text-white sm:text-5xl lg:text-6xl">
+            Sua próxima decisão começa com uma boa pergunta.
+          </h1>
+
+          <p className="mt-6 max-w-lg text-base leading-8 text-slate-400 sm:text-lg">
+            Entre para organizar o que você pensa, enxergar seus caminhos e decidir com mais consciência — sem deixar a sua voz de lado.
+          </p>
+
+          <div className="mt-8 max-w-lg rounded-[1.75rem] border border-violet-300/20 bg-gradient-to-br from-violet-500/[0.14] via-slate-900/80 to-slate-950/80 p-5 shadow-2xl shadow-violet-950/20 sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3 text-sm font-semibold text-violet-200">
+                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-400/15 text-violet-300">
+                  <Lightbulb className="h-5 w-5" />
+                </span>
+                {decisionTip.eyebrow}
+              </div>
+
+              <button
+                type="button"
+                aria-label="Mostrar outra dica de decisão"
+                title="Mostrar outra dica"
+                onClick={() => setTipIndex((current) => (current + 1) % DECISION_TIPS.length)}
+                className="interactive-scale flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 text-slate-400 hover:border-violet-300/40 hover:text-violet-200"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
+            </div>
+
+            <p className="mt-5 text-xl font-medium leading-relaxed text-white sm:text-2xl">
+              “{decisionTip.quote}”
+            </p>
+
+            <p className="mt-3 text-sm leading-6 text-slate-400">
+              {decisionTip.detail}
+            </p>
+
+            <div className="mt-5 flex gap-1.5" aria-label={`Dica ${tipIndex + 1} de ${DECISION_TIPS.length}`}>
+              {DECISION_TIPS.map((tip, index) => (
+                <span
+                  key={tip.eyebrow}
+                  className={`h-1.5 rounded-full transition-all ${index === tipIndex ? "w-8 bg-violet-300" : "w-1.5 bg-slate-700"}`}
+                />
+              ))}
             </div>
           </div>
 
+          <div className="mt-8 hidden items-center gap-6 text-xs text-slate-500 sm:flex">
+            <span>Organize o contexto</span>
+            <span className="h-1 w-1 rounded-full bg-violet-400/60" />
+            <span>Compare caminhos</span>
+            <span className="h-1 w-1 rounded-full bg-violet-400/60" />
+            <span>Encontre clareza</span>
+          </div>
+        </aside>
+
+        <section className="w-full rounded-[2rem] border border-slate-800 bg-slate-900/70 p-7 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-10">
           {isRecover ? (
             <div>
               <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
@@ -1351,11 +1423,11 @@ function LoginPage() {
           ) : (
             <>
               <div>
-                <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
                   {isSignUp
                     ? "Criar conta"
                     : "Entrar"}
-                </h1>
+                </h2>
 
                 <p className={`mt-4 text-base leading-relaxed sm:text-lg ${isSignUp && referralCode && !referralBlocked ? "font-semibold text-violet-100" : "text-slate-300"}`}>
                   {isSignUp
