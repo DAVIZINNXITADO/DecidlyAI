@@ -11,8 +11,9 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import decidlyaiMarkUrl from "../assets/decidlyai-mark-80.png";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { supabase } from "../lib/supabase";
+import { hasStoredSupabaseSession } from "../lib/supabase-session";
 import { LanguageProvider } from "../lib/LanguageProvider";
 import { CookieConsent } from "../components/CookieConsent";
 import { resolveRouteSeo, SITE_URL } from "../lib/seo";
@@ -282,8 +283,8 @@ export const Route = createRootRouteWithContext<{
 
         {
           rel: "icon",
-          href: "/favicon.ico",
-          type: "image/x-icon",
+          href: decidlyaiMarkUrl,
+          type: "image/png",
         },
 
         ...(seo.canonical ? [{ rel: "canonical" as const, href: seo.canonical }] : []),
@@ -375,13 +376,16 @@ function RootComponent() {
     applyDocumentPreferences(localTheme, localLanguage);
 
     const syncAccountPreferences = async () => {
+      if (!hasStoredSupabaseSession()) return;
+
+      const { supabase } = await import("../lib/supabase");
       const { data } = await supabase.auth.getUser();
       const metadata = data.user?.user_metadata as
         { theme?: string; language?: string } | undefined;
       applyDocumentPreferences(metadata?.theme || localTheme, metadata?.language || localLanguage);
     };
 
-    void syncAccountPreferences();
+    void syncAccountPreferences().catch(() => undefined);
   }, []);
 
   return (

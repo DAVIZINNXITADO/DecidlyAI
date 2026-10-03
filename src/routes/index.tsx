@@ -18,7 +18,7 @@ import { AppShell } from "@/components/AppShell";
 import { SeoFaqSection } from "../components/SeoArticlePage";
 import { Navbar } from "../components/Navbar";
 import { HOME_FAQS } from "../lib/seo";
-import { supabase } from "../lib/supabase";
+import { hasStoredSupabaseSession } from "../lib/supabase-session";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -39,11 +39,16 @@ function Index() {
 
   useEffect(() => {
     let active = true;
-    void supabase.auth.getSession().then(({ data }) => {
-      if (active && data.session) {
-        void navigate({ to: "/workspace", replace: true });
-      }
-    });
+    if (hasStoredSupabaseSession()) {
+      void import("../lib/supabase")
+        .then(({ supabase }) => supabase.auth.getSession())
+        .then(({ data }) => {
+          if (active && data.session) {
+            void navigate({ to: "/workspace", replace: true });
+          }
+        })
+        .catch(() => undefined);
+    }
     return () => {
       active = false;
     };
@@ -228,8 +233,8 @@ function Index() {
 function DecisionPreview() {
   return (
     <div className="relative mx-auto w-full max-w-xl">
-      <div className="absolute -inset-8 rounded-full bg-violet-500/10 blur-3xl" />
-      <div className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-[#10101d]/95 p-4 shadow-2xl backdrop-blur-xl md:p-6">
+      <div className="absolute -inset-8 rounded-full bg-violet-500/10 blur-xl md:blur-3xl" />
+      <div className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-[#10101d]/95 p-4 shadow-2xl backdrop-blur-none md:backdrop-blur-xl md:p-6">
         <div className="flex items-center justify-between border-b border-white/10 pb-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-400/15 text-violet-300">

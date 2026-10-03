@@ -13,6 +13,7 @@ import {
 } from "@tanstack/react-router";
 
 import { supabase } from "../lib/supabase";
+import decidlyaiMarkUrl from "../assets/decidlyai-mark-160.png";
 
 import {
   AlertTriangle,
@@ -58,8 +59,10 @@ function Brand() {
     >
       <div className="h-11 w-11 shrink-0 overflow-hidden rounded-2xl">
         <img
-          src="/favicon.ico"
+          src={decidlyaiMarkUrl}
           alt="DecidlyAI"
+          width={44}
+          height={44}
           className="h-full w-full object-cover"
         />
       </div>

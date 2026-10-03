@@ -24,6 +24,7 @@ import {
   type SetStateAction,
 } from "react";
 import { supabase } from "../lib/supabase";
+import decidlyaiMarkUrl from "../assets/decidlyai-mark-160.png";
 
 declare global {
   interface Window {
@@ -1237,8 +1238,10 @@ function LoginPage() {
         >
           <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-lg shadow-black/20 transition-transform duration-200 group-hover:scale-105">
             <img
-              src="/favicon.ico"
+              src={decidlyaiMarkUrl}
               alt="DecidlyAI"
+              width={56}
+              height={56}
               className="h-full w-full object-cover"
             />
           </div>

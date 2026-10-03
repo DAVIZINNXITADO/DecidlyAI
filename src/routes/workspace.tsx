@@ -6,6 +6,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import decidlyaiMarkUrl from "../assets/decidlyai-mark-160.png";
 import {
   Menu,
   Plus,
@@ -3241,9 +3242,17 @@ function Workspace() {
           <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-[#21152d] p-6 text-white shadow-2xl shadow-black/40 sm:p-7">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-3">
-                <img src="/appicon-192.png" alt="" className="h-14 w-14 rounded-2xl bg-white object-cover shadow-lg" />
+                <img
+                  src={decidlyaiMarkUrl}
+                  alt=""
+                  width={56}
+                  height={56}
+                  className="h-14 w-14 rounded-2xl bg-white object-cover shadow-lg"
+                />
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">DecidlyAI</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">
+                    DecidlyAI
+                  </p>
                   <h2 className="mt-1 text-xl font-bold">Leve suas decisões com você</h2>
                 </div>
               </div>
