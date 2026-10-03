@@ -9,25 +9,29 @@ export const Route = createFileRoute("/blog")({ component: BlogPage });
 const posts = [
   {
     tag: "Clareza mental",
-    title: "Como parar de girar em círculos antes de decidir",
-    excerpt: "Um método simples para separar fatos, medos e hipóteses quando tudo parece urgente.",
+    title: "Como tomar decisões difíceis sem exigir certeza",
+    excerpt:
+      "Um roteiro para separar fatos, receios e hipóteses quando as opções parecem igualmente importantes.",
     time: "5 min de leitura",
+    to: "/como-tomar-decisoes-dificeis",
   },
   {
-    tag: "Decisões",
-    title: "Prós e contras não bastam: compare critérios",
+    tag: "Empreendedorismo",
+    title: "IA para empreendedores: compare critérios antes de agir",
     excerpt:
-      "Aprenda a avaliar opções pelo que realmente importa para a sua vida, não apenas pela quantidade de argumentos.",
+      "Organize hipóteses, recursos e riscos sem confundir uma resposta fluente com evidência de mercado.",
     time: "6 min de leitura",
+    to: "/ia-para-empreendedores",
   },
   {
-    tag: "Autonomia",
-    title: "Como usar IA sem terceirizar suas escolhas",
+    tag: "Estudos e carreira",
+    title: "Ajuda para escolher faculdade e curso",
     excerpt:
-      "A tecnologia pode organizar o pensamento sem substituir seus valores, contexto e responsabilidade.",
+      "Compare currículo, rotina, custos e caminhos profissionais sem tratar um teste como destino.",
     time: "4 min de leitura",
+    to: "/ajuda-para-escolher-faculdade",
   },
-];
+] as const;
 
 function BlogPage() {
   return (
@@ -57,7 +61,7 @@ function BlogPage() {
                   <Clock3 size={14} /> {post.time}
                 </span>
                 <Link
-                  to="/como-funciona"
+                  to={post.to}
                   className="inline-flex items-center gap-2 font-semibold text-violet-200 transition group-hover:text-white"
                 >
                   Explorar <ArrowRight size={15} />
@@ -68,6 +72,61 @@ function BlogPage() {
           </Fragment>
         ))}
       </div>
+      <section className="mt-10 space-y-4" aria-labelledby="decision-method-heading">
+        <h2 id="decision-method-heading" className="text-2xl font-semibold text-white">
+          Um método prático para pensar antes de escolher
+        </h2>
+        <p className="leading-7 text-white/65">
+          Decidir melhor não significa eliminar toda dúvida. Significa tornar explícito o que está
+          em jogo, descobrir quais informações podem mudar sua avaliação e escolher um próximo passo
+          proporcional ao risco. Comece escrevendo uma pergunta concreta e um prazo realista.
+          Depois, liste as alternativas disponíveis, incluindo adiar por um período ou testar uma
+          versão menor antes de assumir um compromisso difícil de reverter.
+        </p>
+        <p className="leading-7 text-white/65">
+          Em seguida, defina critérios que representem suas prioridades: custo, tempo, impacto nas
+          pessoas, aprendizado, bem-estar ou possibilidade de voltar atrás. Separe o que sabe do que
+          está supondo e anote de onde veio cada informação. Quando uma lacuna puder mudar muito o
+          resultado, procure uma fonte confiável ou converse com alguém diretamente envolvido antes
+          de tratar uma hipótese como fato.
+        </p>
+        <ol className="list-decimal space-y-2 pl-6 leading-7 text-white/65 marker:text-violet-300">
+          <li>Descreva a decisão em uma frase e identifique quem será afetado.</li>
+          <li>
+            Compare opções usando os mesmos critérios, não apenas uma lista de prós e contras.
+          </li>
+          <li>Considere cenários favoráveis e desfavoráveis e quais riscos podem ser reduzidos.</li>
+          <li>Escolha um próximo passo observável e marque quando vai revisar o que aprendeu.</li>
+        </ol>
+        <h2 className="pt-3 text-2xl font-semibold text-white">
+          Onde a inteligência artificial pode ajudar
+        </h2>
+        <p className="leading-7 text-white/65">
+          Uma IA pode fazer perguntas, reorganizar o contexto, mostrar critérios que ficaram de fora
+          e comparar cenários descritos por você. Isso é útil quando a mente está repetindo as
+          mesmas possibilidades ou quando você precisa explicar o dilema para outra pessoa. Para
+          receber uma análise mais relevante, apresente limites, objetivos e incertezas; peça que a
+          resposta diferencie fatos fornecidos, interpretações e perguntas em aberto.
+        </p>
+        <p className="leading-7 text-white/65">
+          A ferramenta não conhece sua vida inteira, não confirma por conta própria se os dados
+          estão atualizados e não deve assumir a responsabilidade por sua escolha. Revise nomes,
+          números e recomendações; para decisões médicas, jurídicas ou financeiras de alto impacto,
+          procure orientação profissional. O papel da tecnologia é ajudar a estruturar a reflexão
+          para que você decida com autonomia, não pressionar por uma resposta definitiva.
+        </p>
+        <h2 className="pt-3 text-2xl font-semibold text-white">
+          Escolha o guia que conversa com o seu contexto
+        </h2>
+        <p className="leading-7 text-white/65">
+          Dilemas de trabalho e negócios podem pedir hipóteses e testes pequenos; escolhas de estudo
+          podem exigir comparar currículo, rotina e custos; mudanças pessoais podem depender de
+          valores, relações e reversibilidade. Explore os guias desta página, adapte as perguntas à
+          sua realidade e volte aos seus critérios sempre que surgir uma nova informação. Uma boa
+          decisão não precisa ser perfeita: ela precisa ser consciente, informada e revisável quando
+          as circunstâncias mudarem.
+        </p>
+      </section>
     </InnerPage>
   );
 }

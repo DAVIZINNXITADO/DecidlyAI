@@ -9,12 +9,14 @@ export function InnerPage({
   title,
   description,
   headerAside,
+  backTo = "/workspace",
   children,
 }: {
   eyebrow: string;
   title: string;
   description?: string;
   headerAside?: ReactNode;
+  backTo?: "/" | "/workspace";
   children: ReactNode;
 }) {
   const { language } = useLanguageContext();
@@ -30,7 +32,7 @@ export function InnerPage({
     <main className="min-h-[100dvh] bg-[#0d0912] px-4 py-6 text-white sm:px-8">
       <div className="mx-auto max-w-3xl">
         <Link
-          to="/workspace"
+          to={backTo}
           className="inline-flex items-center gap-2 text-sm text-white/55 transition hover:text-white"
         >
           <ArrowLeft size={17} /> {tx(language, "back")}

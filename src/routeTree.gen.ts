@@ -11,10 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AiTestRouteImport } from './routes/ai-test'
+import { Route as AjudaParaEscolherFaculdadeRouteImport } from './routes/ajuda-para-escolher-faculdade'
 import { Route as BlogRouteImport } from './routes/blog'
 import { Route as ComoFuncionaRouteImport } from './routes/como-funciona'
+import { Route as ComoTomarDecisoesDificeisRouteImport } from './routes/como-tomar-decisoes-dificeis'
 import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as CreditsRouteImport } from './routes/credits'
+import { Route as IaParaEmpreendedoresRouteImport } from './routes/ia-para-empreendedores'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PromoRouteImport } from './routes/promo'
@@ -46,6 +49,12 @@ const AiTestRoute = AiTestRouteImport.update({
   path: '/ai-test',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AjudaParaEscolherFaculdadeRoute =
+  AjudaParaEscolherFaculdadeRouteImport.update({
+    id: '/ajuda-para-escolher-faculdade',
+    path: '/ajuda-para-escolher-faculdade',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const BlogRoute = BlogRouteImport.update({
   id: '/blog',
   path: '/blog',
@@ -56,6 +65,12 @@ const ComoFuncionaRoute = ComoFuncionaRouteImport.update({
   path: '/como-funciona',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ComoTomarDecisoesDificeisRoute =
+  ComoTomarDecisoesDificeisRouteImport.update({
+    id: '/como-tomar-decisoes-dificeis',
+    path: '/como-tomar-decisoes-dificeis',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const CookiesRoute = CookiesRouteImport.update({
   id: '/cookies',
   path: '/cookies',
@@ -64,6 +79,11 @@ const CookiesRoute = CookiesRouteImport.update({
 const CreditsRoute = CreditsRouteImport.update({
   id: '/credits',
   path: '/credits',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IaParaEmpreendedoresRoute = IaParaEmpreendedoresRouteImport.update({
+  id: '/ia-para-empreendedores',
+  path: '/ia-para-empreendedores',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -170,10 +190,13 @@ const SettingsLanguageRoute = SettingsLanguageRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai-test': typeof AiTestRoute
+  '/ajuda-para-escolher-faculdade': typeof AjudaParaEscolherFaculdadeRoute
   '/blog': typeof BlogRoute
   '/como-funciona': typeof ComoFuncionaRoute
+  '/como-tomar-decisoes-dificeis': typeof ComoTomarDecisoesDificeisRoute
   '/cookies': typeof CookiesRoute
   '/credits': typeof CreditsRouteWithChildren
+  '/ia-para-empreendedores': typeof IaParaEmpreendedoresRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/promo': typeof PromoRoute
@@ -198,10 +221,13 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai-test': typeof AiTestRoute
+  '/ajuda-para-escolher-faculdade': typeof AjudaParaEscolherFaculdadeRoute
   '/blog': typeof BlogRoute
   '/como-funciona': typeof ComoFuncionaRoute
+  '/como-tomar-decisoes-dificeis': typeof ComoTomarDecisoesDificeisRoute
   '/cookies': typeof CookiesRoute
   '/credits': typeof CreditsRouteWithChildren
+  '/ia-para-empreendedores': typeof IaParaEmpreendedoresRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/promo': typeof PromoRoute
@@ -227,10 +253,13 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/ai-test': typeof AiTestRoute
+  '/ajuda-para-escolher-faculdade': typeof AjudaParaEscolherFaculdadeRoute
   '/blog': typeof BlogRoute
   '/como-funciona': typeof ComoFuncionaRoute
+  '/como-tomar-decisoes-dificeis': typeof ComoTomarDecisoesDificeisRoute
   '/cookies': typeof CookiesRoute
   '/credits': typeof CreditsRouteWithChildren
+  '/ia-para-empreendedores': typeof IaParaEmpreendedoresRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/promo': typeof PromoRoute
@@ -257,10 +286,13 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/ai-test'
+    | '/ajuda-para-escolher-faculdade'
     | '/blog'
     | '/como-funciona'
+    | '/como-tomar-decisoes-dificeis'
     | '/cookies'
     | '/credits'
+    | '/ia-para-empreendedores'
     | '/login'
     | '/privacy'
     | '/promo'
@@ -285,10 +317,13 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/ai-test'
+    | '/ajuda-para-escolher-faculdade'
     | '/blog'
     | '/como-funciona'
+    | '/como-tomar-decisoes-dificeis'
     | '/cookies'
     | '/credits'
+    | '/ia-para-empreendedores'
     | '/login'
     | '/privacy'
     | '/promo'
@@ -313,10 +348,13 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/ai-test'
+    | '/ajuda-para-escolher-faculdade'
     | '/blog'
     | '/como-funciona'
+    | '/como-tomar-decisoes-dificeis'
     | '/cookies'
     | '/credits'
+    | '/ia-para-empreendedores'
     | '/login'
     | '/privacy'
     | '/promo'
@@ -342,10 +380,13 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiTestRoute: typeof AiTestRoute
+  AjudaParaEscolherFaculdadeRoute: typeof AjudaParaEscolherFaculdadeRoute
   BlogRoute: typeof BlogRoute
   ComoFuncionaRoute: typeof ComoFuncionaRoute
+  ComoTomarDecisoesDificeisRoute: typeof ComoTomarDecisoesDificeisRoute
   CookiesRoute: typeof CookiesRoute
   CreditsRoute: typeof CreditsRouteWithChildren
+  IaParaEmpreendedoresRoute: typeof IaParaEmpreendedoresRoute
   LoginRoute: typeof LoginRoute
   PrivacyRoute: typeof PrivacyRoute
   PromoRoute: typeof PromoRoute
@@ -378,6 +419,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AiTestRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ajuda-para-escolher-faculdade': {
+      id: '/ajuda-para-escolher-faculdade'
+      path: '/ajuda-para-escolher-faculdade'
+      fullPath: '/ajuda-para-escolher-faculdade'
+      preLoaderRoute: typeof AjudaParaEscolherFaculdadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/blog': {
       id: '/blog'
       path: '/blog'
@@ -392,6 +440,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ComoFuncionaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/como-tomar-decisoes-dificeis': {
+      id: '/como-tomar-decisoes-dificeis'
+      path: '/como-tomar-decisoes-dificeis'
+      fullPath: '/como-tomar-decisoes-dificeis'
+      preLoaderRoute: typeof ComoTomarDecisoesDificeisRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cookies': {
       id: '/cookies'
       path: '/cookies'
@@ -404,6 +459,13 @@ declare module '@tanstack/react-router' {
       path: '/credits'
       fullPath: '/credits'
       preLoaderRoute: typeof CreditsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ia-para-empreendedores': {
+      id: '/ia-para-empreendedores'
+      path: '/ia-para-empreendedores'
+      fullPath: '/ia-para-empreendedores'
+      preLoaderRoute: typeof IaParaEmpreendedoresRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -583,10 +645,13 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AiTestRoute: AiTestRoute,
+  AjudaParaEscolherFaculdadeRoute: AjudaParaEscolherFaculdadeRoute,
   BlogRoute: BlogRoute,
   ComoFuncionaRoute: ComoFuncionaRoute,
+  ComoTomarDecisoesDificeisRoute: ComoTomarDecisoesDificeisRoute,
   CookiesRoute: CookiesRoute,
   CreditsRoute: CreditsRouteWithChildren,
+  IaParaEmpreendedoresRoute: IaParaEmpreendedoresRoute,
   LoginRoute: LoginRoute,
   PrivacyRoute: PrivacyRoute,
   PromoRoute: PromoRoute,
