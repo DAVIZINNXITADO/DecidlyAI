@@ -1,60 +1,53 @@
 export const MAX_TEXT_IMAGE_CHARS = 5000;
-
-const IMAGE_WIDTH = 1200;
-const MIN_IMAGE_HEIGHT = 1024;
+const DEFAULT_WIDTH_MM = 210;
+const DEFAULT_HEIGHT_MM = 297;
+const PX_PER_MM = 5.669;
 const MAX_IMAGE_HEIGHT = 8192;
-const CONTENT_MAX_WIDTH = 920;
-const OUTER_PADDING = 116;
-const LINE_HEIGHT_FACTOR = 1.28;
-const MIN_FONT_SIZE = 26;
-const FONT_STACK = 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-
-type Palette = {
-  background: [string, string];
-  ink: string;
-  muted: string;
-  accent: string;
-  glow: string;
+const MIN_FONT_SIZE = 18;
+const FONT_STACKS: Record<string, string> = {
+  sans: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  serif: 'Georgia, "Times New Roman", serif',
+  mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
 };
-type Layout = "square" | "portrait" | "poster";
-type Mood = "calm" | "energetic" | "technical" | "warm";
+
 type TextImageDesign = {
-  layout: Layout;
-  palette: Palette;
-  fontWeight: 600 | 700 | 800;
-  alignment: CanvasTextAlign;
+  page: "A4" | "A3" | "square" | "custom";
+  orientation: "portrait" | "landscape";
+  widthMm: number;
+  heightMm: number;
+  marginMm: number;
+  background: string;
+  backgroundEnd: string;
+  textColor: string;
+  accentColor: string;
+  font: "sans" | "serif" | "mono";
+  weight: 400 | 500 | 600 | 700 | 800;
+  align: CanvasTextAlign;
+  fontRatio: number;
+  lineHeight: number;
   eyebrow: string;
+  footer: string;
+  radius: number;
 };
 
-const PALETTES: Record<Mood, Palette> = {
-  calm: {
-    background: ["#0b1020", "#182c4b"],
-    ink: "#f8fbff",
-    muted: "#a7bad5",
-    accent: "#70e1c1",
-    glow: "rgba(112,225,193,.22)",
-  },
-  energetic: {
-    background: ["#241044", "#751b5f"],
-    ink: "#fff8ff",
-    muted: "#edbce9",
-    accent: "#ffd166",
-    glow: "rgba(255,209,102,.24)",
-  },
-  technical: {
-    background: ["#07151c", "#123c45"],
-    ink: "#f2fffc",
-    muted: "#9ed2cb",
-    accent: "#62e6c4",
-    glow: "rgba(98,230,196,.2)",
-  },
-  warm: {
-    background: ["#371a18", "#8a4428"],
-    ink: "#fff9ed",
-    muted: "#f3c9a0",
-    accent: "#ffd38a",
-    glow: "rgba(255,211,138,.22)",
-  },
+const DEFAULT_DESIGN: TextImageDesign = {
+  page: "A4",
+  orientation: "portrait",
+  widthMm: DEFAULT_WIDTH_MM,
+  heightMm: DEFAULT_HEIGHT_MM,
+  marginMm: 18,
+  background: "#0b1020",
+  backgroundEnd: "#182c4b",
+  textColor: "#f8fbff",
+  accentColor: "#70e1c1",
+  font: "sans",
+  weight: 700,
+  align: "center",
+  fontRatio: 0.105,
+  lineHeight: 1.25,
+  eyebrow: "DECIDLYAI",
+  footer: "DECIDIR É FÁCIL · DECIDIR BEM É DECIDLYAI",
+  radius: 24,
 };
 
 export function countTextImageChars(text: string) {
@@ -72,48 +65,76 @@ export function fitTextImageText(text: string, maxCharacters: number) {
   return content.trimEnd() ? `${content.trimEnd()}…` : "…".slice(0, maxCharacters);
 }
 
-function normalize(text: string) {
-  return text
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
+function safeColor(value: unknown, fallback: string) {
+  return typeof value === "string" &&
+    /^(#[0-9a-f]{3,8}|rgba?\([^)]*\)|hsla?\([^)]*\))$/i.test(value.trim())
+    ? value.trim()
+    : fallback;
 }
 
-function chooseDesign(text: string): TextImageDesign {
-  const normalized = normalize(text);
-  const characters = countTextImageChars(text);
-  const paragraphs = text.split(/\r?\n/).filter((line) => line.trim()).length;
-  const isTechnical =
-    /\b(api|codigo|código|dados|passo|processo|metodo|método|estrategia|lista|guia|tutorial|tecnologia|analise|análise)\b/.test(
-      normalized,
+function parseDesign(raw: string | undefined): TextImageDesign {
+  if (!raw) return { ...DEFAULT_DESIGN };
+  try {
+    const input = JSON.parse(raw) as Record<string, unknown>;
+    const page =
+      input["page"] === "A3" || input["page"] === "square" || input["page"] === "custom"
+        ? input["page"]
+        : "A4";
+    const orientation = input["orientation"] === "landscape" ? "landscape" : "portrait";
+    const widthMm = clampNumber(input["widthMm"], page === "A4" ? DEFAULT_WIDTH_MM : 297, 80, 500);
+    const heightMm = clampNumber(
+      input["heightMm"],
+      page === "A4" ? DEFAULT_HEIGHT_MM : 210,
+      80,
+      700,
     );
-  const isEnergetic =
-    /!|\b(agora|comece|conquiste|crie|mude|acredite|foco|sucesso|oferta|novidade)\b/.test(
-      normalized,
-    );
-  const isWarm =
-    /\b(amor|carinho|familia|família|amizade|sonho|coracao|coração|feliz|obrigad|saudade)\b/.test(
-      normalized,
-    );
-  const mood: Mood = isTechnical
-    ? "technical"
-    : isEnergetic
-      ? "energetic"
-      : isWarm
-        ? "warm"
-        : "calm";
-  const layout: Layout =
-    characters <= 180 ? "square" : characters <= 720 && paragraphs <= 3 ? "portrait" : "poster";
+    const marginMm = clampNumber(input["marginMm"], DEFAULT_DESIGN.marginMm, 5, 60);
+    const fontRatio = clampNumber(input["fontRatio"], DEFAULT_DESIGN.fontRatio, 0.025, 0.24);
+    const weight = [400, 500, 600, 700, 800].includes(Number(input["weight"]))
+      ? (Number(input["weight"]) as TextImageDesign["weight"])
+      : DEFAULT_DESIGN.weight;
+    const align =
+      input["align"] === "left" || input["align"] === "right" ? input["align"] : "center";
+    return {
+      page,
+      orientation,
+      widthMm:
+        orientation === "landscape" && page !== "custom" ? Math.max(widthMm, heightMm) : widthMm,
+      heightMm:
+        orientation === "landscape" && page !== "custom" ? Math.min(widthMm, heightMm) : heightMm,
+      marginMm,
+      background: safeColor(input["background"], DEFAULT_DESIGN.background),
+      backgroundEnd: safeColor(input["backgroundEnd"], DEFAULT_DESIGN.backgroundEnd),
+      textColor: safeColor(input["textColor"], DEFAULT_DESIGN.textColor),
+      accentColor: safeColor(input["accentColor"], DEFAULT_DESIGN.accentColor),
+      font: input["font"] === "serif" || input["font"] === "mono" ? input["font"] : "sans",
+      weight,
+      align,
+      fontRatio,
+      lineHeight: clampNumber(input["lineHeight"], DEFAULT_DESIGN.lineHeight, 1, 2),
+      eyebrow:
+        typeof input["eyebrow"] === "string"
+          ? input["eyebrow"].slice(0, 80)
+          : DEFAULT_DESIGN.eyebrow,
+      footer:
+        typeof input["footer"] === "string" ? input["footer"].slice(0, 120) : DEFAULT_DESIGN.footer,
+      radius: clampNumber(input["radius"], DEFAULT_DESIGN.radius, 0, 80),
+    };
+  } catch {
+    return { ...DEFAULT_DESIGN };
+  }
+}
+
+function clampNumber(value: unknown, fallback: number, minimum: number, maximum: number) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback;
+}
+
+export function parseTextImagePayload(value: string) {
+  const match = value.match(/^\s*\[image_design\]([\s\S]*?)\[\/image_design\]\s*/i);
   return {
-    layout,
-    palette: PALETTES[mood],
-    fontWeight: characters <= 180 && paragraphs <= 3 ? 800 : 700,
-    alignment: characters <= 420 && paragraphs <= 6 ? "center" : "left",
-    eyebrow: isEnergetic
-      ? "UMA IDEIA PARA AGIR"
-      : isTechnical
-        ? "DECIDLYAI · INSIGHT"
-        : "DECIDLYAI",
+    text: (match ? value.slice(match[0].length) : value).trim(),
+    design: match?.[1]?.trim(),
   };
 }
 
@@ -122,47 +143,33 @@ function wrapCanvasText(
   text: string,
   fontSize: number,
   maxWidth: number,
-  weight: number,
+  design: TextImageDesign,
 ) {
-  context.font = `${weight} ${fontSize}px ${FONT_STACK}`;
+  context.font = `${design.weight} ${fontSize}px ${FONT_STACKS[design.font]}`;
   const lines: string[] = [];
-  let previousLineWasBlank = true;
+  let previousBlank = true;
   for (const paragraph of text.split(/\r?\n/)) {
     if (!paragraph.trim()) {
-      if (!previousLineWasBlank && lines.length) lines.push("");
-      previousLineWasBlank = true;
+      if (!previousBlank && lines.length) lines.push("");
+      previousBlank = true;
       continue;
     }
     let line = "";
     for (const word of paragraph.trim().split(/\s+/)) {
-      if (context.measureText(word).width > maxWidth) {
-        if (line) lines.push(line);
-        line = "";
-        let fragment = "";
-        for (const character of Array.from(word)) {
-          const candidate = `${fragment}${character}`;
-          if (fragment && context.measureText(candidate).width > maxWidth) {
-            lines.push(fragment);
-            fragment = character;
-          } else fragment = candidate;
-        }
-        line = fragment;
-        continue;
-      }
       const candidate = line ? `${line} ${word}` : word;
-      if (context.measureText(candidate).width <= maxWidth || !line) line = candidate;
+      if (!line || context.measureText(candidate).width <= maxWidth) line = candidate;
       else {
         lines.push(line);
         line = word;
       }
     }
     if (line) lines.push(line);
-    previousLineWasBlank = false;
+    previousBlank = false;
   }
   return lines;
 }
 
-function roundedRect(
+function drawRoundedRect(
   context: CanvasRenderingContext2D,
   x: number,
   y: number,
@@ -174,101 +181,78 @@ function roundedRect(
   context.roundRect(x, y, width, height, radius);
 }
 
-function drawBackground(
-  context: CanvasRenderingContext2D,
-  height: number,
-  design: TextImageDesign,
-) {
-  const gradient = context.createLinearGradient(0, 0, IMAGE_WIDTH, height);
-  gradient.addColorStop(0, design.palette.background[0]);
-  gradient.addColorStop(1, design.palette.background[1]);
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, IMAGE_WIDTH, height);
-
-  const glow = context.createRadialGradient(
-    IMAGE_WIDTH * 0.82,
-    height * 0.16,
-    10,
-    IMAGE_WIDTH * 0.82,
-    height * 0.16,
-    height * 0.7,
-  );
-  glow.addColorStop(0, design.palette.glow);
-  glow.addColorStop(1, "rgba(0,0,0,0)");
-  context.fillStyle = glow;
-  context.fillRect(0, 0, IMAGE_WIDTH, height);
-
-  context.strokeStyle = "rgba(255,255,255,.09)";
-  context.lineWidth = 2;
-  roundedRect(context, 42, 42, IMAGE_WIDTH - 84, height - 84, 34);
-  context.stroke();
-}
-
-export async function createTextImage(text: string): Promise<Blob> {
-  const content = text.trim();
+export async function createTextImage(text: string, rawDesign?: string): Promise<Blob> {
+  const payload = parseTextImagePayload(text);
+  const content = payload.text;
   if (!content) throw new Error("A IA não preparou o texto para a imagem.");
   if (countTextImageChars(content) > MAX_TEXT_IMAGE_CHARS)
     throw new Error(`A imagem de texto aceita até ${MAX_TEXT_IMAGE_CHARS} caracteres.`);
 
-  const design = chooseDesign(content);
+  const design = parseDesign(rawDesign || payload.design);
+  const widthMm =
+    design.orientation === "landscape" ? Math.max(design.widthMm, design.heightMm) : design.widthMm;
+  const heightMm =
+    design.orientation === "landscape"
+      ? Math.min(design.widthMm, design.heightMm)
+      : design.heightMm;
+  const width = Math.round(widthMm * PX_PER_MM);
+  const height = Math.min(MAX_IMAGE_HEIGHT, Math.round(heightMm * PX_PER_MM));
   const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Este navegador não conseguiu preparar a imagem.");
 
-  const initialFontSize = design.layout === "square" ? 72 : design.layout === "portrait" ? 60 : 52;
-  const contentWidth = design.alignment === "center" ? 900 : CONTENT_MAX_WIDTH;
-  let fontSize = initialFontSize;
-  let lines = wrapCanvasText(context, content, fontSize, contentWidth, design.fontWeight);
-  let lineHeight = fontSize * LINE_HEIGHT_FACTOR;
-  let requiredHeight = Math.ceil(lines.length * lineHeight + OUTER_PADDING * 2 + 180);
-  while (requiredHeight > MAX_IMAGE_HEIGHT && fontSize > MIN_FONT_SIZE) {
+  const margin = Math.round(design.marginMm * PX_PER_MM);
+  const contentWidth = Math.max(180, width - margin * 2);
+  let fontSize = Math.max(MIN_FONT_SIZE, Math.round(width * design.fontRatio));
+  let lines = wrapCanvasText(context, content, fontSize, contentWidth, design);
+  let lineHeight = fontSize * design.lineHeight;
+  const headerSpace = Math.round(height * 0.1);
+  const footerSpace = Math.round(height * 0.08);
+  const maxTextHeight = height - margin * 2 - headerSpace - footerSpace;
+  while (lines.length * lineHeight > maxTextHeight && fontSize > MIN_FONT_SIZE) {
     fontSize -= 2;
-    lines = wrapCanvasText(context, content, fontSize, contentWidth, design.fontWeight);
-    lineHeight = fontSize * LINE_HEIGHT_FACTOR;
-    requiredHeight = Math.ceil(lines.length * lineHeight + OUTER_PADDING * 2 + 180);
+    lines = wrapCanvasText(context, content, fontSize, contentWidth, design);
+    lineHeight = fontSize * design.lineHeight;
   }
-  if (requiredHeight > MAX_IMAGE_HEIGHT)
+  if (lines.length * lineHeight > maxTextHeight)
     throw new Error(
-      "O texto precisa de mais espaço do que cabe em uma imagem. Tente um texto mais curto.",
+      "O texto não cabe na folha escolhida pela IA. Peça uma folha maior ou um texto mais curto.",
     );
 
-  const targetHeight =
-    design.layout === "square"
-      ? MIN_IMAGE_HEIGHT
-      : design.layout === "portrait"
-        ? 1350
-        : Math.max(1600, requiredHeight);
-  const imageHeight = Math.min(MAX_IMAGE_HEIGHT, Math.max(targetHeight, requiredHeight));
-  canvas.width = IMAGE_WIDTH;
-  canvas.height = imageHeight;
-  drawBackground(context, imageHeight, design);
+  const background = context.createLinearGradient(0, 0, width, height);
+  background.addColorStop(0, design.background);
+  background.addColorStop(1, design.backgroundEnd);
+  context.fillStyle = background;
+  context.fillRect(0, 0, width, height);
+  context.fillStyle = "rgba(255,255,255,.045)";
+  context.beginPath();
+  context.arc(width * 0.86, height * 0.13, Math.min(width, height) * 0.3, 0, Math.PI * 2);
+  context.fill();
+  context.strokeStyle = "rgba(255,255,255,.13)";
+  context.lineWidth = Math.max(2, width / 600);
+  drawRoundedRect(context, margin / 2, margin / 2, width - margin, height - margin, design.radius);
+  context.stroke();
 
-  context.textAlign = design.alignment;
+  context.textAlign = design.align;
   context.textBaseline = "middle";
-  context.font = `700 15px ${FONT_STACK}`;
-  context.fillStyle = design.palette.accent;
-  const headerX = design.alignment === "center" ? IMAGE_WIDTH / 2 : OUTER_PADDING;
-  context.fillText(design.eyebrow, headerX, 112);
+  const textX =
+    design.align === "left" ? margin : design.align === "right" ? width - margin : width / 2;
+  context.font = `600 ${Math.max(12, Math.round(width * 0.012))}px ${FONT_STACKS[design.font]}`;
+  context.fillStyle = design.accentColor;
+  context.fillText(design.eyebrow, textX, margin + headerSpace / 2);
 
-  const startY = imageHeight / 2 - ((lines.length - 1) * lineHeight) / 2 + 35;
-  context.font = `${design.fontWeight} ${fontSize}px ${FONT_STACK}`;
-  context.fillStyle = design.palette.ink;
+  context.font = `${design.weight} ${fontSize}px ${FONT_STACKS[design.font]}`;
+  context.fillStyle = design.textColor;
+  const startY = height / 2 - ((lines.length - 1) * lineHeight) / 2;
   lines.forEach((line, index) =>
-    context.fillText(
-      line,
-      design.alignment === "center" ? IMAGE_WIDTH / 2 : OUTER_PADDING,
-      startY + index * lineHeight,
-      contentWidth,
-    ),
+    context.fillText(line, textX, startY + index * lineHeight, contentWidth),
   );
 
-  context.font = `600 14px ${FONT_STACK}`;
-  context.fillStyle = design.palette.muted;
-  context.fillText(
-    "DECIDIR É FÁCIL · DECIDIR BEM É DECIDLYAI",
-    design.alignment === "center" ? IMAGE_WIDTH / 2 : OUTER_PADDING,
-    imageHeight - 104,
-  );
+  context.font = `500 ${Math.max(11, Math.round(width * 0.01))}px ${FONT_STACKS[design.font]}`;
+  context.fillStyle = design.accentColor;
+  context.fillText(design.footer, textX, height - margin - footerSpace / 2);
 
   return await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(

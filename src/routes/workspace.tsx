@@ -386,7 +386,7 @@ function Workspace() {
         fileName = pdf.fileName;
         mimeType = "application/pdf";
       } else {
-        blob = await createTextImage(action.description);
+        blob = await createTextImage(action.description, action.imageDesign);
         fileName = "decidlyai-imagem-de-texto.png";
         mimeType = "image/png";
       }
@@ -1466,7 +1466,7 @@ function Workspace() {
           ? `Perguntas opcionais respondidas pelo usuário para melhorar a análise:\n${guidance}`
           : "";
         const toolContext = toolForRequest
-          ? `Ferramenta selecionada pelo usuário: ${toolForRequest.label} (${toolForRequest.costLabel}). Gere uma única ação compatível com o tipo ${toolForRequest.id}. Para create_pdf, produza conteúdo final conciso; para create_image, produza um prompt visual; para create_text_image, prepare somente o texto solicitado para a imagem, até ${MAX_TEXT_IMAGE_CHARS} caracteres. Respeite qualquer quantidade de caracteres indicada, sem ultrapassá-la; se o texto de origem for maior, resuma-o fielmente para caber. Quando o usuário pedir "o mesmo texto", use o conteúdo relevante do histórico, sem inventar outro tema. Não acrescente explicações ao texto da imagem nem afirme que o arquivo existe antes de a pessoa executar a ação.`
+          ? `Ferramenta selecionada pelo usuário: ${toolForRequest.label} (${toolForRequest.costLabel}). Gere uma única ação compatível com o tipo ${toolForRequest.id}. Para create_pdf, produza conteúdo final conciso; para create_image, produza um prompt visual; para create_text_image, produza um briefing [image_design] em JSON válido para a própria IA escolher folha A4 (padrão), orientação, margens, fundo, cores, fonte, peso, alinhamento, escala relativa do texto e rodapé, seguido do texto final, até ${MAX_TEXT_IMAGE_CHARS} caracteres. Respeite qualquer quantidade de caracteres indicada, sem ultrapassá-la; se o texto de origem for maior, resuma-o fielmente para caber. Quando o usuário pedir "o mesmo texto", use o conteúdo relevante do histórico, sem inventar outro tema. Não acrescente explicações ao texto da imagem nem afirme que o arquivo existe antes de a pessoa executar a ação.`
           : "";
 
         const assistantId = crypto.randomUUID();

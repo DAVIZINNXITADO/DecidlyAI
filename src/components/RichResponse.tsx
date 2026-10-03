@@ -4,7 +4,7 @@ import remarkGfm from "remark-gfm";
 import { AlertTriangle, Check, Copy, Download, ExternalLink, FileText, Image as ImageIcon, Info, Lightbulb, Loader2, ShieldAlert, Sparkles, TriangleAlert, Type } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { normalizeActionProtocolMarkup, toPlainArtifactText } from "../lib/rich-markup";
-import { countTextImageChars, MAX_TEXT_IMAGE_CHARS } from "../lib/text-image";
+import { countTextImageChars, MAX_TEXT_IMAGE_CHARS, parseTextImagePayload } from "../lib/text-image";
 
 export type Variant = "info" | "success" | "warning" | "danger" | "tip" | "important" | "advantage" | "disadvantage" | "observation" | "recommendation" | "decision" | "neutral";
 type Block = {
@@ -20,8 +20,9 @@ type Block = {
   path?: string;
   fileName?: string;
   alt?: string;
+  imageDesign?: string;
 };
-export type ResponseAction = { type: string; title: string; description: string; requestId: string };
+export type ResponseAction = { type: string; title: string; description: string; requestId: string; imageDesign?: string };
 type ArtifactResult = { kind: "file" | "image"; path: string; fileName?: string; alt?: string };
 
 const variants: Record<Variant, { label: string; className: string; icon: ReactNode }> = {
@@ -89,7 +90,8 @@ export function parseBlocks(content: string): Block[] {
     const value = (match[3] ?? "").trim();
     const blockEnd = start + match[0].length;
     if (rawKind === "action" && attr.type === "create_text_image") {
-      const plainText = toPlainArtifactText(value);
+      const parsedPayload = parseTextImagePayload(value);
+      const plainText = toPlainArtifactText(parsedPayload.text);
       const tooLong = countTextImageChars(plainText) > MAX_TEXT_IMAGE_CHARS;
       const missingRequestId = !(attr.request_id || attr.id);
       if (tooLong || missingRequestId) {
@@ -103,7 +105,8 @@ export function parseBlocks(content: string): Block[] {
     }
     const variant = attr.variant as Variant | undefined;
     const kind: Block["kind"] = rawKind === "copy_block" ? "copy" : rawKind === "generated_file" ? "file" : rawKind === "generated_image" ? "image" : rawKind as Block["kind"];
-    const block: Block = { kind, value, variant: variant && variant in variants ? variant : "info", color: attr.color?.toLowerCase() };
+    const parsedImagePayload = rawKind === "action" && attr.type === "create_text_image" ? parseTextImagePayload(value) : null;
+    const block: Block = { kind, value: parsedImagePayload ? toPlainArtifactText(parsedImagePayload.text) : value, variant: variant && variant in variants ? variant : "info", color: attr.color?.toLowerCase(), ...(parsedImagePayload?.design ? { imageDesign: parsedImagePayload.design } : {}) };
     if (attr.title) block.title = attr.title;
     if (attr.language) block.language = attr.language;
     if (attr.href) block.href = attr.href;
@@ -165,7 +168,7 @@ function ActionBlock({ block, messageId, onActionRequest }: { block: Block; mess
     setBusy(true);
     setErrorMessage("");
     try {
-      await onActionRequest({ type, title, description: block.value, requestId }, messageId);
+      await onActionRequest({ type, title, description: block.value, requestId, ...(block.imageDesign ? { imageDesign: block.imageDesign } : {}) }, messageId);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Não foi possível concluir a ação.");
       setBusy(false);
@@ -254,10 +257,10 @@ export function responseProtocolInstructions() {
     `DecidlyAI é principalmente uma IA de conversa; arquivos são ferramentas opcionais, acionadas pelo usuário.`,
     `PDF simples: até 12.000 caracteres/8 páginas; o arquivo custa 1 crédito por PDF, além do custo normal da resposta da IA pelo conteúdo; limite diário 1 Free ou 3 VIP.`,
     `Imagem profissional FLUX.1 Schnell 1024×1024: 2,5 créditos cada, prompt até 1.500 caracteres; limite 3/dia Free ou 9/dia VIP.`,
-    `Imagem de texto com direção visual automática: a composição escolhe proporção, tamanho da imagem, paleta de fundo, contraste, tipografia, alinhamento e espaçamento conforme o conteúdo; 0,5 crédito cada, até ${MAX_TEXT_IMAGE_CHARS.toLocaleString("pt-BR")} caracteres; limite 5/dia Free ou 15/dia VIP. As cotas por tipo são separadas; cada ação cria no máximo um artefato e ainda exige saldo suficiente.`,
+    `Imagem de texto: a própria IA é a diretora visual e deve escolher folha, orientação, margens, fundo, cores, fonte, peso, alinhamento, escala do texto em relação à folha e rodapé; o renderer apenas valida e executa. O padrão quando não houver escolha é folha A4 retrato. Custa 0,5 crédito, até ${MAX_TEXT_IMAGE_CHARS.toLocaleString("pt-BR")} caracteres; limite 5/dia Free ou 15/dia VIP.`,
     `Pedidos de redação, ensaio, fábula, conto ou texto completo são solicitações de conteúdo textual: escreva a obra integral no chat e não converta automaticamente em imagem. Se o usuário pedir explicitamente para renderizar o texto como imagem, pode preparar uma imagem de texto de até ${MAX_TEXT_IMAGE_CHARS.toLocaleString("pt-BR")} caracteres; selecionar a ferramenta sem pedir essa conversão não muda uma redação para imagem.`,
     `Estes recursos não leem PDFs, não aceitam anexos, não pesquisam na web, não editam imagens e não devem ser prometidos como concluídos antes da ação terminar. Só prepare um bloco de ação se o usuário pediu explicitamente a ferramenta ou se uma ferramenta está selecionada; não execute nada por conta própria.`,
-    `Para PDF, retorne exatamente um bloco [action type=create_pdf title="Criar PDF"]conteúdo final conciso[/action]. Para uma ilustração, retorne [action type=create_image title="Gerar imagem"]prompt visual final[/action]. Para imagem de texto, retorne [action type=create_text_image title="Criar imagem de texto"]somente o texto que deve aparecer na imagem[/action]. Se o usuário pedir um número específico, resuma fielmente o texto de origem para caber sem ultrapassar esse limite; se disser "o mesmo texto", use o texto relevante do histórico e não invente outro assunto.`,
+    `Para PDF, retorne exatamente um bloco [action type=create_pdf title="Criar PDF"]conteúdo final conciso[/action]. Para uma ilustração, retorne [action type=create_image title="Gerar imagem"]prompt visual final[/action]. Para imagem de texto, retorne um bloco [action type=create_text_image title="Criar imagem de texto"][image_design]{JSON válido com page (A4/A3/square/custom), orientation, widthMm, heightMm, marginMm, background, backgroundEnd, textColor, accentColor, font (sans/serif/mono), weight, align, fontRatio, lineHeight, eyebrow, footer e radius}[/image_design]texto final[/action]. Escolha todos os campos visualmente; fontRatio é a proporção da largura da folha ocupada pelo tamanho da fonte. Use A4 retrato se o usuário não pedir outra folha. O bloco image_design é técnico e não será mostrado ao usuário. Se o usuário pedir um número específico, resuma fielmente o texto de origem para caber sem ultrapassar esse limite; se disser "o mesmo texto", use o texto relevante do histórico e não invente outro assunto.`,
     `Use sempre o fechamento exato [/action]. Nunca emita [action type="none"] nem deixe blocos de ação abertos; quando não houver ação compatível, responda diretamente em texto normal sem marcadores de ação.`,
     `O app adicionará um identificador idempotente; nunca invente um. Se faltar uma informação indispensável, faça uma única pergunta consolidada antes de criar o bloco. Não gere HTML, CSS ou JavaScript. Nunca afirme que o arquivo já foi criado antes de o usuário acionar e concluir a ação. Se a mensagem já tem informação suficiente, siga sem perguntas redundantes.`,
     `Use [question id=clarify]1. ...\n2. ...[/question] para uma única pergunta consolidada. Use [highlight variant=warning color=yellow]trecho importante[/highlight], [color color=red]texto colorido[/color], [link href="https://exemplo.com" label="Abrir página"]https://exemplo.com[/link] e [copy_block language=text]conteúdo[/copy_block] quando apropriado.`,

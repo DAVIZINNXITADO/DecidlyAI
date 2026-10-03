@@ -42,6 +42,7 @@ export function toPlainArtifactText(value: string) {
       /\[\/?(?:callout|highlight|copy_block|color|question|action|generated_file|generated_image)\b[^\]]*\]/gi,
       "",
     )
+    .replace(/\[image_design\][\s\S]*?\[\/image_design\]/gi, "")
     .replace(/```[^\n]*\r?\n?/g, "")
     .replace(/`([^`\n]+)`/g, "$1")
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
