@@ -13,6 +13,7 @@ import {
 } from "@tanstack/react-router";
 
 import { supabase } from "../lib/supabase";
+import { DecidlyLoadingScreen } from "../components/DecidlyLoadingScreen";
 import decidlyaiMarkUrl from "../assets/decidlyai-mark-160.png";
 
 import {
@@ -1182,6 +1183,13 @@ function ResetPasswordPage() {
           </p>
         </div>
       </div>
+
+      {loading ? (
+        <DecidlyLoadingScreen
+          message="Acendendo uma nova chance"
+          detail="Estamos protegendo sua conta enquanto atualizamos sua senha."
+        />
+      ) : null}
     </main>
   );
 }

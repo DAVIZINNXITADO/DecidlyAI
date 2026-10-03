@@ -28,6 +28,7 @@ import {
 } from "react";
 import { supabase } from "../lib/supabase";
 import decidlyaiMarkUrl from "../assets/decidlyai-mark-160.png";
+import { DecidlyLoadingScreen } from "../components/DecidlyLoadingScreen";
 
 declare global {
   interface Window {
@@ -1685,27 +1686,23 @@ function LoginPage() {
         </section>
       </div>
 
-      {googleLoading ? (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center px-6">
-          <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-md" />
-
-          <div className="relative flex w-full max-w-sm flex-col items-center rounded-[2rem] border border-violet-300/70 bg-slate-900/95 px-8 py-10 text-center shadow-2xl shadow-violet-950/40 backdrop-blur-xl">
-            <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-violet-400/30 bg-violet-500/10">
-              <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
-            </div>
-
-            <h2 className="text-xl font-semibold text-white">
-              Autenticando com o
-              Google
-            </h2>
-
-            <p className="mt-3 text-sm leading-relaxed text-slate-400">
-              Aguarde um momento
-              enquanto verificamos sua
-              conta.
-            </p>
-          </div>
-        </div>
+      {googleLoading || loading || verifyLoading ? (
+        <DecidlyLoadingScreen
+          message={
+            googleLoading
+              ? "Acendendo seu espaço de clareza"
+              : verifyLoading
+                ? "Preparando seu caminho de acesso"
+                : isSignUp
+                  ? "Criando seu espaço de clareza"
+                  : "Abrindo seu espaço de clareza"
+          }
+          detail={
+            googleLoading
+              ? "Estamos conectando sua conta do Google com segurança."
+              : "Só mais um instante enquanto cuidamos dos detalhes."
+          }
+        />
       ) : null}
 
       <style>{`
