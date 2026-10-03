@@ -131,10 +131,11 @@ function clampNumber(value: unknown, fallback: number, minimum: number, maximum:
 }
 
 export function parseTextImagePayload(value: string) {
-  const match = value.match(/^\s*\[image_design\]([\s\S]*?)\[\/image_design\]\s*/i);
-  const rawText = match ? value.slice(match[0].length) : value;
+  const match = value.match(/\[image_design\b[^\]]*\]([\s\S]*?)\[\/image_design\]/i);
+  const rawText = match ? value.replace(match[0], "") : value;
   const text = rawText
-    .replace(/\[image_design\][\s\S]*?\[\/image_design\]/gi, "")
+    .replace(/\[image_design\b[^\]]*\][\s\S]*?\[\/image_design\]/gi, "")
+    .replace(/A imagem de texto aceita até \d[\d.]* caracteres\.[\s\S]*$/i, "")
     .split(/\r?\n/)
     .filter(
       (line) =>

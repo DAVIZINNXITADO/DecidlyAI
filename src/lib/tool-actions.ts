@@ -1,5 +1,10 @@
 import { normalizeActionProtocolMarkup, toPlainArtifactText } from "./rich-markup";
-import { countTextImageChars, fitTextImageText, MAX_TEXT_IMAGE_CHARS } from "./text-image";
+import {
+  countTextImageChars,
+  fitTextImageText,
+  MAX_TEXT_IMAGE_CHARS,
+  parseTextImagePayload,
+} from "./text-image";
 
 type ToolSelection = {
   id: "create_pdf" | "create_image" | "create_text_image";
@@ -99,7 +104,8 @@ function withFreshRequestIds(content: string, createRequestId: () => string) {
 function removeOversizedTextImageActions(content: string, userRequest: string) {
   return content.replace(ACTION_BLOCK_PATTERN, (whole, rawAttributes: string, body: string) => {
     if (attributes(rawAttributes)["type"] !== "create_text_image") return whole;
-    let payload = toPlainArtifactText(body);
+    const parsedPayload = parseTextImagePayload(body);
+    let payload = toPlainArtifactText(parsedPayload.text);
     const requestedLimit = requestedCharacterCount(userRequest);
     const canHonorRequestedLimit =
       requestedLimit !== null && requestedLimit <= MAX_TEXT_IMAGE_CHARS;
@@ -110,8 +116,11 @@ function removeOversizedTextImageActions(content: string, userRequest: string) {
       return `${payload}${TEXT_IMAGE_LIMIT_NOTICE}`;
     }
     if (needsTruncation) payload = fitTextImageText(payload, effectiveLimit);
+    const designBlock = parsedPayload.design
+      ? `[image_design]${parsedPayload.design}[/image_design]`
+      : "";
     return needsTruncation
-      ? `[action${rawAttributes}]${payload}[/action]${TEXT_IMAGE_PROMPT_ADJUSTMENT_NOTICE}`
+      ? `[action${rawAttributes}]${designBlock}${payload}[/action]${TEXT_IMAGE_PROMPT_ADJUSTMENT_NOTICE}`
       : whole;
   });
 }
@@ -157,7 +166,9 @@ export function ensureToolActionResponse(
     matchingAction?.[2] ??
     actionMatches[0]?.[2] ??
     normalizedContent.replace(ACTION_BLOCK_PATTERN, "").trim();
-  let payload = toPlainArtifactText(source);
+  const parsedTextImagePayload =
+    selectedTool.id === "create_text_image" ? parseTextImagePayload(source) : null;
+  let payload = toPlainArtifactText(parsedTextImagePayload?.text ?? source);
   if (!payload || CAPABILITY_REFUSAL_PATTERN.test(payload)) {
     payload = toPlainArtifactText(userRequest);
   }
@@ -174,7 +185,10 @@ export function ensureToolActionResponse(
     }
     if (needsTruncation) payload = fitTextImageText(payload, effectiveLimit);
 
-    const action = `[action type="${selectedTool.id}" title="${selectedTool.label}" request_id="${createRequestId()}"]${payload}[/action]`;
+    const designBlock = parsedTextImagePayload?.design
+      ? `[image_design]${parsedTextImagePayload.design}[/image_design]`
+      : "";
+    const action = `[action type="${selectedTool.id}" title="${selectedTool.label}" request_id="${createRequestId()}"]${designBlock}${payload}[/action]`;
     return needsTruncation && canHonorRequestedLimit
       ? `${action}${TEXT_IMAGE_PROMPT_ADJUSTMENT_NOTICE}`
       : action;
