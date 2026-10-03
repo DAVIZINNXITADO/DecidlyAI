@@ -37,8 +37,9 @@ function BlogPage() {
   return (
     <InnerPage
       eyebrow="Blog DecidlyAI"
-      title="Ideias para decidir melhor"
+      title="Ideias, guias e métodos para tomar decisões conscientes"
       description="Conteúdos práticos sobre clareza, reflexão e escolhas conscientes — sem prometer respostas mágicas."
+      backLinkRel="nofollow"
     >
       <div className="mb-6 flex items-center gap-3 rounded-3xl border border-violet-300/15 bg-violet-400/[0.07] p-5">
         <BookOpen className="text-violet-300" size={23} />

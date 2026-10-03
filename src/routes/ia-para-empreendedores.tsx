@@ -48,7 +48,7 @@ function IaParaEmpreendedoresPage() {
   return (
     <SeoArticlePage
       eyebrow="DECISÕES PARA NEGÓCIOS"
-      title="IA para empreendedores: decida com mais clareza"
+      title="IA para empreendedores: estruture decisões de negócio com clareza e método"
       description="Organize hipóteses, critérios e riscos de negócio com apoio de inteligência artificial — sem terceirizar a decisão que pertence a você."
       sections={sections}
       faqs={SEO_FAQS["/ia-para-empreendedores"]!}

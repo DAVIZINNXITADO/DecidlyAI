@@ -65,8 +65,10 @@ function Index() {
               </div>
 
               <h1 className="max-w-3xl text-5xl font-semibold leading-[1.02] tracking-[-0.04em] md:text-7xl">
-                Pare de girar em círculos.
-                <span className="mt-3 block text-violet-300">Comece a decidir.</span>
+                IA para tomada de decisão:{" "}
+                <span className="mt-3 block text-violet-300">
+                  transforme dúvidas em escolhas conscientes
+                </span>
               </h1>
 
               <p className="mt-7 max-w-xl text-lg leading-8 text-slate-300 md:text-xl">

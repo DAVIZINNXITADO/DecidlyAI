@@ -10,6 +10,7 @@ export function InnerPage({
   description,
   headerAside,
   backTo = "/workspace",
+  backLinkRel,
   children,
 }: {
   eyebrow: string;
@@ -17,6 +18,7 @@ export function InnerPage({
   description?: string;
   headerAside?: ReactNode;
   backTo?: "/" | "/workspace";
+  backLinkRel?: "nofollow";
   children: ReactNode;
 }) {
   const { language } = useLanguageContext();
@@ -33,6 +35,7 @@ export function InnerPage({
       <div className="mx-auto max-w-3xl">
         <Link
           to={backTo}
+          rel={backLinkRel}
           className="inline-flex items-center gap-2 text-sm text-white/55 transition hover:text-white"
         >
           <ArrowLeft size={17} /> {tx(language, "back")}

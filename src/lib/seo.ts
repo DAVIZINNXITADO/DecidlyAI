@@ -83,33 +83,33 @@ export const SEO_FAQS: Record<string, FaqEntry[]> = {
 
 export const INDEXABLE_PAGES: Record<string, RouteSeoEntry> = {
   "/": {
-    title: "IA para empreendedores e decisões claras | DecidlyAI",
+    title: "DecidlyAI | IA para Tomada de Decisão e Clareza Mental",
     description:
-      "Use a IA para comparar decisões de negócio, vida e carreira. Organize dúvidas, critérios e riscos com o DecidlyAI, mantendo a escolha final em suas mãos.",
+      "Organize dilemas, compare caminhos e avalie prós e riscos com apoio de IA reflexiva. Clareza estruturada para você tomar suas decisões com autonomia.",
     keywords:
-      "DecidlyAI, IA para empreendedores, tomada de decisão, escolhas conscientes, inteligência artificial",
+      "DecidlyAI, IA para tomada de decisão, clareza mental, inteligência artificial reflexiva, decisões conscientes",
     faqs: HOME_FAQS,
   },
   "/blog": {
-    title: "Blog: ideias e métodos para decidir melhor | DecidlyAI",
+    title: "Blog DecidlyAI | Guias e Métodos para Tomar Decisões",
     description:
-      "Guias práticos para organizar dilemas, comparar opções e escolher com clareza. Aprenda métodos úteis sem entregar sua autonomia à inteligência artificial.",
+      "Artigos e guias práticos sobre métodos de decisão, clareza mental e uso consciente de inteligência artificial em escolhas pessoais e de carreira.",
     keywords:
       "DecidlyAI, decisões difíceis, clareza mental, método de decisão, escolhas conscientes, inteligência artificial",
     ogType: "article",
   },
   "/como-funciona": {
-    title: "Como funciona a IA para tomar decisões | DecidlyAI",
+    title: "Como Funciona o DecidlyAI: Método de Decisão Guiada por IA",
     description:
-      "Veja como organizar o contexto, definir critérios, comparar alternativas e avaliar riscos com o apoio de uma IA reflexiva. A decisão final continua sendo sua.",
+      "Entenda como organizar dilemas, comparar cenários e analisar prós e riscos em 3 passos com a IA reflexiva do DecidlyAI. A escolha final continua sua.",
     keywords:
       "DecidlyAI, como tomar decisões difíceis, método de decisão, critérios, análise de riscos, inteligência artificial",
     ogType: "article",
   },
   "/tecnologia": {
-    title: "Tecnologia de IA para decisões melhores | DecidlyAI",
+    title: "Arquitetura e Tecnologia de IA Multimodelo | DecidlyAI",
     description:
-      "Conheça a tecnologia do DecidlyAI, como a conversa preserva contexto e como os recursos de IA apoiam análises transparentes sem executar escolhas no seu lugar.",
+      "Conheça o roteamento automático entre serviços de IA e o consumo estimado por texto; consulte as informações de privacidade disponíveis no DecidlyAI.",
     keywords:
       "DecidlyAI, tecnologia de IA, inteligência artificial, decisões, contexto de conversa, privacidade",
     ogType: "article",
@@ -133,27 +133,27 @@ export const INDEXABLE_PAGES: Record<string, RouteSeoEntry> = {
     keywords: "DecidlyAI, política de cookies, preferências, navegador, privacidade",
   },
   "/ia-para-empreendedores": {
-    title: "IA para empreendedores: decisões com clareza | DecidlyAI",
+    title: "IA para Empreendedores: Decisões de Negócio | DecidlyAI",
     description:
-      "Use IA para avaliar ideias, contratações e recursos. Compare alternativas e riscos com critérios práticos, sem terceirizar as decisões do negócio.",
+      "Avalie hipóteses, contratações e investimentos de negócio com apoio de IA. Estruture critérios, prós e riscos práticos sem terceirizar sua decisão.",
     keywords:
       "IA para empreendedores, inteligência artificial nos negócios, validação de ideias, decisões empresariais, alocação de recursos, DecidlyAI",
     ogType: "article",
     faqs: SEO_FAQS["/ia-para-empreendedores"],
   },
   "/como-tomar-decisoes-dificeis": {
-    title: "Como tomar decisões difíceis com apoio da IA | DecidlyAI",
+    title: "Como Tomar Decisões Difíceis com Apoio da IA | DecidlyAI",
     description:
-      "Aprenda a definir o dilema, comparar caminhos, reconhecer riscos e escolher próximos passos. Use IA para estruturar a reflexão, sem decidir por você.",
+      "Guia prático e direto para definir dilemas, comparar caminhos e avaliar riscos reais. Use a IA para organizar a reflexão e sair da paralisia analítica.",
     keywords:
       "como tomar decisões difíceis, tomada de decisão, paralisia por análise, critérios de escolha, riscos, DecidlyAI",
     ogType: "article",
     faqs: SEO_FAQS["/como-tomar-decisoes-dificeis"],
   },
   "/ajuda-para-escolher-faculdade": {
-    title: "Ajuda para escolher faculdade e carreira | DecidlyAI",
+    title: "Como Escolher Faculdade e Carreira com IA | DecidlyAI",
     description:
-      "Compare cursos, rotina, custos e caminhos profissionais com perguntas estruturadas. Obtenha ajuda para escolher faculdade sem tratar um teste como destino.",
+      "Compare cursos, faculdades e caminhos profissionais com perguntas estruturadas. Avalie prioridades e custos sem tratar testes vocacionais como destino.",
     keywords:
       "ajuda para escolher faculdade, orientação de carreira, escolha de curso, análise vocacional, cursos universitários, DecidlyAI",
     ogType: "article",

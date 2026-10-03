@@ -26,12 +26,20 @@ function Tecnologia() {
               <Sparkles className="h-4 w-4" /> Por trás do DecidlyAI
             </div>
             <h1 className="mt-7 text-5xl font-semibold leading-tight tracking-tight md:text-6xl">
-              Inteligência para acompanhar o seu contexto.
+              Tecnologia de IA multimodelo e privacidade para suas decisões
             </h1>
             <p className="mt-6 text-lg leading-8 text-slate-400">
               O DecidlyAI trabalha com uma camada de inteligência que escolhe automaticamente a
               melhor rota disponível para manter suas análises fluindo, sem transformar a tecnologia
               em mais uma preocupação para você.
+            </p>
+            <p className="mt-4 max-w-3xl leading-7 text-slate-400">
+              Evite inserir informações sensíveis ou confidenciais. Para conhecer as informações
+              publicadas sobre dados e segurança, consulte a{" "}
+              <Link to="/privacy" className="text-violet-300 underline underline-offset-4">
+                Política de Privacidade
+              </Link>
+              .
             </p>
           </div>
 
