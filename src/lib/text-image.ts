@@ -67,7 +67,9 @@ export function fitTextImageText(text: string, maxCharacters: number) {
 
 function safeColor(value: unknown, fallback: string) {
   return typeof value === "string" &&
-    /^(#[0-9a-f]{3,8}|rgba?\([^)]*\)|hsla?\([^)]*\)|transparent|white|black|red|blue|green|purple|violet|orange|yellow|pink|gray|grey)$/i.test(value.trim())
+    /^(#[0-9a-f]{3,8}|rgba?\([^)]*\)|hsla?\([^)]*\)|transparent|white|black|red|blue|green|purple|violet|orange|yellow|pink|gray|grey)$/i.test(
+      value.trim(),
+    )
     ? value.trim()
     : fallback;
 }
@@ -145,7 +147,8 @@ function clampNumber(value: unknown, fallback: number, minimum: number, maximum:
   return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback;
 }
 
-const TECHNICAL_NOTE_LINE = /^\s*(?:page|orientation|widthMm|heightMm|marginMm|background|backgroundEnd|textColor|accentColor|font|weight|align|fontRatio|lineHeight|eyebrow|footer|radius)\s*[:=]/i;
+const TECHNICAL_NOTE_LINE =
+  /^\s*(?:page|orientation|widthMm|heightMm|marginMm|background|backgroundEnd|textColor|accentColor|font|weight|align|fontRatio|lineHeight|eyebrow|footer|radius)\s*[:=]/i;
 
 function removeTextImageNotebook(value: string) {
   return value
@@ -153,10 +156,16 @@ function removeTextImageNotebook(value: string) {
     .replace(/\{\s*["']?(?:page|orientation|widthMm|heightMm|marginMm)["']?\s*[:=][\s\S]*?\}/gi, "")
     .replace(/^\s*\[\s*image_design\b[^\]]*\][\s\S]*$/gim, "")
     .replace(/^\s*A imagem de texto aceita até \d[\d.]* caracteres\.[^\r\n]*$/gim, "")
-    .replace(/A imagem de texto aceita até \d[\d.]* caracteres\.\s*O conteúdo foi mantido como texto e nenhum crédito foi consumido\.?/gi, "")
+    .replace(
+      /A imagem de texto aceita até \d[\d.]* caracteres\.\s*O conteúdo foi mantido como texto e nenhum crédito foi consumido\.?/gi,
+      "",
+    )
     .split(/\r?\n/)
     .filter((line) => !TECHNICAL_NOTE_LINE.test(line))
-    .filter((line) => !/^\s*(?:caracter[ií]sticas?|configura[cç][aã]o|design|papel|folha)\s*[:-]/i.test(line))
+    .filter(
+      (line) =>
+        !/^\s*(?:caracter[ií]sticas?|configura[cç][aã]o|design|papel|folha)\s*[:-]/i.test(line),
+    )
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

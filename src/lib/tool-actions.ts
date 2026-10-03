@@ -57,6 +57,31 @@ function requestedCharacterCount(value: string) {
   return Number.isInteger(count) && count > 0 ? count : null;
 }
 
+function requestedGradientDesign(rawDesign: string | undefined, userRequest: string) {
+  const request = normalizeIntentText(userRequest);
+  if (!/\b(?:gradiente|degrade|gradient)\b/.test(request)) {
+    return rawDesign ? `[image_design]${rawDesign}[/image_design]` : "";
+  }
+
+  let design: Record<string, unknown> = {};
+  if (rawDesign) {
+    try {
+      const parsed = JSON.parse(rawDesign) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        design = parsed as Record<string, unknown>;
+      }
+    } catch {
+      // A malformed design must not block the explicit gradient request.
+    }
+  }
+
+  const blue = /\bazul|blue\b/.test(request);
+  const purple = /\broxo|violeta|purple|violet\b/.test(request);
+  const start = blue ? "#0f172a" : purple ? "#1e1b4b" : "#111827";
+  const end = purple ? "#7c3aed" : blue ? "#2563eb" : "#7c3aed";
+  return `[image_design]${JSON.stringify({ ...design, background: start, backgroundEnd: end })}[/image_design]`;
+}
+
 function shouldKeepLongFormInChat(value: string, selectedTool: ToolSelection | null) {
   return (
     isLongFormWritingRequest(value) &&
@@ -116,12 +141,13 @@ function removeOversizedTextImageActions(content: string, userRequest: string) {
       return `${payload}${TEXT_IMAGE_LIMIT_NOTICE}`;
     }
     if (needsTruncation) payload = fitTextImageText(payload, effectiveLimit);
-    const designBlock = parsedPayload.design
-      ? `[image_design]${parsedPayload.design}[/image_design]`
-      : "";
-    return needsTruncation
-      ? `[action${rawAttributes}]${designBlock}${payload}[/action]${TEXT_IMAGE_PROMPT_ADJUSTMENT_NOTICE}`
-      : whole;
+    const designBlock = requestedGradientDesign(parsedPayload.design, userRequest);
+    const requestedGradient = /\b(?:gradiente|degrade|gradient)\b/.test(
+      normalizeIntentText(userRequest),
+    );
+    if (!needsTruncation && !requestedGradient) return whole;
+    const notice = needsTruncation ? TEXT_IMAGE_PROMPT_ADJUSTMENT_NOTICE : "";
+    return `[action${rawAttributes}]${designBlock}${payload}[/action]${notice}`;
   });
 }
 
@@ -185,9 +211,7 @@ export function ensureToolActionResponse(
     }
     if (needsTruncation) payload = fitTextImageText(payload, effectiveLimit);
 
-    const designBlock = parsedTextImagePayload?.design
-      ? `[image_design]${parsedTextImagePayload.design}[/image_design]`
-      : "";
+    const designBlock = requestedGradientDesign(parsedTextImagePayload?.design, userRequest);
     const action = `[action type="${selectedTool.id}" title="${selectedTool.label}" request_id="${createRequestId()}"]${designBlock}${payload}[/action]`;
     return needsTruncation && canHonorRequestedLimit
       ? `${action}${TEXT_IMAGE_PROMPT_ADJUSTMENT_NOTICE}`
