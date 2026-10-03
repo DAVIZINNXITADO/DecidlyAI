@@ -139,6 +139,10 @@ function LoginPage() {
 
   const [resendVerificationLoading, setResendVerificationLoading] = useState(false);
 
+  const [verificationResendCooldown, setVerificationResendCooldown] = useState(0);
+
+  const [recoveryResendCooldown, setRecoveryResendCooldown] = useState(0);
+
   const [captchaToken, setCaptchaToken] = useState("");
 
   const captchaTokenRef = useRef("");
@@ -198,6 +202,23 @@ function LoginPage() {
   const isRecover = mode === "recover";
 
   const needsCaptcha = isSignUp || isRecover;
+
+  useEffect(() => {
+    if (verificationResendCooldown <= 0 && recoveryResendCooldown <= 0) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setVerificationResendCooldown((current) => Math.max(0, current - 1));
+      setRecoveryResendCooldown((current) => Math.max(0, current - 1));
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [recoveryResendCooldown, verificationResendCooldown]);
+
+  function formatCooldown(seconds: number) {
+    return `00:${String(seconds).padStart(2, "0")}`;
+  }
 
   function clearFeedback() {
     setFeedback(null);
@@ -279,6 +300,7 @@ function LoginPage() {
       showError("Não foi possível reenviar agora. Aguarde um pouco e tente novamente.");
     } else {
       showSuccess("Enviamos um novo link de confirmação. Confira sua caixa de entrada e o spam.");
+      setVerificationResendCooldown(60);
     }
     setResendVerificationLoading(false);
   }
@@ -885,6 +907,7 @@ function LoginPage() {
 
         setVerificationEmail(cleanEmail);
         setEmailVerificationPending(true);
+        setVerificationResendCooldown(60);
         setPassword("");
         setConfirmPassword("");
         setMode("login");
@@ -957,6 +980,8 @@ function LoginPage() {
       showSuccess(
         "Pronto! Se existir uma conta com este e-mail, enviaremos um link para criar uma nova senha.",
       );
+
+      setRecoveryResendCooldown(60);
 
       resetCaptcha();
     } catch {
@@ -1079,7 +1104,7 @@ function LoginPage() {
               <button
                 type="button"
                 onClick={() => void resendVerificationEmail()}
-                disabled={resendVerificationLoading}
+                disabled={resendVerificationLoading || verificationResendCooldown > 0}
                 className="interactive-lift mt-7 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {resendVerificationLoading ? (
@@ -1089,7 +1114,9 @@ function LoginPage() {
                   </>
                 ) : (
                   <>
-                    Reenviar confirmação
+                    {verificationResendCooldown > 0
+                      ? `Reenviar código (${formatCooldown(verificationResendCooldown)})`
+                      : "Reenviar código"}
                     <ArrowRight className="h-5 w-5" />
                   </>
                 )}
@@ -1139,7 +1166,9 @@ function LoginPage() {
 
                 <button
                   type="submit"
-                  disabled={verifyLoading || captchaLoading || !captchaToken}
+                  disabled={
+                    verifyLoading || captchaLoading || !captchaToken || recoveryResendCooldown > 0
+                  }
                   className="interactive-lift group flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {verifyLoading ? (
@@ -1149,7 +1178,9 @@ function LoginPage() {
                     </>
                   ) : (
                     <>
-                      Enviar link
+                      {recoveryResendCooldown > 0
+                        ? `Reenviar código (${formatCooldown(recoveryResendCooldown)})`
+                        : "Enviar link"}
                       <ArrowRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-1" />
                     </>
                   )}
