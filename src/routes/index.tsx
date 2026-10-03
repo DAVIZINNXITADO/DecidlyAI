@@ -85,7 +85,7 @@ function Index() {
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                 <Link
                   to="/login"
-                  className="interactive-lift group inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-6 py-4 font-semibold text-white shadow-[0_12px_40px_rgba(139,92,246,.25)] hover:bg-violet-400"
+                  className="interactive-lift group inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-6 py-4 font-semibold text-white shadow-[0_12px_40px_rgba(139,92,246,.25)] hover:bg-violet-700"
                 >
                   Começar gratuitamente
                   <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
@@ -242,7 +242,7 @@ function DecisionPreview() {
             </div>
             <div>
               <p className="font-semibold">DecidlyAI</p>
-              <p className="text-xs text-slate-500">Uma conversa para pensar melhor</p>
+              <p className="text-xs text-slate-400">Uma conversa para pensar melhor</p>
             </div>
           </div>
           <span className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs text-emerald-300">Online</span>
@@ -250,7 +250,7 @@ function DecisionPreview() {
 
         <div className="space-y-4 py-5">
           <div className="flex justify-end">
-            <div className="max-w-[86%] rounded-2xl rounded-br-md bg-violet-500 px-4 py-3 text-sm leading-6 text-white shadow-lg shadow-violet-950/20">
+            <div className="max-w-[86%] rounded-2xl rounded-br-md bg-violet-600 px-4 py-3 text-sm leading-6 text-white shadow-lg shadow-violet-950/20">
               Recebi uma proposta de emprego melhor, mas teria que me mudar para outra cidade. Como posso decidir?
             </div>
           </div>
@@ -269,7 +269,7 @@ function DecisionPreview() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-xs text-slate-500">
+        <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-xs text-slate-400">
           <span className="h-1.5 w-1.5 rounded-full bg-violet-300" />
           O DecidlyAI organiza a dúvida. A decisão continua sendo sua.
         </div>

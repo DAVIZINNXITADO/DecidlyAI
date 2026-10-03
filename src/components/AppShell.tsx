@@ -117,7 +117,7 @@ export function AppShell({
 
           {/* COPYRIGHT */}
 
-          <p className="text-center text-sm text-slate-500">
+          <p className="text-center text-sm text-slate-400">
             © 2026 DecidlyAI. Todos os direitos reservados.
           </p>
         </div>

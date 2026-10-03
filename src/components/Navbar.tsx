@@ -77,7 +77,7 @@ export function Navbar() {
           <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl">
             <img
               src={decidlyaiMarkUrl}
-              alt="DecidlyAI"
+              alt=""
               width={40}
               height={40}
               className="h-full w-full object-cover"
@@ -141,7 +141,7 @@ export function Navbar() {
 
           <Link
             to="/login"
-            className="interactive-lift rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 hover:shadow-violet-950/50"
+            className="interactive-lift rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-700 hover:shadow-violet-950/50"
           >
             {t(language, "nav.start")}
           </Link>
@@ -221,7 +221,7 @@ export function Navbar() {
               <Link
                 to="/login"
                 onClick={closeMobileMenu}
-                className="interactive-lift flex items-center justify-center rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-950/20 transition hover:bg-violet-500"
+                className="interactive-lift flex items-center justify-center rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-950/20 transition hover:bg-violet-700"
               >
                 {t(language, "nav.start")}
               </Link>
