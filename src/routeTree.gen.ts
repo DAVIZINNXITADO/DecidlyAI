@@ -28,6 +28,7 @@ import { Route as TecnologiaRouteImport } from './routes/tecnologia'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as VipRouteImport } from './routes/vip'
 import { Route as WorkspaceRouteImport } from './routes/workspace'
+import { Route as AuthConfirmRouteImport } from './routes/auth.confirm'
 import { Route as CreditsBuyRouteImport } from './routes/credits/buy'
 import { Route as CreditsFreeRouteImport } from './routes/credits/free'
 import { Route as CreditsHistoryRouteImport } from './routes/credits/history'
@@ -136,6 +137,11 @@ const WorkspaceRoute = WorkspaceRouteImport.update({
   path: '/workspace',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthConfirmRoute = AuthConfirmRouteImport.update({
+  id: '/auth/confirm',
+  path: '/auth/confirm',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CreditsBuyRoute = CreditsBuyRouteImport.update({
   id: '/buy',
   path: '/buy',
@@ -207,6 +213,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/vip': typeof VipRoute
   '/workspace': typeof WorkspaceRoute
+  '/auth/confirm': typeof AuthConfirmRoute
   '/credits/buy': typeof CreditsBuyRoute
   '/credits/free': typeof CreditsFreeRoute
   '/credits/history': typeof CreditsHistoryRoute
@@ -238,6 +245,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/vip': typeof VipRoute
   '/workspace': typeof WorkspaceRoute
+  '/auth/confirm': typeof AuthConfirmRoute
   '/credits/buy': typeof CreditsBuyRoute
   '/credits/free': typeof CreditsFreeRoute
   '/credits/history': typeof CreditsHistoryRoute
@@ -270,6 +278,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/vip': typeof VipRoute
   '/workspace': typeof WorkspaceRoute
+  '/auth/confirm': typeof AuthConfirmRoute
   '/credits/buy': typeof CreditsBuyRoute
   '/credits/free': typeof CreditsFreeRoute
   '/credits/history': typeof CreditsHistoryRoute
@@ -303,6 +312,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/vip'
     | '/workspace'
+    | '/auth/confirm'
     | '/credits/buy'
     | '/credits/free'
     | '/credits/history'
@@ -334,6 +344,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/vip'
     | '/workspace'
+    | '/auth/confirm'
     | '/credits/buy'
     | '/credits/free'
     | '/credits/history'
@@ -365,6 +376,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/vip'
     | '/workspace'
+    | '/auth/confirm'
     | '/credits/buy'
     | '/credits/free'
     | '/credits/history'
@@ -397,6 +409,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   VipRoute: typeof VipRoute
   WorkspaceRoute: typeof WorkspaceRoute
+  AuthConfirmRoute: typeof AuthConfirmRoute
   PtBrCreditsRoute: typeof PtBrCreditsRoute
   PtBrLoginRoute: typeof PtBrLoginRoute
   PtBrSettingsRoute: typeof PtBrSettingsRoute
@@ -538,6 +551,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkspaceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/confirm': {
+      id: '/auth/confirm'
+      path: '/auth/confirm'
+      fullPath: '/auth/confirm'
+      preLoaderRoute: typeof AuthConfirmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/credits/buy': {
       id: '/credits/buy'
       path: '/buy'
@@ -662,6 +682,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   VipRoute: VipRoute,
   WorkspaceRoute: WorkspaceRoute,
+  AuthConfirmRoute: AuthConfirmRoute,
   PtBrCreditsRoute: PtBrCreditsRoute,
   PtBrLoginRoute: PtBrLoginRoute,
   PtBrSettingsRoute: PtBrSettingsRoute,

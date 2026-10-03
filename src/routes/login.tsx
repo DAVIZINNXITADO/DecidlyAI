@@ -271,7 +271,7 @@ function LoginPage() {
       type: "signup",
       email: cleanEmail,
       options: {
-        emailRedirectTo: `${window.location.origin}/login`,
+        emailRedirectTo: `${window.location.origin}/auth/confirm`,
       },
     });
 
@@ -817,7 +817,7 @@ function LoginPage() {
         password,
 
         options: {
-          emailRedirectTo: `${window.location.origin}/login`,
+          emailRedirectTo: `${window.location.origin}/auth/confirm`,
 
           captchaToken,
 
@@ -1052,7 +1052,7 @@ function LoginPage() {
               <p className="mt-4 text-base leading-relaxed text-slate-400 sm:text-lg">
                 Enviamos um link de confirmação para{" "}
                 <strong className="text-slate-200">{verificationEmail}</strong>. Clique nele para
-                ativar sua conta e depois entre normalmente.
+                ativar sua conta. Depois da confirmação, você será levado diretamente ao workspace.
               </p>
 
               <div className="mt-7 rounded-2xl border border-violet-300/15 bg-violet-400/[0.06] p-4 text-sm leading-6 text-slate-300">
@@ -1090,7 +1090,7 @@ function LoginPage() {
                 onClick={() => changeMode("login")}
                 className="mt-5 w-full rounded-xl py-2 text-center text-sm font-medium text-violet-400 transition hover:text-violet-300"
               >
-                Já confirmei — voltar para entrar
+                Voltar para entrar
               </button>
             </div>
           ) : isRecover ? (
