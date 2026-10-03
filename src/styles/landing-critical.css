@@ -1,0 +1,105 @@
+/*
+ * Critical first viewport styles for the public landing page.
+ * Keep every selector scoped to .landing-shell so internal routes are untouched.
+ */
+.landing-shell {
+  min-height: 100vh;
+  background: #020617;
+  color: #fff;
+}
+
+.landing-shell .landing-page {
+  position: relative;
+  overflow-x: hidden;
+  background: #070711;
+  color: #fff;
+}
+
+.landing-shell .landing-content {
+  position: relative;
+  z-index: 10;
+}
+
+.landing-shell .landing-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 1px solid rgb(30 41 59 / 0.7);
+  background: rgb(2 6 23 / 0.95);
+}
+
+.landing-shell .landing-hero {
+  box-sizing: border-box;
+  display: grid;
+  width: 100%;
+  max-width: 80rem;
+  min-height: 39rem;
+  margin-inline: auto;
+  align-items: center;
+  gap: 4rem;
+  padding: 5rem 1.5rem 6rem;
+}
+
+.landing-shell .landing-hero-copy {
+  min-width: 0;
+}
+
+.landing-shell .landing-hero h1 {
+  max-width: 48rem;
+  margin: 0;
+  color: #fff;
+  font-size: 3rem;
+  font-weight: 600;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+}
+
+.landing-shell .landing-hero h1 span {
+  display: block;
+  margin-top: 0.75rem;
+  color: #c4b5fd;
+}
+
+.landing-shell .landing-hero-description {
+  max-width: 36rem;
+  margin: 1.75rem 0 0;
+  color: #cbd5e1;
+  font-size: 1.125rem;
+  line-height: 2rem;
+}
+
+.landing-shell .landing-hero-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 2.25rem;
+}
+
+.landing-shell .landing-orb {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 9999px;
+}
+
+@media (min-width: 640px) {
+  .landing-shell .landing-hero-actions {
+    flex-direction: row;
+  }
+}
+
+@media (min-width: 768px) {
+  .landing-shell .landing-hero {
+    grid-template-columns: 1.02fr 0.98fr;
+    padding-inline: 2rem;
+    padding-top: 7rem;
+    padding-bottom: 8rem;
+  }
+
+  .landing-shell .landing-hero h1 {
+    font-size: 4.5rem;
+  }
+
+  .landing-shell .landing-hero-description {
+    font-size: 1.25rem;
+  }
+}

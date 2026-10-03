@@ -217,6 +217,12 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Keep first-viewport controls on compositor-friendly properties only. */
+.landing-shell a,
+.landing-shell button {
+  transition-property: transform, opacity;
+}
+
 button:not(:disabled):active {
   transform: scale(0.98);
 }

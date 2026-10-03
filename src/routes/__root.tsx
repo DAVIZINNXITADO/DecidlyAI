@@ -277,11 +277,6 @@ export const Route = createRootRouteWithContext<{
 
       links: [
         {
-          rel: "stylesheet",
-          href: appCss,
-        },
-
-        {
           rel: "icon",
           href: decidlyaiMarkUrl,
           type: "image/webp",
@@ -342,11 +337,25 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="pt-BR">
       <head>
         <HeadContent />
-        <script
-          src="https://analytics.ahrefs.com/analytics.js"
-          data-key="HeI8uYMvnd18q5sJLYvuww"
-          async
+        <link rel="preload" href={appCss} as="style" />
+        <link
+          rel="stylesheet"
+          href={appCss}
+          data-app-stylesheet="true"
+          media="print"
+          onLoad={(event) => {
+            event.currentTarget.media = "all";
+          }}
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "document.querySelector('link[data-app-stylesheet]')?.setAttribute('media', 'all');",
+          }}
+        />
+        <noscript>
+          <link rel="stylesheet" href={appCss} />
+        </noscript>
       </head>
 
       <body>
@@ -362,6 +371,25 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   useEffect(() => {
+    const injectAhrefs = () => {
+      if (document.getElementById("decidly-ahrefs-analytics")) return;
+      const script = document.createElement("script");
+      script.id = "decidly-ahrefs-analytics";
+      script.src = "https://analytics.ahrefs.com/analytics.js";
+      script.dataset["key"] = "HeI8uYMvnd18q5sJLYvuww";
+      script.async = true;
+      document.head.appendChild(script);
+    };
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    const requestIdleCallback = idleWindow.requestIdleCallback;
+    const cancelIdleCallback = idleWindow.cancelIdleCallback;
+    const idleHandle = requestIdleCallback
+      ? requestIdleCallback(injectAhrefs, { timeout: 2500 })
+      : window.setTimeout(injectAhrefs, 2500);
+
     const applyDocumentPreferences = (theme: string, language: string) => {
       window.localStorage.setItem("decidly-theme", theme);
       window.localStorage.setItem("decidly-language", language === "en-US" ? "en" : language);
@@ -386,6 +414,13 @@ function RootComponent() {
     };
 
     void syncAccountPreferences().catch(() => undefined);
+    return () => {
+      if (cancelIdleCallback) {
+        cancelIdleCallback(idleHandle as number);
+      } else {
+        window.clearTimeout(idleHandle as number);
+      }
+    };
   }, []);
 
   return (

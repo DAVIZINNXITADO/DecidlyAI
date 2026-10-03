@@ -5,6 +5,10 @@ import decidlyaiMarkUrl from "../assets/decidlyai-mark-80.webp";
 import { useLanguageContext } from "../lib/LanguageProvider";
 import { t } from "../lib/i18n";
 
+interface NavbarProps {
+  className?: string;
+}
+
 function scrollToSection(sectionId: string) {
   const target = document.getElementById(sectionId);
 
@@ -22,7 +26,7 @@ function scrollToSection(sectionId: string) {
   });
 }
 
-export function Navbar() {
+export function Navbar({ className }: NavbarProps) {
   const { language } = useLanguageContext();
   const [mobileMenuOpen, setMobileMenuOpen] =
     useState(false);
@@ -55,7 +59,7 @@ export function Navbar() {
   }
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-slate-800/70 bg-slate-950/95 backdrop-blur-none transition-colors duration-200 md:bg-slate-950/80 md:backdrop-blur-xl">
+    <nav className={`sticky top-0 z-50 border-b border-slate-800/70 bg-slate-950/95 backdrop-blur-none transition-colors duration-200 md:bg-slate-950/80 md:backdrop-blur-xl ${className ?? ""}`.trim()}>
       <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-6">
         {/* LOGO */}
 

@@ -19,6 +19,7 @@ import { SeoFaqSection } from "../components/SeoArticlePage";
 import { Navbar } from "../components/Navbar";
 import { HOME_FAQS } from "../lib/seo";
 import { hasStoredSupabaseSession } from "../lib/supabase-session";
+import landingCriticalCss from "../styles/landing-critical.css?raw";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -55,15 +56,16 @@ function Index() {
   }, [navigate]);
 
   return (
-    <AppShell>
-      <main className="relative overflow-x-hidden bg-[#070711] text-white">
+    <AppShell className="landing-shell">
+      <style dangerouslySetInnerHTML={{ __html: landingCriticalCss }} />
+      <main className="landing-page relative overflow-x-hidden bg-[#070711] text-white">
         <div aria-hidden="true" className="landing-orb landing-orb-one" />
         <div aria-hidden="true" className="landing-orb landing-orb-two" />
-        <div className="relative z-10">
-          <Navbar />
+        <div className="landing-content relative z-10">
+          <Navbar className="landing-nav" />
 
-          <section className="mx-auto grid max-w-7xl items-center gap-16 px-6 pb-24 pt-20 md:grid-cols-[1.02fr_.98fr] md:px-8 md:pb-32 md:pt-28">
-            <div>
+          <section className="landing-hero mx-auto grid max-w-7xl items-center gap-16 px-6 pb-24 pt-20 md:grid-cols-[1.02fr_.98fr] md:px-8 md:pb-32 md:pt-28">
+            <div className="landing-hero-copy">
               <div className="eyebrow mb-7 inline-flex">
                 <Sparkles className="h-4 w-4" />
                 Clareza para as decisões que importam
@@ -76,13 +78,13 @@ function Index() {
                 </span>
               </h1>
 
-              <p className="mt-7 max-w-xl text-lg leading-8 text-slate-300 md:text-xl">
+              <p className="landing-hero-description mt-7 max-w-xl text-lg leading-8 text-slate-300 md:text-xl">
                 O DecidlyAI transforma dúvidas em caminhos claros. Organize o contexto,
                 compare possibilidades e use a inteligência certa para pensar melhor —
                 sem decidir por você.
               </p>
 
-              <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <div className="landing-hero-actions mt-9 flex flex-col gap-3 sm:flex-row">
                 <Link
                   to="/login"
                   className="interactive-lift group inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-6 py-4 font-semibold text-white shadow-[0_12px_40px_rgba(139,92,246,.25)] hover:bg-violet-700"
