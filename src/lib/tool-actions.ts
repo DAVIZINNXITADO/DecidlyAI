@@ -9,6 +9,8 @@ import {
 type ToolSelection = {
   id: "create_pdf" | "create_image" | "create_text_image";
   label: string;
+  cost: number;
+  costLabel: string;
 };
 
 export function inferRequestedTool(value: string): ToolSelection | null {
