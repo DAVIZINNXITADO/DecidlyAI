@@ -148,8 +148,6 @@ function Workspace() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [imageConsentEnabled, setImageConsentEnabled] = useState(false);
-  const [imageConsentRequest, setImageConsentRequest] = useState(false);
   const [limitPopup, setLimitPopup] = useState<{ title: string; message: string } | null>(null);
 
   const [userId, setUserId] = useState<string | null>(null);
@@ -192,21 +190,6 @@ function Workspace() {
   useEffect(() => {
     const enterTimer = window.setTimeout(() => setWorkspaceEntered(true), 80);
     return () => window.clearTimeout(enterTimer);
-  }, []);
-
-  useEffect(() => {
-    setImageConsentEnabled(window.localStorage.getItem("decidly-image-generation-enabled") === "true");
-  }, []);
-
-  const enableImageGeneration = useCallback(() => {
-    window.localStorage.setItem("decidly-image-generation-enabled", "true");
-    setImageConsentEnabled(true);
-    setImageConsentRequest(false);
-  }, []);
-
-  const dismissImageConsent = useCallback(() => {
-    setImageConsentRequest(false);
-    setSelectedTool((current) => current?.id === "create_image" ? null : current);
   }, []);
 
   useEffect(() => {
@@ -289,8 +272,13 @@ function Workspace() {
   }, [userId]);
 
   const handleResponseAction = useCallback(async (action: ResponseAction, messageId: string) => {
+    if (action.type === "create_image") {
+      setNotice("");
+      setError("A geração de imagens por IA está temporariamente suspensa por segurança. Nenhum crédito foi usado. Você ainda pode usar Imagem de texto no botão +.");
+      return;
+    }
     if (!userId) throw new Error("Entre na sua conta para criar o arquivo.");
-    if (!new Set(["create_pdf", "create_image", "create_text_image"]).has(action.type)) {
+    if (!new Set(["create_pdf", "create_text_image"]).has(action.type)) {
       throw new Error("Essa ferramenta ainda não está disponível.");
     }
     const targetMessage = messages.find((item) => item.id === messageId);
@@ -1440,8 +1428,11 @@ function Workspace() {
       }
 
       const inferredTool = inferRequestedTool(text);
-      if ((inferredTool?.id === "create_image" || selectedTool?.id === "create_image") && !imageConsentEnabled) {
-        setImageConsentRequest(true);
+      if (inferredTool?.id === "create_image" || selectedTool?.id === "create_image") {
+        setSelectedTool(null);
+        setToolsOpen(false);
+        setNotice("");
+        setError("A geração de imagens por IA está temporariamente suspensa por segurança. Nenhum crédito foi usado. Você ainda pode usar Imagem de texto no botão +.");
         return;
       }
 
@@ -1667,7 +1658,6 @@ function Workspace() {
       preferredName,
       extraGuidance,
       selectedTool,
-      imageConsentEnabled,
       handleResponseAction,
     ],
   );
@@ -3311,19 +3301,6 @@ function Workspace() {
           </div>
         </div>
       </main>
-
-      {imageConsentRequest && (
-        <div className="fixed inset-0 z-[170] flex items-center justify-center bg-[#0d0912]/75 p-4 backdrop-blur-sm">
-          <div role="dialog" aria-modal="true" aria-labelledby="image-consent-title" className="w-full max-w-md rounded-[2rem] border border-violet-300/20 bg-[#21152d] p-6 text-white shadow-2xl shadow-black/50 sm:p-7">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3"><div className="rounded-2xl bg-violet-400/15 p-3 text-violet-200"><ImageIcon size={24} /></div><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-300">Criação por IA</p><h2 id="image-consent-title" className="mt-1 text-xl font-bold">Ativar geração de imagens?</h2></div></div>
-              <button type="button" onClick={dismissImageConsent} className="rounded-xl p-2 text-white/45 hover:bg-white/10 hover:text-white" aria-label="Fechar"><X size={18} /></button>
-            </div>
-            <p className="mt-5 text-sm leading-6 text-white/65">Você pediu uma imagem. Ative esse recurso uma vez para permitir que a DecidlyAI crie imagens quando você solicitar.</p>
-            <div className="mt-6 grid gap-3 sm:grid-cols-2"><button type="button" onClick={enableImageGeneration} className="rounded-2xl bg-violet-500 px-4 py-3.5 font-semibold text-white hover:bg-violet-400">Ativar imagens</button><button type="button" onClick={dismissImageConsent} className="rounded-2xl border border-white/15 px-4 py-3.5 font-semibold text-white/75 hover:bg-white/10 hover:text-white">Agora não</button></div>
-          </div>
-        </div>
-      )}
 
       {limitPopup && (
         <div className="fixed inset-0 z-[175] flex items-center justify-center bg-[#0d0912]/75 p-4 backdrop-blur-sm">

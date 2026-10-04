@@ -9,7 +9,7 @@ type Props = {
   onClose: () => void;
 };
 
-const availableTools: Array<SelectedTool & { description: string; icon: typeof FileText }> = [
+const availableTools: Array<SelectedTool & { description: string; icon: typeof FileText; disabled?: boolean }> = [
   {
     id: "create_pdf",
     label: "Criar PDF",
@@ -22,9 +22,10 @@ const availableTools: Array<SelectedTool & { description: string; icon: typeof F
     id: "create_image",
     label: "Imagem por IA",
     cost: 2.5,
-    costLabel: "créditos por imagem",
-    description: "A IA interpreta o pedido e gera uma imagem visual.",
+    costLabel: "temporariamente pausada",
+    description: "Suspensa por segurança enquanto avaliamos uma proteção confiável.",
     icon: ImageIcon,
+    disabled: true,
   },
   {
     id: "create_text_image",
@@ -46,9 +47,9 @@ export function ToolCenter({ selected, onSelect, onClose }: Props) {
       {availableTools.map((tool) => {
         const isSelected = selected?.id === tool.id;
         const Icon = tool.icon;
-        return <button key={tool.id} type="button" role="menuitemcheckbox" aria-checked={isSelected} onClick={() => { onSelect({ id: tool.id, label: tool.label, cost: tool.cost, costLabel: tool.costLabel }); onClose(); }} className="flex w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-left text-[12px] text-white/80 transition hover:bg-violet-400/[0.13] hover:text-white">
+        return <button key={tool.id} type="button" role="menuitemcheckbox" aria-checked={isSelected} aria-disabled={tool.disabled || undefined} disabled={tool.disabled} onClick={() => { if (tool.disabled) return; onSelect({ id: tool.id, label: tool.label, cost: tool.cost, costLabel: tool.costLabel }); onClose(); }} className={`flex w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-left text-[12px] text-white/80 transition ${tool.disabled ? "cursor-not-allowed opacity-55" : "hover:bg-violet-400/[0.13] hover:text-white"}`}>
           <Icon size={15} className="mt-0.5 shrink-0 text-violet-300" />
-          <span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><strong className="font-medium">{tool.label}</strong><span className="shrink-0 text-[10px] text-violet-200">{tool.costLabel}</span></span><span className="mt-1 block text-[10px] leading-4 text-white/45">{tool.description}</span></span>
+          <span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><strong className="font-medium">{tool.label}</strong><span className={`shrink-0 text-[10px] ${tool.disabled ? "text-amber-200" : "text-violet-200"}`}>{tool.costLabel}</span></span><span className="mt-1 block text-[10px] leading-4 text-white/45">{tool.description}</span></span>
           {isSelected && <Check size={14} className="mt-0.5 shrink-0 text-emerald-300" />}
         </button>;
       })}
