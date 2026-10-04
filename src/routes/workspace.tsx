@@ -98,6 +98,7 @@ type Subscription = {
 const SIDEBAR_MAX_WIDTH = 320;
 const INITIAL_CHAT_LIMIT = 15;
 const LOAD_MORE_CHAT_LIMIT = 25;
+const FORM_SUBMIT_FEEDBACK_URL = "https://formsubmit.co/ajax/decidlyai@gmail.com";
 const WORKSPACE_EVENT = {
   id: "invite-30",
   label: "Convide e ganhe!",
@@ -2142,16 +2143,51 @@ function Workspace() {
       return;
     }
     const { error: insertError } = await supabase.from("message_feedback").insert({ user_id: userId, message_id: id, feedback, comment: comment.trim() || null });
-    setFeedbackSaving(false);
     if (insertError) {
+      setFeedbackSaving(false);
       setError("Não foi possível registrar sua avaliação. Verifique sua conexão e tente novamente.");
       return;
     }
+
+    const feedbackForm = new URLSearchParams();
+    feedbackForm.set("ai_message", messages.find((message) => message.id === id)?.content ?? "");
+    feedbackForm.set("feedback", feedback);
+    feedbackForm.set("comment", comment.trim());
+    feedbackForm.set("_subject", "Feedback de resposta da IA — DecidlyAI");
+    feedbackForm.set("_template", "table");
+    feedbackForm.set("_honey", "");
+
+    let forwardingError = false;
+    try {
+      const response = await fetch(FORM_SUBMIT_FEEDBACK_URL, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+        },
+        body: feedbackForm.toString(),
+      });
+      const responseText = await response.text();
+      const payload = JSON.parse(responseText) as { success?: unknown; error?: unknown };
+      const confirmed =
+        payload.success === true ||
+        (typeof payload.success === "string" && payload.success.toLowerCase() === "true");
+      if (!response.ok || !confirmed || payload.error === true) {
+        forwardingError = true;
+      }
+    } catch {
+      forwardingError = true;
+    }
+
     setLikes((current) => ({ ...current, [id]: feedback === "like" }));
     setDislikes((current) => ({ ...current, [id]: feedback === "dislike" }));
     setFeedbackMessage(null);
     setFeedbackComment("");
-  }, [userId]);
+    setFeedbackSaving(false);
+    if (forwardingError) {
+      setError("Sua avaliação foi salva, mas não foi possível encaminhá-la agora. Tente novamente mais tarde.");
+    }
+  }, [messages, userId]);
   const openFeedback = useCallback((message: ChatMessage, feedback: "like" | "dislike") => {
     setFeedbackMessage(message);
     setFeedbackChoice(feedback);

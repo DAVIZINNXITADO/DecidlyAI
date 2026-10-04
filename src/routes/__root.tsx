@@ -16,7 +16,6 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { hasStoredSupabaseSession } from "../lib/supabase-session";
 import { LanguageProvider } from "../lib/LanguageProvider";
 import { CookieConsent } from "../components/CookieConsent";
-import { FeedbackWidget } from "../components/FeedbackWidget";
 import { resolveRouteSeo, SITE_URL } from "../lib/seo";
 
 const organizationSchema = {
@@ -416,7 +415,6 @@ function RootComponent() {
       <LanguageProvider>
         <Outlet />
         <CookieConsent />
-        <FeedbackWidget />
       </LanguageProvider>
     </QueryClientProvider>
   );
