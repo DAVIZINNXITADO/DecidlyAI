@@ -2526,31 +2526,32 @@ function Workspace() {
 )}
 
       {!sidebarOpen && (
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            setCreditsOpen(true);
-            void loadCreditWallet();
-          }}
-          className="fixed right-4 top-4 z-[130] flex items-center gap-2 rounded-full bg-[#17101f]/95 px-3.5 py-2.5 text-sm font-semibold text-white/85 shadow-lg backdrop-blur-xl transition hover:bg-[#21152d] hover:text-white"
-          aria-label="Abrir créditos"
-        >
-          <Coins size={17} className="text-violet-300" />
-          <span>{usableCredits.toFixed(2)}</span>
-        </button>
-      )}
-
-      {!sidebarOpen && messages.length > 0 && (
-        <button
-          type="button"
-          onClick={() => void exportConversation()}
-          className="fixed right-4 top-16 z-[130] flex h-11 w-11 items-center justify-center rounded-full bg-[#17101f]/95 text-white/75 shadow-lg backdrop-blur-xl transition hover:bg-[#21152d] hover:text-white"
-          aria-label="Exportar conversa"
-          title="Exportar conversa"
-        >
-          <Download size={18} />
-        </button>
+        <div className="fixed right-4 top-4 z-[130] flex items-center gap-2">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setCreditsOpen(true);
+              void loadCreditWallet();
+            }}
+            className="flex items-center gap-2 rounded-full bg-[#17101f]/95 px-3.5 py-2.5 text-sm font-semibold text-white/85 shadow-lg backdrop-blur-xl transition hover:bg-[#21152d] hover:text-white"
+            aria-label="Abrir créditos"
+          >
+            <Coins size={17} className="text-violet-300" />
+            <span>{usableCredits.toFixed(2)}</span>
+          </button>
+          {messages.length > 0 && (
+            <button
+              type="button"
+              onClick={() => void exportConversation()}
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-[#17101f]/95 text-white/75 shadow-lg backdrop-blur-xl transition hover:bg-[#21152d] hover:text-white"
+              aria-label="Exportar conversa"
+              title="Exportar conversa"
+            >
+              <Download size={18} />
+            </button>
+          )}
+        </div>
       )}
 
       {/* ======================================================
@@ -3499,7 +3500,7 @@ function Workspace() {
               </div>
             )}
             {toolsOpen && (
-              <ToolCenter selected={selectedTool} onSelect={setSelectedTool} onClose={() => setToolsOpen(false)} />
+              <ToolCenter selected={selectedTool} onSelect={setSelectedTool} onClose={() => setToolsOpen(false)} onAttach={() => attachmentInputRef.current?.click()} />
             )}
             <input
               ref={attachmentInputRef}
@@ -3524,7 +3525,6 @@ function Workspace() {
               <div className="flex items-end gap-1.5">
                 <div className="mb-0.5 flex shrink-0 items-center gap-0.5">
                   <button type="button" onClick={() => setToolsOpen((open) => !open)} className={`flex h-8 w-8 items-center justify-center rounded-full transition ${toolsOpen ? "bg-violet-400/15 text-violet-200" : "text-white/45 hover:bg-white/5 hover:text-white"}`} aria-label="Abrir ferramentas"><Plus size={17} strokeWidth={2.2} className={toolsOpen ? "rotate-45 transition-transform" : "transition-transform"} /></button>
-                  <button type="button" onClick={() => attachmentInputRef.current?.click()} className="flex h-8 w-8 items-center justify-center rounded-full text-white/45 transition hover:bg-white/5 hover:text-white" aria-label="Anexar arquivo" title="Anexar arquivo"><Paperclip size={16} /></button>
                 </div>
                 <textarea
                     ref={textareaRef}
