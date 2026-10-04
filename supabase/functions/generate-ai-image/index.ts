@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
 const BUCKET = "decidlyai-artifacts";
+const POLLINATIONS_BASE_URL = "https://image.pollinations.ai/prompt/";
 const MAX_PROMPT_CHARS = 1_500;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -56,11 +57,9 @@ Deno.serve(async (request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const falKey = Deno.env.get("FAL_KEY");
     if (!authorization?.startsWith("Bearer ") || !supabaseUrl || !anonKey || !serviceKey) {
       throw new ApiError("Sessão ou configuração do serviço inválida.", 401);
     }
-    if (!falKey) throw new ApiError("A geração de imagens ainda não está configurada no servidor.", 503);
 
     authClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authorization } } });
     releaseClient = createClient(supabaseUrl, serviceKey, { global: { headers: { Authorization: authorization } } });
@@ -97,61 +96,38 @@ Deno.serve(async (request) => {
     reservationCreated = true;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60_000);
-    let result: { images?: Array<{ url?: string; content_type?: string | null }> };
+    const timeoutId = setTimeout(() => controller.abort(), 90_000);
+    const seed = Math.floor(Math.random() * 1000000);
+    const pollinationsUrl = `${POLLINATIONS_BASE_URL}${encodeURIComponent(prompt)}?width=1024&height=1024&seed=${seed}&model=flux&nologo=true`;
+    let imageResponse: Response;
     try {
-      const falResponse = await fetch("https://fal.run/fal-ai/flux/schnell", {
-        method: "POST",
+      imageResponse = await fetch(pollinationsUrl, {
+        method: "GET",
         signal: controller.signal,
-        headers: { Authorization: `Key ${falKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt,
-          num_inference_steps: 4,
-          image_size: { width: 1024, height: 1024 },
-          num_images: 1,
-          output_format: "jpeg",
-          enable_safety_checker: true,
-        }),
       });
-      if (!falResponse.ok) {
-        throw new ApiError(`A geração de imagem falhou no provedor (HTTP ${falResponse.status}). Nenhuma imagem foi salva.`, 502);
+      if (!imageResponse.ok) {
+        const providerStatus = imageResponse.status === 429 ? 429 : 502;
+        throw new ApiError(`A geração de imagem falhou no Pollinations.ai (HTTP ${imageResponse.status}). Nenhuma imagem foi salva.`, providerStatus);
       }
-      result = await falResponse.json() as { images?: Array<{ url?: string; content_type?: string | null }> };
     } finally {
       clearTimeout(timeoutId);
     }
 
-    const imageUrl = result.images?.[0]?.url;
-    if (!imageUrl) throw new ApiError("O provedor não retornou uma imagem.", 502);
-    const parsedImageUrl = new URL(imageUrl);
-    if (parsedImageUrl.protocol !== "https:" || !(parsedImageUrl.hostname === "fal.media" || parsedImageUrl.hostname.endsWith(".fal.media"))) {
-      throw new ApiError("O provedor retornou uma origem de imagem inválida.", 502);
-    }
-
-    const imageController = new AbortController();
-    const imageTimeout = setTimeout(() => imageController.abort(), 30_000);
-    let imageResponse: Response;
     let contentType = "";
     let imageBytes: Uint8Array;
-    try {
-      imageResponse = await fetch(parsedImageUrl, { signal: imageController.signal });
-      if (!imageResponse.ok) throw new ApiError("Não foi possível salvar a imagem retornada pelo provedor.", 502);
-      contentType = imageResponse.headers.get("content-type")?.split(";")[0] ?? "";
-      if (contentType !== "image/jpeg" && contentType !== "image/png") {
-        throw new ApiError("O provedor retornou um formato de imagem não permitido.", 502);
-      }
-      const advertisedSize = Number(imageResponse.headers.get("content-length") || 0);
-      if (advertisedSize > MAX_IMAGE_BYTES) throw new ApiError("A imagem retornada excedeu o limite de tamanho.", 502);
-      imageBytes = await readLimitedImage(imageResponse, MAX_IMAGE_BYTES);
-    } finally {
-      clearTimeout(imageTimeout);
+    contentType = imageResponse.headers.get("content-type")?.split(";")[0] ?? "";
+    if (contentType !== "image/jpeg" && contentType !== "image/png" && contentType !== "image/webp") {
+      throw new ApiError("O Pollinations.ai retornou um formato de imagem não permitido.", 502);
     }
+    const advertisedSize = Number(imageResponse.headers.get("content-length") || 0);
+    if (advertisedSize > MAX_IMAGE_BYTES) throw new ApiError("A imagem retornada excedeu o limite de tamanho.", 502);
+    imageBytes = await readLimitedImage(imageResponse, MAX_IMAGE_BYTES);
     if (!imageBytes.length || imageBytes.length > MAX_IMAGE_BYTES) {
       throw new ApiError("A imagem retornada excedeu o limite de tamanho.", 502);
     }
 
     const admin = createClient(supabaseUrl, serviceKey);
-    const extension = contentType === "image/png" ? "png" : "jpg";
+    const extension = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
     const path = `${userData.user.id}/${requestId}.${extension}`;
     const { error: uploadError } = await admin.storage.from(BUCKET).upload(path, imageBytes, {
       contentType,
