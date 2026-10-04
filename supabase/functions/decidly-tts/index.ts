@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import "jsr:@supabase/functions-js@2.4.1/edge-runtime.d.ts";
 import { EdgeTTS } from "npm:edge-tts-universal@1.4.0";
 
 const corsHeaders = {
