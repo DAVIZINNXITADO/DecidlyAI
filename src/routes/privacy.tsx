@@ -320,6 +320,33 @@ function Privacy() {
 
           <PrivacySection
             number="12"
+            title="Feedback enviado pelo formulário"
+            icon={<Mail className="h-5 w-5" />}
+          >
+            <p>
+              O formulário “Enviar feedback” permite encaminhar ao DecidlyAI uma
+              categoria (feedback geral, sugestão, problema ou bug, ou outro) e a
+              mensagem escrita por você. O endereço de e-mail é opcional e só é
+              enviado para que possamos responder ao feedback.
+            </p>
+
+            <p>
+              Esses dados são encaminhados ao destinatário DecidlyAI pelo
+              FormSubmit, um processador externo de formulários. O FormSubmit
+              informa que mantém as submissões por até 30 dias. Não envie senhas,
+              dados financeiros, informações de saúde ou qualquer outro dado
+              sensível nesse formulário.
+            </p>
+
+            <p>
+              O FormSubmit utiliza reCAPTCHA por padrão e pode solicitar uma
+              confirmação do endereço de recebimento na primeira submissão antes
+              de ativar o encaminhamento das mensagens.
+            </p>
+          </PrivacySection>
+
+          <PrivacySection
+            number="13"
             title="Alterações nesta Política de Privacidade"
           >
             <p>
@@ -335,7 +362,7 @@ function Privacy() {
           </PrivacySection>
 
           <PrivacySection
-            number="13"
+            number="14"
             title="Contato"
             icon={<Mail className="h-5 w-5" />}
           >
