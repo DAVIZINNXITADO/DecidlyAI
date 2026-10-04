@@ -1,4 +1,4 @@
-import { Check, FileText, Image as ImageIcon, X } from "lucide-react";
+import { Check, FileText, Image as ImageIcon, Type, X } from "lucide-react";
 
 export type ToolId = "create_pdf" | "create_image" | "create_text_image";
 export type SelectedTool = { id: ToolId; label: string; cost: number; costLabel: string };
@@ -25,6 +25,14 @@ const availableTools: Array<SelectedTool & { description: string; icon: typeof F
     costLabel: "créditos por imagem",
     description: "A IA interpreta o pedido e gera uma imagem visual.",
     icon: ImageIcon,
+  },
+  {
+    id: "create_text_image",
+    label: "Imagem de texto",
+    cost: 0.5,
+    costLabel: "0,5 crédito por imagem",
+    description: "Cria uma arte visual com o texto que você informar.",
+    icon: Type,
   },
 ];
 

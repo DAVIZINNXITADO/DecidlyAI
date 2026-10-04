@@ -204,6 +204,11 @@ function Workspace() {
     setImageConsentRequest(false);
   }, []);
 
+  const dismissImageConsent = useCallback(() => {
+    setImageConsentRequest(false);
+    setSelectedTool((current) => current?.id === "create_image" ? null : current);
+  }, []);
+
   useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
@@ -3312,10 +3317,10 @@ function Workspace() {
           <div role="dialog" aria-modal="true" aria-labelledby="image-consent-title" className="w-full max-w-md rounded-[2rem] border border-violet-300/20 bg-[#21152d] p-6 text-white shadow-2xl shadow-black/50 sm:p-7">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-3"><div className="rounded-2xl bg-violet-400/15 p-3 text-violet-200"><ImageIcon size={24} /></div><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-300">Criação por IA</p><h2 id="image-consent-title" className="mt-1 text-xl font-bold">Ativar geração de imagens?</h2></div></div>
-              <button type="button" onClick={() => setImageConsentRequest(false)} className="rounded-xl p-2 text-white/45 hover:bg-white/10 hover:text-white" aria-label="Fechar"><X size={18} /></button>
+              <button type="button" onClick={dismissImageConsent} className="rounded-xl p-2 text-white/45 hover:bg-white/10 hover:text-white" aria-label="Fechar"><X size={18} /></button>
             </div>
             <p className="mt-5 text-sm leading-6 text-white/65">Você pediu uma imagem. Ative esse recurso uma vez para permitir que a DecidlyAI crie imagens quando você solicitar.</p>
-            <div className="mt-6 grid gap-3 sm:grid-cols-2"><button type="button" onClick={enableImageGeneration} className="rounded-2xl bg-violet-500 px-4 py-3.5 font-semibold text-white hover:bg-violet-400">Ativar imagens</button><button type="button" onClick={() => setImageConsentRequest(false)} className="rounded-2xl border border-white/15 px-4 py-3.5 font-semibold text-white/75 hover:bg-white/10 hover:text-white">Agora não</button></div>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2"><button type="button" onClick={enableImageGeneration} className="rounded-2xl bg-violet-500 px-4 py-3.5 font-semibold text-white hover:bg-violet-400">Ativar imagens</button><button type="button" onClick={dismissImageConsent} className="rounded-2xl border border-white/15 px-4 py-3.5 font-semibold text-white/75 hover:bg-white/10 hover:text-white">Agora não</button></div>
           </div>
         </div>
       )}
