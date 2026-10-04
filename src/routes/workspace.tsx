@@ -1428,7 +1428,9 @@ function Workspace() {
       }
 
       const inferredTool = inferRequestedTool(text);
-      if (inferredTool?.id === "create_image" || selectedTool?.id === "create_image") {
+      const requestsDisabledImage = selectedTool?.id === "create_image"
+        || (!selectedTool && inferredTool?.id === "create_image");
+      if (requestsDisabledImage) {
         setSelectedTool(null);
         setToolsOpen(false);
         setNotice("");
