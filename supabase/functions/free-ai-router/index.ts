@@ -31,7 +31,7 @@ function cleanAttachments(value: unknown): Attachment[] {
     .slice(0, 3)
     .map((item) => ({
       name: String(item.name || "arquivo").slice(0, 120),
-      mimeType: String(item.mimeType || "").slice(0, 80),
+      mimeType: String(item.mimeType || (String(item.name || "").toLowerCase().endsWith(".png") ? "image/png" : String(item.name || "").toLowerCase().match(/\.jpe?g$/) ? "image/jpeg" : String(item.name || "").toLowerCase().endsWith(".webp") ? "image/webp" : "")).slice(0, 80),
       ...(typeof item.dataUrl === "string" && item.dataUrl.length <= 6_000_000 ? { dataUrl: item.dataUrl } : {}),
     }))
     .filter((item) => item.mimeType.startsWith("image/") && Boolean(item.dataUrl));

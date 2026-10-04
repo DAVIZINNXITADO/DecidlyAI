@@ -210,7 +210,7 @@ Deno.serve(async (request) => {
 
     const userContent: ChatMessage["content"] = imageAttachments.length
       ? [
-          { type: "text", text: message },
+          { type: "text", text: `A imagem está anexada a esta mensagem. Analise visualmente a imagem e responda diretamente ao pedido do usuário.\n\n${message}` },
           ...imageAttachments.map((attachment) => ({
             type: "image_url" as const,
             image_url: { url: attachment.dataUrl as string },

@@ -85,6 +85,14 @@ const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
 const MAX_ATTACHMENTS = 3;
 const MAX_ATTACHMENT_TEXT = 30_000;
 
+function imageMimeType(file: File) {
+  if (file.type.startsWith("image/")) return file.type;
+  if (/\.png$/i.test(file.name)) return "image/png";
+  if (/\.jpe?g$/i.test(file.name)) return "image/jpeg";
+  if (/\.webp$/i.test(file.name)) return "image/webp";
+  return "";
+}
+
 function replaceActionWithArtifact(content: string, requestId: string, replacement: string) {
   const escapedId = requestId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const pattern = new RegExp(`\\[action\\b(?=[^\\]]*\\b(?:request_id|id)=["']${escapedId}["'])[^\\]]*\\][\\s\\S]*?\\[\\/action\\]`, "i");
@@ -1401,14 +1409,15 @@ function Workspace() {
           const extractedText = (await file.text()).slice(0, MAX_ATTACHMENT_TEXT);
           if (!extractedText.trim()) throw new Error("O arquivo de texto está vazio.");
           next.push({ id: crypto.randomUUID(), name: file.name, mimeType: file.type || "text/plain", size: file.size, extractedText });
-        } else if (file.type.startsWith("image/")) {
+        } else if (imageMimeType(file)) {
+          const mimeType = imageMimeType(file);
           const dataUrl = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(String(reader.result));
             reader.onerror = () => reject(new Error("Não foi possível ler a imagem."));
             reader.readAsDataURL(file);
           });
-          next.push({ id: crypto.randomUUID(), name: file.name, mimeType: file.type, size: file.size, dataUrl });
+          next.push({ id: crypto.randomUUID(), name: file.name, mimeType, size: file.size, dataUrl });
         } else {
           setError(`${file.name}: formato não suportado. Use PDF, TXT, MD, CSV, JSON ou imagem.`);
         }
@@ -1502,7 +1511,10 @@ function Workspace() {
         .filter((attachment) => attachment.extractedText)
         .map((attachment) => `Arquivo anexado: ${attachment.name}\n${attachment.extractedText}`)
         .join("\n\n");
-      const promptText = [text || "Analise os arquivos anexados.", attachmentContext].filter(Boolean).join("\n\n");
+      const imageInstruction = selectedAttachments.some((attachment) => attachment.dataUrl)
+        ? "Há uma imagem anexada nesta mensagem. Analise visualmente o conteúdo da imagem e responda ao que o usuário perguntou sobre ela. Não peça o contexto novamente se a imagem permitir uma resposta."
+        : "";
+      const promptText = [text || "Analise os arquivos anexados.", imageInstruction, attachmentContext].filter(Boolean).join("\n\n");
 
       if ((!text && !selectedAttachments.length) || isLoading) {
         return;
