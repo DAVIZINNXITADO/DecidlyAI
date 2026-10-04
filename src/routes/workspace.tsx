@@ -18,6 +18,9 @@ import {
   MicOff,
   ThumbsUp,
   ThumbsDown,
+  RefreshCw,
+  Pencil,
+  Download,
   Copy,
   Check,
   Coins,
@@ -1413,8 +1416,8 @@ function Workspace() {
    */
 
   const sendMessage = useCallback(
-    async () => {
-      const text = input.trim();
+    async (textOverride?: string, historyOverride?: ChatMessage[]) => {
+      const text = (textOverride ?? input).trim();
       const guidance = extraGuidance.trim();
 
       if (!text || isLoading) {
@@ -1500,7 +1503,7 @@ function Workspace() {
           await getAIName();
 
         const history = [
-          ...messages,
+          ...(historyOverride ?? messages),
           userMessage,
         ].map((message) => ({
           role: message.role,
@@ -1673,6 +1676,67 @@ function Workspace() {
     setRequestTool(null);
     requestStartedAtRef.current = null;
   }, []);
+
+  const removeMessagesFrom = useCallback(async (startIndex: number) => {
+    if (!userId || !activeConversationId) return false;
+    const removedIds = messages.slice(startIndex).map((message) => message.id);
+    if (!removedIds.length) return true;
+    const { error: deleteError } = await supabase
+      .from("messages")
+      .delete()
+      .in("id", removedIds)
+      .eq("conversation_id", activeConversationId)
+      .eq("user_id", userId);
+    if (deleteError) {
+      setError("Não foi possível preparar a mensagem para reenviar.");
+      return false;
+    }
+    setMessages((current) => current.slice(0, startIndex));
+    return true;
+  }, [activeConversationId, messages, userId]);
+
+  const editUserMessage = useCallback(async (message: ChatMessage) => {
+    if (isLoading) return;
+    const messageIndex = messages.findIndex((item) => item.id === message.id);
+    if (messageIndex < 0) return;
+    if (await removeMessagesFrom(messageIndex)) {
+      setInput(message.content);
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    }
+  }, [isLoading, messages, removeMessagesFrom]);
+
+  const regenerateAssistantMessage = useCallback(async (message: ChatMessage) => {
+    if (isLoading) return;
+    const messageIndex = messages.findIndex((item) => item.id === message.id);
+    const previousUser = messages.slice(0, messageIndex).reverse().find((item) => item.role === "user");
+    const userIndex = previousUser ? messages.findIndex((item) => item.id === previousUser.id) : -1;
+    if (messageIndex < 0 || userIndex < 0 || !previousUser) return;
+    if (await removeMessagesFrom(userIndex)) {
+      setError("");
+      void sendMessage(previousUser.content, messages.slice(0, userIndex - 0));
+    }
+  }, [isLoading, messages, removeMessagesFrom, sendMessage]);
+
+  const exportConversation = useCallback(() => {
+    if (!messages.length) {
+      setNotice("Ainda não há mensagens para exportar.");
+      return;
+    }
+    const title = conversations.find((item) => item.id === activeConversationId)?.title || "Conversa DecidlyAI";
+    const text = [
+      title,
+      "=".repeat(title.length),
+      "",
+      ...messages.map((message) => `${message.role === "user" ? "Você" : "DecidlyAI"}:\n${message.content}`),
+    ].join("\n\n");
+    const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${title.replace(/[^a-z0-9À-ÿ]+/gi, "-").replace(/^-|-$/g, "").slice(0, 70) || "conversa-decidlyai"}.txt`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setNotice("Conversa exportada em TXT.");
+  }, [activeConversationId, conversations, messages]);
 
   /*
    * ============================================================
@@ -2369,6 +2433,18 @@ function Workspace() {
         >
           <Coins size={17} className="text-violet-300" />
           <span>{usableCredits.toFixed(2)}</span>
+        </button>
+      )}
+
+      {!sidebarOpen && messages.length > 0 && (
+        <button
+          type="button"
+          onClick={() => void exportConversation()}
+          className="fixed right-24 top-4 z-[130] flex h-11 w-11 items-center justify-center rounded-full bg-[#17101f]/95 text-white/75 shadow-lg backdrop-blur-xl transition hover:bg-[#21152d] hover:text-white"
+          aria-label="Exportar conversa"
+          title="Exportar conversa"
+        >
+          <Download size={18} />
         </button>
       )}
 
@@ -3154,6 +3230,17 @@ function Workspace() {
 
                                 <button
                                   type="button"
+                                  onClick={() => void regenerateAssistantMessage(message)}
+                                  disabled={isLoading}
+                                  className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                                  aria-label="Regenerar resposta"
+                                  title="Regenerar resposta"
+                                >
+                                  <RefreshCw size={15} />
+                                </button>
+
+                                <button
+                                  type="button"
                                   onClick={() =>
                                     void copyMessage(
                                       message,
@@ -3211,6 +3298,18 @@ function Workspace() {
                                 </span>
                               )}
                               <div className="whitespace-pre-wrap">{message.content}</div>
+                              <div className="mt-2 flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => void editUserMessage(message)}
+                                  disabled={isLoading}
+                                  className="flex h-7 w-7 items-center justify-center rounded-lg text-white/45 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                                  aria-label="Editar e reenviar mensagem"
+                                  title="Editar e reenviar mensagem"
+                                >
+                                  <Pencil size={14} />
+                                </button>
+                              </div>
                             </>
                           )}
                         </div>
