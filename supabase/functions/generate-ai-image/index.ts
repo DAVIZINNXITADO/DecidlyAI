@@ -8,15 +8,18 @@ const corsHeaders = {
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
 const BUCKET = "decidlyai-artifacts";
 const POLLINATIONS_BASE_URL = "https://image.pollinations.ai/prompt/";
+const POLLINATIONS_IMAGE_MODEL = "sana";
 const MAX_PROMPT_CHARS = 1_500;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  code?: string;
+  constructor(message: string, status: number, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -82,13 +85,13 @@ Deno.serve(async (request) => {
     if (reserveError) {
       const message = reserveError.message ?? "";
       if (message.includes("insufficient_credits")) throw new ApiError("Créditos insuficientes. A geração de imagem profissional custa 2,5 créditos.", 402);
-      if (message.includes("daily_artifact_limit:professional_image")) throw new ApiError("Você atingiu o limite diário de imagens profissionais do seu plano.", 429);
+      if (message.includes("daily_artifact_limit:professional_image")) throw new ApiError("Você atingiu o limite diário de imagens profissionais do seu plano.", 429, "daily_artifact_limit:professional_image");
       throw new ApiError("Não foi possível reservar os créditos para esta imagem.", 500);
     }
 
-    const reserved = reservation as { status?: string; replayed?: boolean; metadata?: { storage_path?: string } } | null;
+    const reserved = reservation as { status?: string; replayed?: boolean; metadata?: { storage_path?: string; mime_type?: string } } | null;
     if (reserved?.status === "settled" && reserved.metadata?.storage_path) {
-      return Response.json({ success: true, path: reserved.metadata.storage_path, replayed: true }, { headers: jsonHeaders });
+      return Response.json({ success: true, path: reserved.metadata.storage_path, mime_type: reserved.metadata.mime_type, replayed: true }, { headers: jsonHeaders });
     }
     if (reserved?.status === "reserved" && reserved.replayed) {
       throw new ApiError("Esta geração já está em andamento. Aguarde antes de tentar novamente.", 409);
@@ -98,32 +101,38 @@ Deno.serve(async (request) => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 90_000);
     const seed = Math.floor(Math.random() * 1000000);
-    const pollinationsUrl = `${POLLINATIONS_BASE_URL}${encodeURIComponent(prompt)}?width=1024&height=1024&seed=${seed}&model=flux&nologo=true`;
+    const pollinationsUrl = `${POLLINATIONS_BASE_URL}${encodeURIComponent(prompt)}?width=768&height=768&seed=${seed}&model=${POLLINATIONS_IMAGE_MODEL}&nologo=true`;
     let imageResponse: Response;
+    let contentType = "";
+    let imageBytes: Uint8Array;
     try {
       imageResponse = await fetch(pollinationsUrl, {
         method: "GET",
         signal: controller.signal,
       });
       if (!imageResponse.ok) {
-        const providerStatus = imageResponse.status === 429 ? 429 : 502;
-        throw new ApiError(`A geração de imagem falhou no Pollinations.ai (HTTP ${imageResponse.status}). Nenhuma imagem foi salva.`, providerStatus);
+        if (imageResponse.status === 429) {
+          throw new ApiError("O Pollinations.ai está temporariamente indisponível ou sob alta demanda (HTTP 429). Tente novamente em alguns instantes; os créditos desta tentativa serão devolvidos.", 429, "provider_rate_limited");
+        }
+        throw new ApiError(`A geração de imagem falhou no Pollinations.ai (HTTP ${imageResponse.status}). Nenhuma imagem foi salva; os créditos serão devolvidos.`, 502, "provider_error");
       }
+      const modelUsed = imageResponse.headers.get("x-model-used")?.trim().toLowerCase();
+      if (modelUsed !== POLLINATIONS_IMAGE_MODEL) {
+        throw new ApiError("O Pollinations.ai não confirmou o modelo Sana esperado. Nenhuma imagem foi salva; os créditos serão devolvidos.", 502, "unexpected_image_model");
+      }
+      contentType = imageResponse.headers.get("content-type")?.split(";")[0]?.toLowerCase() ?? "";
+      if (contentType !== "image/jpeg" && contentType !== "image/png" && contentType !== "image/webp") {
+        throw new ApiError("O Pollinations.ai retornou um formato de imagem não permitido.", 502, "invalid_image_type");
+      }
+      const advertisedSize = Number(imageResponse.headers.get("content-length") || 0);
+      if (advertisedSize > MAX_IMAGE_BYTES) throw new ApiError("A imagem retornada excedeu o limite de tamanho.", 502, "image_too_large");
+      imageBytes = await readLimitedImage(imageResponse, MAX_IMAGE_BYTES);
     } finally {
       clearTimeout(timeoutId);
     }
 
-    let contentType = "";
-    let imageBytes: Uint8Array;
-    contentType = imageResponse.headers.get("content-type")?.split(";")[0] ?? "";
-    if (contentType !== "image/jpeg" && contentType !== "image/png" && contentType !== "image/webp") {
-      throw new ApiError("O Pollinations.ai retornou um formato de imagem não permitido.", 502);
-    }
-    const advertisedSize = Number(imageResponse.headers.get("content-length") || 0);
-    if (advertisedSize > MAX_IMAGE_BYTES) throw new ApiError("A imagem retornada excedeu o limite de tamanho.", 502);
-    imageBytes = await readLimitedImage(imageResponse, MAX_IMAGE_BYTES);
     if (!imageBytes.length || imageBytes.length > MAX_IMAGE_BYTES) {
-      throw new ApiError("A imagem retornada excedeu o limite de tamanho.", 502);
+      throw new ApiError("A imagem retornada excedeu o limite de tamanho.", 502, "image_too_large");
     }
 
     const admin = createClient(supabaseUrl, serviceKey);
@@ -159,6 +168,6 @@ Deno.serve(async (request) => {
       : error instanceof Error && error.name === "AbortError"
         ? "A geração excedeu o tempo limite. Os créditos reservados serão devolvidos."
         : "Não foi possível gerar a imagem agora. Os créditos reservados serão devolvidos.";
-    return Response.json({ error: message }, { status, headers: jsonHeaders });
+    return Response.json({ error: message, ...(error instanceof ApiError && error.code ? { code: error.code } : {}) }, { status, headers: jsonHeaders });
   }
 });

@@ -1,41 +1,38 @@
-# Capacidades atuais do DecideAI
+# Capacidades atuais do DecidlyAI
 
-Auditoria do código local em 2026-10-02. Este documento distingue funcionalidades implementadas no repositório de funcionalidades que só ficam disponíveis no ambiente depois do deploy e da configuração do Supabase.
+Auditoria de código e produção em **4 de outubro de 2026**.
 
-## Implementado no código
+## Implementado
 
-- Conversa de texto com a IA e histórico de conversas.
-- **PDF simples**: conteúdo final preparado pela IA é transformado em PDF A4 com texto em alfabeto latino, guardado em Storage privado e anexado à conversa. O arquivo custa 1 crédito; a geração do conteúdo usa a cobrança normal da conversa. Limite: 1 PDF/dia Free ou 3/dia VIP; máximo de 12.000 caracteres e 8 páginas. Não lê PDFs enviados.
-- **Imagem profissional por IA**: Supabase Edge Function chama `fal-ai/flux/schnell` no servidor, usa uma imagem quadrada 1024×1024 e mantém o safety checker ligado. Custa 2,5 créditos; limites: 3/dia Free ou 9/dia VIP; prompt de até 1.500 caracteres.
-- **Imagem básica de texto**: Canvas cria localmente uma imagem PNG quadrada 1024×1024 com fundo escuro e texto branco. Custa 0,5 crédito; limites: 5/dia Free ou 15/dia VIP; texto de até 220 caracteres. Esta cota é separada da imagem profissional.
-- Os blocos de ação exigem clique explícito, apresentam custo/limite e recebem ID idempotente. Cada execução cria no máximo um artefato; execuções adicionais dependem do saldo. A cobrança é reservada no banco e estornada se a geração não concluir.
-- Os arquivos ficam em bucket privado, com acesso por usuário e links assinados temporários.
-- O histórico guarda qual ferramenta o usuário selecionou e substitui a ação concluída pelo link ou imagem gerada.
-- O plano Free tem limite de 5 créditos no saldo diário renovável. Créditos de convite e créditos comprados ficam em saldos separados.
-- O consumo normal de conversa usa estimativa de tokens baseada no contexto/resposta; não é contagem exata fornecida pelo provedor.
+- Conversa com IA, histórico, respostas ricas e execução de ações explícitas.
+- **Imagem por IA**: o chat transforma pedidos explícitos em uma única ação com prompt visual limpo; após o consentimento local inicial, a geração segue automaticamente. Enquanto a imagem está sendo preparada, o chat não exibe briefing técnico nem JSON.
+- A Edge Function autenticada chama o endpoint público legado do Pollinations sem chave de provedor, solicita o modelo `sana` e verifica o cabeçalho `x-model-used` antes de aceitar a resposta. A imagem é guardada no bucket privado `decidlyai-artifacts` e anexada à conversa. Custo: 2,5 créditos; limites: 3/dia Free ou 9/dia VIP; prompt até 1.500 caracteres.
+- **Limitação importante do serviço público atual**: uma geração real sem autenticação retornou JPEG 768×768 com `x-model-used: sana`. O catálogo do endpoint legado lista somente `sana`; ele não entrega FLUX mesmo que se envie `model=flux`. A API atual do Pollinations aceita FLUX, mas exige chave. Portanto, esta implantação prioriza a opção keyless escolhida e não deve ser anunciada como FLUX.
+- **PDF simples**: conteúdo final da IA é transformado em PDF A4, guardado em Storage privado e anexado. Custa 1 crédito pelo arquivo, além da cobrança normal da resposta; limite de 1/dia Free ou 3/dia VIP; máximo de 12.000 caracteres e 8 páginas. Não lê PDFs enviados.
+- **Imagem básica de texto**: Canvas cria PNG quadrado 1024×1024 com texto de até 220 caracteres. Custa 0,5 crédito; limite de 5/dia Free ou 15/dia VIP, em cota separada.
+- Operações de artefato usam IDs idempotentes e reservas de crédito. Falhas após reserva chamam a liberação para estornar. Arquivos são privados, com acesso por usuário e links assinados temporários.
 
-## Requisitos para ficar ativo no ambiente
+## Estado verificado em produção
 
-O código deste repositório, sozinho, ainda não prova que o recurso está implantado no Supabase. Antes de anunciá-lo como disponível em produção:
+- Projeto Supabase: `decidlyai-production` (`bwnnfcgwwuvfikquqelq`), região `sa-east-1`.
+- `generate-ai-image`: versão **4**, ativa, `verify_jwt=true`; executa Pollinations sem `POLLINATIONS_API_KEY` e sem `FAL_KEY`.
+- `groq-free`: versão **11**, ativa, com instruções de chat alinhadas ao fluxo automático e ao modelo Sana.
+- O bucket `decidlyai-artifacts` continua privado, limitado a 10 MiB e permite PDF, PNG, JPEG e WebP. A migration `20261004115801_allow_webp_generated_images` está aplicada.
+- Nenhuma função implantada para este fluxo envia chave de imagem ao navegador.
 
-1. Aplicar a migration `20261002100000_ai_artifact_limits_and_storage.sql`.
-2. Implantar `generate-ai-image` e a atualização de `groq-free`.
-3. Configurar uma **nova** chave `FAL_KEY` como secret server-side no Supabase; a chave enviada anteriormente em conversa deve ser revogada/rotacionada.
-4. Validar com usuário autenticado: geração, Storage privado, débito, cota diária, estorno, repetição/idempotência e recuperação de reserva abandonada.
+## Validação e limitação de teste
+
+- Foi confirmada uma geração direta e sem chave no endpoint público: HTTP 200, `image/jpeg`, `x-auth-status: unauthenticated`, `x-model-used: sana`, dimensões reais 768×768.
+- `pnpm build` e `git diff --check` passaram.
+- Não foi feita uma chamada autenticada de ponta a ponta com conta de teste: não havia sessão/token de usuário disponível neste ambiente. Portanto, ainda falta confirmar numa sessão autenticada que a resposta da Edge Function inclui `path`, o arquivo aparece no bucket e a conversa o renderiza via URL assinada.
+
+## Variáveis e secrets
+
+`POLLINATIONS_API_KEY` e `FAL_KEY` não são requisitos deste caminho e não devem ser verificados ou expostos pelo frontend. O `SUPABASE_SERVICE_ROLE_KEY` continua exclusivamente no ambiente server-side da Edge Function. Uma futura troca para FLUX pela API atual do Pollinations exigiria uma chave server-side e uma alteração deliberada desta escolha keyless.
 
 ## Não anunciar como funcional
 
-- Pesquisa na web ou pesquisa avançada com fontes externas.
-- Upload, leitura ou análise de arquivos e PDFs. O seletor anterior guardava apenas nomes de arquivos, não os conteúdos.
-- Criação de arquivos genéricos além do PDF de texto.
-- Plugins.
-- Plano VIP, preço, benefícios e limites de negócio não conectados a um checkout real.
-- Pagamento/recarga de créditos: a tela ainda não tem checkout real conectado.
-
-## Regras de copy
-
-- Não listar provedores ou modelos específicos em páginas públicas; a configuração de roteamento pode mudar e algumas rotas alternativas dependem do deployment.
-- Descrever a cobrança de conversa como estimativa baseada no volume de texto/contexto.
-- No botão `+`, listar somente as três ferramentas implementadas e mostrar custo/limite antes do envio.
-- Nunca sugerir que abrir, ler, analisar ou anexar um PDF é suportado: a ferramenta PDF só exporta texto preparado pela IA.
-- Não dizer que uma imagem/PDF foi criado antes de a ação manual concluir e o artefato estar armazenado.
+- FLUX sem chave no endpoint legado.
+- Pesquisa na web, leitura/análise de PDFs enviados, anexos, upload ou edição de imagens.
+- Geração de arquivos genéricos além do PDF suportado.
+- Compra/recarga de créditos: a tela ainda não tem checkout real conectado.

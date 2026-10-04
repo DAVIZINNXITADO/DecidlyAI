@@ -137,6 +137,27 @@ function withFreshRequestIds(content: string, createRequestId: () => string) {
   });
 }
 
+function safeImagePrompt(value: string, userRequest: string) {
+  const candidate = value.trim().replace(/^```(?:json|text)?\s*/i, "").replace(/\s*```$/, "").trim();
+  let isStructuredBrief = false;
+  try {
+    const parsed: unknown = JSON.parse(candidate);
+    isStructuredBrief = Boolean(parsed && typeof parsed === "object");
+  } catch {
+    // Uma descrição visual simples é esperada, não um objeto de configuração.
+  }
+  const technicalMarkup = /\[\s*image_design\b/i.test(candidate);
+  const technicalBrief = /\b(?:image_design|layout|dimensions|font(?:_family)?|typography|canvas|margin(?:s)?|backgroundEnd|fontRatio)\b/i.test(candidate)
+    && /[{}\[\]]/.test(candidate);
+  const source = isStructuredBrief || technicalMarkup || technicalBrief ? userRequest : candidate;
+  let prompt = toPlainArtifactText(source)
+    .replace(/^\s*(?:prompt(?: visual)?|briefing)\s*:\s*/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (prompt.length < 8) prompt = `Ilustração: ${prompt}`.trim();
+  return prompt.slice(0, 1_500);
+}
+
 function removeOversizedTextImageActions(content: string, userRequest: string) {
   return content.replace(ACTION_BLOCK_PATTERN, (whole, rawAttributes: string, body: string) => {
     if (attributes(rawAttributes)["type"] !== "create_text_image") return whole;
@@ -205,9 +226,13 @@ export function ensureToolActionResponse(
     normalizedContent.replace(ACTION_BLOCK_PATTERN, "").trim();
   const parsedTextImagePayload =
     selectedTool.id === "create_text_image" ? parseTextImagePayload(source) : null;
-  let payload = toPlainArtifactText(parsedTextImagePayload?.text ?? source);
+  let payload = selectedTool.id === "create_image"
+    ? safeImagePrompt(source, userRequest)
+    : toPlainArtifactText(parsedTextImagePayload?.text ?? source);
   if (!payload || CAPABILITY_REFUSAL_PATTERN.test(payload)) {
-    payload = toPlainArtifactText(userRequest);
+    payload = selectedTool.id === "create_image"
+      ? safeImagePrompt(userRequest, userRequest)
+      : toPlainArtifactText(userRequest);
   }
   if (!payload) return withFreshRequestIds(normalizedContent, createRequestId);
   if (selectedTool.id === "create_text_image") {

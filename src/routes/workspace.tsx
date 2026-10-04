@@ -314,9 +314,14 @@ function Workspace() {
     };
 
     const persistArtifact = async (artifact: { kind: "file" | "image"; path: string; fileName?: string; alt?: string }) => {
+      const imageExtension = artifact.path.toLowerCase().endsWith(".png")
+        ? "png"
+        : artifact.path.toLowerCase().endsWith(".webp")
+          ? "webp"
+          : "jpg";
       const defaultName = artifact.kind === "file"
         ? "DecidlyAI.pdf"
-        : `DecidlyAI-imagem.${artifact.path.toLowerCase().endsWith(".png") ? "png" : "jpg"}`;
+        : `DecidlyAI-imagem.${imageExtension}`;
       const safeName = (artifact.fileName || defaultName).replace(/["<>]/g, "");
       const replacement = artifact.kind === "file"
         ? `[generated_file path="${artifact.path}" name="${safeName}"][/generated_file]`
@@ -346,8 +351,12 @@ function Workspace() {
         let message = error.message || "Falha na geração da imagem.";
         const context = error.context;
         if (context instanceof Response) {
-          const payload = await context.clone().json().catch(() => null) as { error?: string } | null;
-          if (payload?.error) message = payload.error;
+          const payload = await context.clone().json().catch(() => null) as { error?: string; code?: string } | null;
+          if (payload?.code === "daily_artifact_limit:professional_image") {
+            message = "Você atingiu o limite diário de imagens por IA do seu plano.";
+          } else if (payload?.error) {
+            message = payload.error;
+          }
         }
         if (message.includes("limite diário") || message.includes("daily_artifact_limit")) {
           setLimitPopup({ title: "Limite atingido", message: "Você atingiu o limite de criações por enquanto. Tente novamente quando o limite for renovado." });
@@ -1426,8 +1435,7 @@ function Workspace() {
       }
 
       const inferredTool = inferRequestedTool(text);
-      const toolWasExplicitlyActivated = Boolean(selectedTool);
-      if (inferredTool?.id === "create_image" && !imageConsentEnabled && !toolWasExplicitlyActivated) {
+      if ((inferredTool?.id === "create_image" || selectedTool?.id === "create_image") && !imageConsentEnabled) {
         setImageConsentRequest(true);
         return;
       }
@@ -1519,7 +1527,12 @@ function Workspace() {
           if (!content) return;
           setMessages((current) => {
             const exists = current.some((item) => item.id === assistantId);
-            if (!exists) return [...current, { id: assistantId, role: "assistant", content }];
+            if (!exists) return [...current, {
+              id: assistantId,
+              role: "assistant",
+              content,
+              ...(toolForRequest ? { toolId: toolForRequest.id, toolLabel: toolForRequest.label } : {}),
+            }];
             return current.map((item) => item.id === assistantId ? { ...item, content } : item);
           });
         };
@@ -3058,6 +3071,8 @@ function Workspace() {
                                       readingCharIndex,
                                     )}
                                   </div>
+                                ) : message.toolId === "create_image" && isLoading ? (
+                                  <div className="inline-flex items-center gap-2 rounded-2xl border border-violet-300/15 bg-violet-400/[0.07] px-3 py-2 text-sm text-white/60"><Loader2 size={15} className="animate-spin text-violet-300" />Preparando sua imagem…</div>
                                 ) : <RichResponse content={message.content} messageId={message.id} onActionRequest={handleResponseAction} onImageEditRequest={(prompt) => { setSelectedTool({ id: "create_text_image", label: "Imagem de texto", cost: 0.5, costLabel: "0,5 crédito" }); setInput(prompt); requestAnimationFrame(() => textareaRef.current?.focus()); }} />}
                               </div>
 
@@ -3176,8 +3191,10 @@ function Workspace() {
                     <div className="inline-flex items-center gap-2 rounded-2xl border border-violet-300/15 bg-violet-400/[0.07] px-3 py-2 text-sm text-white/60">
                       <Loader2 size={15} className="animate-spin text-violet-300" />
                       <span>
-                        {requestTool
-                          ? requestPhase === "sending"
+                        {requestTool?.id === "create_image"
+                          ? "Preparando sua imagem…"
+                          : requestTool
+                            ? requestPhase === "sending"
                             ? `Enviando para a IA · ${requestTool.label}…`
                             : `A IA está preparando · ${requestTool.label}`
                           : requestPhase === "sending"

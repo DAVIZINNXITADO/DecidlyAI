@@ -1,93 +1,60 @@
 # Checklist de prontidão do DecidlyAI
 
-Última auditoria de código: **2 de outubro de 2026**.
+Última auditoria: **4 de outubro de 2026**.
 
-Este documento separa funcionalidades implementadas no código das que dependem de configuração externa e validação no ambiente Supabase.
+Este documento separa o que está no repositório do que foi verificado no projeto Supabase de produção (`decidlyai-production`, `bwnnfcgwwuvfikquqelq`, região `sa-east-1`).
 
 ## Resumo executivo
 
-O workspace, autenticação, conversas, streaming, respostas ricas, créditos e páginas institucionais estão presentes. As ferramentas opcionais de PDF e imagem agora têm fluxo de código ponta a ponta, mas ainda dependem de migration/deploy/secret no Supabase para operar em produção. Pagamentos ainda estão apenas com a tela de pacotes; não existe checkout real conectado. A monetização por anúncios usa formatos display padrão do Adsterra nas posições descritas em `MONETAG-AD-SETUP.md`; não há anúncios recompensados nem créditos concedidos por visualização de anúncio.
+Workspace, autenticação, conversas, streaming, respostas ricas, créditos e geração de PDF/imagem estão no código. Em produção, `generate-ai-image` está na versão **4** com verificação JWT habilitada; `groq-free` está na versão **11**. A função de imagem usa o endpoint público legado do Pollinations sem chave e salva o arquivo no bucket privado `decidlyai-artifacts` (limite de 10 MiB). A chamada direta ao provedor foi confirmada sem autenticação e retornou uma imagem Sana 768×768.
 
-## O que está implementado no repositório
+**Escolha de provedor confirmada pelo usuário:** manter o endpoint keyless, aceitando Sana. O endpoint legado atualmente não oferece FLUX; a API atual de FLUX do Pollinations exige chave. Não anunciar este fluxo como FLUX.
+
+Pagamentos ainda estão apenas com a tela de pacotes; não existe checkout real conectado. A monetização usa formatos display padrão do Adsterra; não há anúncios recompensados nem créditos concedidos por visualizações.
+
+## O que está implementado
 
 | Área | Estado | Observação |
 |---|---|---|
-| Aplicação React/TanStack Start | Implementado | Build e typecheck executados sem erros nesta revisão. |
-| Login e sessão | Implementado | Supabase Auth é usado pelo frontend e pelas Edge Functions. |
-| Workspace | Implementado | Conversas, histórico, mensagens, seleção de ferramenta e estados de envio/processamento. |
-| Streaming | Implementado | Streaming SSE com atualização progressiva e cancelamento da geração. |
-| Rota Free | Parcial | `decidly-ai-stream` consulta créditos e encaminha para `free-ai-router`; fallback de provedores depende do ambiente implantado. |
-| Rota VIP | Parcial | O caminho precisa ser revisado antes de ser tratado como rota VIP isolada em produção. |
-| Perguntas contextuais | Implementado no contrato/UI | A IA pode emitir `[question]`; a pergunta aparece sem bloquear a caixa de mensagem. |
-| Respostas ricas | Implementado | Markdown seguro, ações explícitas, cartões de PDF e imagem privada. |
-| Central do botão “+” | Implementado | PDF, imagem por IA e imagem de texto; cada item informa custo e limite. Sem anexos ou plugins. |
-| PDF | Implementado no código | PDF A4 simples em alfabeto latino, até 12.000 caracteres/8 páginas; 1 crédito por arquivo + cobrança normal da resposta IA; limite 1/dia Free, 3/dia VIP. Não lê PDFs. |
-| Imagem profissional por IA | Implementado no código | Edge Function chama FLUX.1 Schnell com chave server-side; 1024×1024, 4 passos, 2,5 créditos; limite 3/dia Free, 9/dia VIP; prompt até 1.500 caracteres. |
-| Imagem básica de texto | Implementado no código | Canvas cria PNG 1024×1024, texto até 220 caracteres, 0,5 crédito; limite 5/dia Free, 15/dia VIP, quota separada. |
-| Créditos de artefatos | Implementado no código; migration pendente | RPCs transacionais e idempotentes reservam, liquidam ou devolvem crédito; a cota é aplicada no banco. |
-| Storage dos artefatos | Implementado no código; migration pendente | Bucket privado, políticas de caminho por usuário e URLs assinadas temporárias. |
-| Indicações | Implementado | Código, campanha e recompensa aparecem no workspace/créditos. |
-| Anúncios recompensados | Fora de escopo | Não oferecer visualizações de anúncio em troca de créditos. Migration preparada para revogar RPCs legadas; ainda precisa ser aplicada ao ambiente. |
-| Compra de créditos | Não conectado | A tela exibe pacotes, mas o clique ainda informa que o checkout será integrado. |
-| TTS | Implementado | Existe função de texto para voz e controles na resposta. |
+| Aplicação React/TanStack Start | Build validado | `pnpm build` concluiu sem erro. |
+| Login e sessão | Implementado | Supabase Auth no frontend e nas Edge Functions. |
+| Workspace e streaming | Implementado | Conversas, histórico, seleção de ferramentas e estados de processamento; para imagem, mostra “Preparando sua imagem…”. |
+| PDF | Implementado | PDF A4 simples, até 12.000 caracteres/8 páginas; 1 crédito pelo arquivo + uso normal da resposta; limite 1/dia Free e 3/dia VIP. Não lê PDFs. |
+| Imagem por IA | Implantado | Pollinations público sem chave, modelo `sana`, parâmetro 768×768, seed aleatória, prompt até 1.500 caracteres; custo 2,5 créditos; limite 3/dia Free e 9/dia VIP. A função exige cabeçalho `x-model-used: sana`. |
+| Créditos de artefatos | Implementado e migration aplicada | RPCs transacionais/idempotentes reservam, liquidam ou devolvem créditos; limite aplicado no banco. |
+| Storage dos artefatos | Implementado e migration aplicada | Bucket privado, caminhos por usuário, URLs assinadas temporárias, limite 10 MiB; aceita PDF, PNG, JPEG e WebP. |
+| Compra de créditos | Não conectado | A tela existe, mas checkout ainda não está ligado. |
 
-## Artefatos: configuração necessária para produção
+## Deploy e validação da imagem
 
-O código ainda não está ativo em produção até completar todos estes passos:
+- `generate-ai-image`: versão **4**, ativa, `verify_jwt=true`.
+- `groq-free`: versão **11**, ativa, prompt alinhado a pedidos explícitos e ao endpoint Sana.
+- A função de imagem remove a exigência de `POLLINATIONS_API_KEY` e não usa `FAL_KEY`, `fal.run` ou `fal.media`.
+- A migration `20261004115801_allow_webp_generated_images` está aplicada. O bucket permanece privado e limitado a 10 MiB.
+- O endpoint legado foi testado diretamente sem chave: HTTP 200, `image/jpeg`, `x-auth-status: unauthenticated`, `x-model-used: sana`; o arquivo recebido tinha 768×768.
+- `pnpm build` e `git diff --check` passaram.
 
-1. Aplicar primeiro a migration-base `20260917110000_operation_credit_ledger.sql` (a tabela `credit_operations` ainda não existe na produção verificada) e depois `20261002100000_ai_artifact_limits_and_storage.sql`.
-2. Implantar `generate-ai-image` e a versão atualizada de `groq-free`.
-3. Configurar `FAL_KEY` em **Supabase Edge Function Secrets**, nunca em `VITE_*`, frontend ou Git.
-4. Revogar e substituir a chave FAL compartilhada em conversa antes de configurar o secret; ela deve ser tratada como exposta.
-5. Testar com conta autenticada, sem revelar a chave: saldo insuficiente, cotas diárias, duplicidade, estorno após falha, execução concorrente, arquivos privados e links assinados.
-6. Confirmar que PDF, PNG e JPEG aparecem no histórico depois de recarregar a conversa.
+**Pendente para fechar o teste ponta a ponta:** usar uma sessão autenticada de teste com créditos para confirmar retorno de `path`, presença do objeto no Storage e renderização na conversa via URL assinada; testar também estorno e replay com o mesmo `operation_id`. Não havia token/sessão de teste disponível durante esta execução.
 
-Os limites implementados são aplicados no banco por dia (America/Sao_Paulo): PDF 1 Free/3 VIP; imagem profissional 3 Free/9 VIP; imagem básica 5 Free/15 VIP. Cada ação gera no máximo um artefato e também exige saldo suficiente. O PDF debita 1 crédito pelo arquivo, além do uso de créditos normal da resposta/conteúdo gerado pela IA. O plano Free tem 5 créditos diários; os limites de quantidade não ampliam esse saldo.
+`POLLINATIONS_API_KEY` não é necessário nem deve ser pedido por este fluxo. A API atual do Pollinations que oferece FLUX exige autenticação; para manter a escolha sem chave, o produto usa Sana pelo endpoint legado. Nenhuma chave de geração de imagem é enviada ao navegador. `SUPABASE_SERVICE_ROLE_KEY` permanece exclusivamente server-side.
 
-## Pagamentos: o que falta configurar
+## Limites diários
 
-A tela de compra já existe, mas não deve ser considerada pagamento funcional. Para ativar pagamentos com segurança, é necessário escolher um provedor e implementar:
-
-1. Criar produtos/preços no provedor escolhido para os pacotes de créditos.
-2. Criar uma Edge Function de checkout que valide o usuário e o pacote no servidor.
-3. Redirecionar o usuário para o checkout hospedado pelo provedor.
-4. Criar webhook autenticado para confirmar pagamento, evitando creditar pela resposta do navegador.
-5. Fazer o webhook ser idempotente, gravando o `provider_payment_id` ou equivalente.
-6. Creditar somente após evento confirmado como pago.
-7. Registrar um evento positivo em `credit_events` e uma operação no ledger de créditos.
-8. Configurar política de reembolso/chargeback e reversão de créditos.
-9. Testar em modo sandbox antes de ativar produção.
-
-Nenhuma chave secreta deve entrar no frontend ou no Git. As chaves devem ser configuradas como secrets das Edge Functions.
-
-## Anúncios: escopo e pendências
-
-O projeto mantém `public/ads.txt` e usa formatos display padrão da Adsterra nas posições descritas em `MONETAG-AD-SETUP.md`. Não oferecer anúncios recompensados nem usar visualização de anúncio para conceder créditos. Há anúncios em `/credits`, `/credits/free` e `/credits/history`; `/credits/buy` permanece sem anúncios.
-
-O aviso de cookies agora está montado globalmente e os scripts Adsterra só carregam após aceite explícito de cookies não essenciais. Antes de produção, ainda é necessário confirmar a configuração do publisher/domínio e revisar consentimento e política de privacidade para as regiões atendidas; `ads.txt` ou o snippet não substituem essas verificações.
+Os limites são aplicados pelo banco por dia (America/Sao_Paulo): PDF 1 Free/3 VIP; imagem por IA 3 Free/9 VIP; imagem básica 5 Free/15 VIP. Cada ação gera no máximo um artefato e também exige saldo suficiente. O PDF debita 1 crédito pelo arquivo, além do uso normal da resposta.
 
 ## Variáveis e secrets
 
-As variáveis públicas preparadas estão no `.env.example`. Valores reais devem ser configurados no ambiente de deploy ou nos secrets do Supabase:
+Variáveis públicas preparadas em `.env.example`:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
-- `VITE_PAYMENT_PROVIDER`, apenas para identificar o provedor no frontend
-- `VITE_PAYMENT_CHECKOUT_URL`, somente se for usado um checkout hospedado e público
-- `PAYMENT_SECRET_KEY`, somente como secret server-side/Edge Function
-- `PAYMENT_WEBHOOK_SECRET`, somente como secret server-side/Edge Function
-- `FAL_KEY`, somente como Supabase Edge Function Secret; nunca como variável `VITE_*`
+- `VITE_PAYMENT_PROVIDER`, apenas para identificar provedor no frontend
+- `VITE_PAYMENT_CHECKOUT_URL`, apenas se houver checkout hospedado público
 
-## Critérios antes de abrir para produção
+Segredos de Supabase e de pagamentos ficam somente no ambiente server-side apropriado. A geração pública keyless por Pollinations não requer segredo do provedor.
 
-- [ ] Aplicar todas as migrations no Supabase.
-- [ ] Fazer deploy das Edge Functions usadas pelo workspace, incluindo `generate-ai-image`.
-- [ ] Configurar uma chave FAL nova e revogar a chave exposta anteriormente.
-- [ ] Aplicar a migration que revoga RPCs legadas de recompensa patrocinada; ela preserva os registros existentes.
-- [ ] Isolar e validar a rota VIP.
-- [ ] Implementar checkout e webhook idempotente.
-- [ ] Testar cotas, saldo insuficiente, repetição, concorrência e estorno de artefatos.
-- [ ] Validar que outros usuários não conseguem ler arquivos no bucket privado.
-- [ ] Testar mobile, acessibilidade, links externos e estados offline.
-- [ ] Testar aceite/recusa de cookies: aceitar carrega anúncios; recusar mantém todos os scripts Adsterra bloqueados.
-- [ ] Revisar termos, privacidade, consentimento e política de anúncios.
+## Pendências de produto fora deste fluxo
+
+- Validar a geração autenticada e o render da imagem na conversa com uma sessão de teste.
+- Implementar checkout e webhook de pagamentos idempotente.
+- Validar acessibilidade, dispositivos móveis, cookies e política de privacidade.
