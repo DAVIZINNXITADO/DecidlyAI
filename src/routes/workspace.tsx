@@ -19,7 +19,6 @@ import {
   ThumbsUp,
   ThumbsDown,
   RefreshCw,
-  Pencil,
   Download,
   Copy,
   Check,
@@ -145,6 +144,7 @@ function Workspace() {
 
   const longPressTimerRef = useRef<number | null>(null);
   const longPressTriggeredRef = useRef(false);
+  const messageLongPressTimerRef = useRef<number | null>(null);
 
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -1705,6 +1705,24 @@ function Workspace() {
     }
   }, [isLoading, messages, removeMessagesFrom]);
 
+  const clearMessageLongPress = useCallback(() => {
+    if (messageLongPressTimerRef.current !== null) {
+      window.clearTimeout(messageLongPressTimerRef.current);
+      messageLongPressTimerRef.current = null;
+    }
+  }, []);
+
+  const startMessageLongPress = useCallback((event: ReactPointerEvent<HTMLDivElement>, message: ChatMessage) => {
+    if (isLoading || (event.pointerType === "mouse" && event.button !== 0)) return;
+    clearMessageLongPress();
+    messageLongPressTimerRef.current = window.setTimeout(() => {
+      messageLongPressTimerRef.current = null;
+      void editUserMessage(message);
+    }, 650);
+  }, [clearMessageLongPress, editUserMessage, isLoading]);
+
+  useEffect(() => () => clearMessageLongPress(), [clearMessageLongPress]);
+
   const regenerateAssistantMessage = useCallback(async (message: ChatMessage) => {
     if (isLoading) return;
     const messageIndex = messages.findIndex((item) => item.id === message.id);
@@ -2440,7 +2458,7 @@ function Workspace() {
         <button
           type="button"
           onClick={() => void exportConversation()}
-          className="fixed right-24 top-4 z-[130] flex h-11 w-11 items-center justify-center rounded-full bg-[#17101f]/95 text-white/75 shadow-lg backdrop-blur-xl transition hover:bg-[#21152d] hover:text-white"
+          className="fixed right-4 top-16 z-[130] flex h-11 w-11 items-center justify-center rounded-full bg-[#17101f]/95 text-white/75 shadow-lg backdrop-blur-xl transition hover:bg-[#21152d] hover:text-white"
           aria-label="Exportar conversa"
           title="Exportar conversa"
         >
@@ -3154,6 +3172,10 @@ function Workspace() {
                     return (
                       <div
                         key={message.id}
+                        onPointerDown={message.role === "user" ? (event) => startMessageLongPress(event, message) : undefined}
+                        onPointerUp={message.role === "user" ? clearMessageLongPress : undefined}
+                        onPointerCancel={message.role === "user" ? clearMessageLongPress : undefined}
+                        onPointerLeave={message.role === "user" ? clearMessageLongPress : undefined}
                         className={
                           message.role ===
                           "user"
@@ -3298,18 +3320,6 @@ function Workspace() {
                                 </span>
                               )}
                               <div className="whitespace-pre-wrap">{message.content}</div>
-                              <div className="mt-2 flex justify-end">
-                                <button
-                                  type="button"
-                                  onClick={() => void editUserMessage(message)}
-                                  disabled={isLoading}
-                                  className="flex h-7 w-7 items-center justify-center rounded-lg text-white/45 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-                                  aria-label="Editar e reenviar mensagem"
-                                  title="Editar e reenviar mensagem"
-                                >
-                                  <Pencil size={14} />
-                                </button>
-                              </div>
                             </>
                           )}
                         </div>
