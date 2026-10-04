@@ -8,7 +8,8 @@ const corsHeaders = {
 
 type ProviderResult = { response: Response; provider: string };
 
-type Body = { message?: unknown; history?: unknown; stream?: boolean; language?: unknown };
+type Attachment = { name: string; mimeType: string; dataUrl?: string };
+type Body = { message?: unknown; history?: unknown; stream?: boolean; language?: unknown; attachments?: unknown };
 
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
 const sseHeaders = {
@@ -22,6 +23,19 @@ const event = (data: unknown, name?: string) =>
   `${name ? `event: ${name}\n` : ""}data: ${JSON.stringify(data)}\n\n`;
 
 const cleanDoneMarker = (text: string) => text.replace(/\s*\[DONE\]\s*$/gi, "").trimEnd();
+
+function cleanAttachments(value: unknown): Attachment[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Attachment => Boolean(item) && typeof item === "object")
+    .slice(0, 3)
+    .map((item) => ({
+      name: String(item.name || "arquivo").slice(0, 120),
+      mimeType: String(item.mimeType || "").slice(0, 80),
+      ...(typeof item.dataUrl === "string" && item.dataUrl.length <= 6_000_000 ? { dataUrl: item.dataUrl } : {}),
+    }))
+    .filter((item) => item.mimeType.startsWith("image/") && Boolean(item.dataUrl));
+}
 
 function responseText(data: unknown): string {
   if (typeof data === "string") return data;
@@ -164,13 +178,15 @@ Deno.serve(async (request) => {
       });
 
     const language = typeof body.language === "string" ? body.language : "en-US";
+    const attachments = cleanAttachments(body.attachments);
     const payload = JSON.stringify({
       message: body.message.trim(),
       history: Array.isArray(body.history) ? body.history.slice(-20) : [],
+      attachments,
       stream: body.stream !== false,
       language,
     });
-    const providers = ["groq-free", "cloudflare-free"];
+    const providers = attachments.length ? ["groq-free"] : ["groq-free", "cloudflare-free"];
     let lastError = "";
 
     for (const provider of providers) {

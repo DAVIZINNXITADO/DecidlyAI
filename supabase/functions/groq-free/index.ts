@@ -9,12 +9,13 @@ const corsHeaders = {
 
 type ChatMessage = {
   role: "user" | "assistant" | "system";
-  content: string;
+  content: string | { type: "text" | "image_url"; text?: string; image_url?: { url: string } }[];
 };
 
 type RequestBody = {
   message?: string;
   history?: ChatMessage[];
+  attachments?: { name?: string; mimeType?: string; dataUrl?: string }[];
   stream?: boolean;
   language?: string;
 };
@@ -46,7 +47,7 @@ function cleanHistory(history: unknown): ChatMessage[] {
     .slice(-20)
     .map((item) => ({
       role: item.role,
-      content: item.content.slice(0, 12000),
+      content: typeof item.content === "string" ? item.content.slice(0, 12000) : "",
     }));
 }
 
@@ -196,12 +197,26 @@ Deno.serve(async (request) => {
       return json({ error: "GROQ_API_KEY não configurada." }, 500);
     }
 
-    const model = Deno.env.get("GROQ_MODEL") || "llama-3.1-8b-instant";
+    const imageAttachments = (Array.isArray(body.attachments) ? body.attachments : [])
+      .filter((attachment) => attachment?.mimeType?.startsWith("image/") && typeof attachment.dataUrl === "string")
+      .slice(0, 3);
+    const model = imageAttachments.length
+      ? Deno.env.get("GROQ_VISION_MODEL") || "meta-llama/llama-4-scout-17b-16e-instruct"
+      : Deno.env.get("GROQ_MODEL") || "llama-3.1-8b-instant";
     const wantsStream = body.stream !== false;
     const history = cleanHistory(body.history);
     const languageNames: Record<string, string> = { "pt-BR": "Português do Brasil", "en-US": "English", "es-ES": "Español", "fr-FR": "Français", "de-DE": "Deutsch", "it-IT": "Italiano", "ja-JP": "日本語", "ko-KR": "한국어", "zh-CN": "简体中文", "hi-IN": "हिन्दी", "ar-SA": "العربية", "ru-RU": "Русский" };
     const responseLanguage = languageNames[body.language || "en-US"] || "English";
 
+    const userContent: ChatMessage["content"] = imageAttachments.length
+      ? [
+          { type: "text", text: message },
+          ...imageAttachments.map((attachment) => ({
+            type: "image_url" as const,
+            image_url: { url: attachment.dataUrl as string },
+          })),
+        ]
+      : message;
     const messages: ChatMessage[] = [
       {
         role: "system",
@@ -209,12 +224,12 @@ Deno.serve(async (request) => {
 
 Se a pessoa pedir uma obra textual completa (por exemplo, fábula, conto, redação ou carta), escreva a obra — com começo, desenvolvimento e conclusão — em vez de apenas repetir, rotular ou resumir o pedido; em uma fábula, inclua personagens, conflito, desfecho e moral. Seja breve em perguntas simples, mas respeite a extensão explícita solicitada.
 
-O DecidlyAI é principalmente uma IA de conversa. As ferramentas opcionais disponíveis são PDF simples até 12.000 caracteres/8 páginas (1 crédito por arquivo; o conteúdo da resposta é cobrado pela tarifa normal da conversa; limite 1/dia Free e 3/dia VIP) e imagem de texto determinística sobre fundo escuro (0,5 crédito, texto até 220 caracteres; limite 5/dia Free e 15/dia VIP). A geração de imagem visual por IA está temporariamente suspensa por segurança; nunca prometa nem emita ações create_image. Se a pessoa pedir uma imagem visual, explique brevemente a suspensão e ofereça ajuda em texto ou a ferramenta Imagem de texto. Cada ação disponível pode gerar no máximo um artefato e ainda exige saldo suficiente. Quando uma ferramenta estiver selecionada, retorne exatamente um bloco [action type=create_pdf title="Criar PDF"]conteúdo final conciso[/action] ou [action type=create_text_image title="Criar imagem de texto"]texto exato da imagem[/action], de acordo com a seleção. Sem seleção, só retorne uma ação se o usuário pedir explicitamente PDF ou Imagem de texto. O app adiciona um ID estável à ação; não invente IDs. Nunca diga que um arquivo já foi criado antes de a pessoa executar a ação. Não prometa pesquisa web, leitura de PDF, anexos, upload, edição de imagem ou várias imagens por ação; esses recursos não estão conectados. Se forem solicitados, explique brevemente a limitação e ofereça uma alternativa textual.
+O DecidlyAI é principalmente uma IA de conversa. As ferramentas opcionais disponíveis são PDF simples até 12.000 caracteres/8 páginas (1 crédito por arquivo; o conteúdo da resposta é cobrado pela tarifa normal da conversa; limite 1/dia Free e 3/dia VIP) e imagem de texto determinística sobre fundo escuro (0,5 crédito, texto até 220 caracteres; limite 5/dia Free e 15/dia VIP). A geração de imagem visual por IA está temporariamente suspensa por segurança; nunca prometa nem emita ações create_image. Se a pessoa pedir uma imagem visual, explique brevemente a suspensão e ofereça ajuda em texto ou a ferramenta Imagem de texto. Cada ação disponível pode gerar no máximo um artefato e ainda exige saldo suficiente. Quando uma ferramenta estiver selecionada, retorne exatamente um bloco [action type=create_pdf title="Criar PDF"]conteúdo final conciso[/action] ou [action type=create_text_image title="Criar imagem de texto"]texto exato da imagem[/action], de acordo com a seleção. Sem seleção, só retorne uma ação se o usuário pedir explicitamente PDF ou Imagem de texto. O app adiciona um ID estável à ação; não invente IDs. Nunca diga que um arquivo já foi criado antes de a pessoa executar a ação. Quando houver um PDF ou texto anexado, use o conteúdo recebido para responder. Quando houver uma imagem anexada, analise-a somente se o modelo visual estiver disponível; se o provedor rejeitar a imagem, informe claramente a limitação. Não prometa pesquisa web, edição de imagem ou várias imagens por ação.
 
 Se a mensagem já contém informação suficiente, responda ou prepare o conteúdo sem perguntar. Se faltar dado indispensável, faça UMA ÚNICA pergunta consolidada com todas as dúvidas necessárias, numeradas na mesma mensagem: [question id=clarify]1. ...\n2. ...[/question]. Nunca repita algo já respondido nem pergunte “quer adicionar mais alguma coisa?” por padrão. A ação apresenta a permissão e o custo antes da execução; não solicite confirmação redundante. Use emojis com moderação. Use callouts para Vantagens, Desvantagens, Observação, Recomendação e Decisão quando ajudarem. Para destacar trechos, use [highlight variant=warning color=yellow]trecho[/highlight] ou [color color=red]texto[/color]. Nunca use HTML, XML, CSS ou JavaScript. Para links, use [link href="https://exemplo.com" label="Abrir página"]https://exemplo.com[/link]. Para conteúdo reutilizável, use [copy_block language=text]conteúdo[/copy_block].`,
       },
       ...history,
-      { role: "user", content: message },
+      { role: "user", content: userContent },
     ];
 
     const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {

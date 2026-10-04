@@ -72,6 +72,19 @@ type ChatMessage = {
   toolId?: ToolId;
 };
 
+type ChatAttachment = {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  extractedText?: string;
+  dataUrl?: string;
+};
+
+const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
+const MAX_ATTACHMENTS = 3;
+const MAX_ATTACHMENT_TEXT = 30_000;
+
 function replaceActionWithArtifact(content: string, requestId: string, replacement: string) {
   const escapedId = requestId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const pattern = new RegExp(`\\[action\\b(?=[^\\]]*\\b(?:request_id|id)=["']${escapedId}["'])[^\\]]*\\][\\s\\S]*?\\[\\/action\\]`, "i");
@@ -115,6 +128,21 @@ function safePublicName(value: string | null | undefined) {
   return firstName.slice(0, 24);
 }
 
+async function extractPdfText(file: File) {
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const document = await getDocument({
+    data: new Uint8Array(await file.arrayBuffer()),
+    disableWorker: true,
+  }).promise;
+  const pages: string[] = [];
+  for (let pageNumber = 1; pageNumber <= Math.min(document.numPages, 8); pageNumber += 1) {
+    const page = await document.getPage(pageNumber);
+    const content = await page.getTextContent();
+    pages.push(content.items.map((item) => ("str" in item ? item.str : "")).join(" "));
+  }
+  return pages.join("\n\n").trim().slice(0, MAX_ATTACHMENT_TEXT);
+}
+
 function Workspace() {
   const { language } = useLanguageContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -147,6 +175,7 @@ function Workspace() {
   const messageLongPressTimerRef = useRef<number | null>(null);
 
   const [input, setInput] = useState("");
+  const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [requestPhase, setRequestPhase] = useState<"idle" | "sending" | "thinking">("idle");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -241,6 +270,8 @@ function Workspace() {
 
   const textareaRef =
     useRef<HTMLTextAreaElement | null>(null);
+
+  const attachmentInputRef = useRef<HTMLInputElement | null>(null);
 
   const recognitionRef =
     useRef<SpeechRecognition | null>(null);
@@ -1265,6 +1296,7 @@ function Workspace() {
     useCallback(() => {
       setMessages([]);
       setInput("");
+      setAttachments([]);
       setError("");
       setLikes({});
       setDislikes({});
@@ -1347,6 +1379,51 @@ function Workspace() {
       [userId],
     );
 
+  const addAttachments = useCallback(async (fileList: FileList | null) => {
+    if (!fileList) return;
+    const files = Array.from(fileList).slice(0, MAX_ATTACHMENTS - attachments.length);
+    if (!files.length) {
+      setError(`Você pode anexar no máximo ${MAX_ATTACHMENTS} arquivos por mensagem.`);
+      return;
+    }
+    const next: ChatAttachment[] = [];
+    for (const file of files) {
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        setError(`${file.name} excede o limite de 4 MB.`);
+        continue;
+      }
+      try {
+        if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+          const extractedText = await extractPdfText(file);
+          if (!extractedText) throw new Error("Não foi possível encontrar texto neste PDF.");
+          next.push({ id: crypto.randomUUID(), name: file.name, mimeType: "application/pdf", size: file.size, extractedText });
+        } else if (file.type.startsWith("text/") || /\.(txt|md|csv|json)$/i.test(file.name)) {
+          const extractedText = (await file.text()).slice(0, MAX_ATTACHMENT_TEXT);
+          if (!extractedText.trim()) throw new Error("O arquivo de texto está vazio.");
+          next.push({ id: crypto.randomUUID(), name: file.name, mimeType: file.type || "text/plain", size: file.size, extractedText });
+        } else if (file.type.startsWith("image/")) {
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result));
+            reader.onerror = () => reject(new Error("Não foi possível ler a imagem."));
+            reader.readAsDataURL(file);
+          });
+          next.push({ id: crypto.randomUUID(), name: file.name, mimeType: file.type, size: file.size, dataUrl });
+        } else {
+          setError(`${file.name}: formato não suportado. Use PDF, TXT, MD, CSV, JSON ou imagem.`);
+        }
+      } catch (caughtError) {
+        setError(caughtError instanceof Error ? `${file.name}: ${caughtError.message}` : `Não foi possível ler ${file.name}.`);
+      }
+    }
+    setAttachments((current) => [...current, ...next].slice(0, MAX_ATTACHMENTS));
+    if (next.length) setError("");
+  }, [attachments.length]);
+
+  const removeAttachment = useCallback((id: string) => {
+    setAttachments((current) => current.filter((attachment) => attachment.id !== id));
+  }, []);
+
   /*
    * ============================================================
    * AI
@@ -1419,8 +1496,15 @@ function Workspace() {
     async (textOverride?: string, historyOverride?: ChatMessage[]) => {
       const text = (textOverride ?? input).trim();
       const guidance = extraGuidance.trim();
+      const selectedAttachments = attachments;
+      const attachmentLabels = selectedAttachments.map((attachment) => `📎 ${attachment.name}`).join("\n");
+      const attachmentContext = selectedAttachments
+        .filter((attachment) => attachment.extractedText)
+        .map((attachment) => `Arquivo anexado: ${attachment.name}\n${attachment.extractedText}`)
+        .join("\n\n");
+      const promptText = [text || "Analise os arquivos anexados.", attachmentContext].filter(Boolean).join("\n\n");
 
-      if (!text || isLoading) {
+      if ((!text && !selectedAttachments.length) || isLoading) {
         return;
       }
 
@@ -1445,6 +1529,7 @@ function Workspace() {
       setError("");
       setNotice("");
       setInput("");
+      setAttachments([]);
       setExtraGuidance("");
       setToolsOpen(false);
       const toolForRequest = resolveSelectedToolForRequest(selectedTool || inferredTool, text);
@@ -1456,7 +1541,7 @@ function Workspace() {
       const userMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: "user",
-        content: text,
+        content: [text, attachmentLabels].filter(Boolean).join("\n\n"),
         ...(toolForRequest ? { toolLabel: toolForRequest.label } : {}),
         ...(toolForRequest ? { toolId: toolForRequest.id } : {}),
       };
@@ -1491,7 +1576,7 @@ function Workspace() {
             conversation_id: conversationId,
             user_id: userId,
             role: "user",
-            content: text,
+            content: userMessage.content,
             ...(toolForRequest ? { tool_id: toolForRequest.id, tool_label: toolForRequest.label } : {}),
           });
 
@@ -1540,8 +1625,9 @@ function Workspace() {
         };
         setRequestPhase("thinking");
         const streamedAnswer = await streamAi(functionName, {
-          message: [privateContext, guidanceContext, toolContext, responseProtocolInstructions(), "Mensagem do usuário:\n" + text].filter(Boolean).join("\n\n"),
+          message: [privateContext, guidanceContext, toolContext, responseProtocolInstructions(), "Mensagem do usuário:\n" + promptText].filter(Boolean).join("\n\n"),
           history,
+          attachments: selectedAttachments.filter((attachment) => attachment.dataUrl).map((attachment) => ({ name: attachment.name, mimeType: attachment.mimeType, dataUrl: attachment.dataUrl })),
           signal: abortController.signal,
           onDelta: (_delta, accumulated) => {
             latestAccumulated = accumulated;
@@ -1665,6 +1751,7 @@ function Workspace() {
       extraGuidance,
       selectedTool,
       handleResponseAction,
+      attachments,
     ],
   );
 
@@ -3400,9 +3487,31 @@ function Workspace() {
                 <button type="button" onClick={() => setSelectedTool(null)} className="rounded-lg p-1 text-white/45 transition hover:bg-white/10 hover:text-white" aria-label="Desativar ferramenta selecionada"><X size={14} /></button>
               </div>
             )}
+            {attachments.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-white/[0.035] p-2">
+                {attachments.map((attachment) => (
+                  <div key={attachment.id} className="flex max-w-full items-center gap-2 rounded-xl bg-violet-400/[0.1] px-2.5 py-1.5 text-xs text-violet-100">
+                    <Paperclip size={13} className="shrink-0 text-violet-300" />
+                    <span className="max-w-[14rem] truncate">{attachment.name}</span>
+                    <button type="button" onClick={() => removeAttachment(attachment.id)} className="rounded-md p-0.5 text-white/45 hover:bg-white/10 hover:text-white" aria-label={`Remover ${attachment.name}`}><X size={13} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
             {toolsOpen && (
               <ToolCenter selected={selectedTool} onSelect={setSelectedTool} onClose={() => setToolsOpen(false)} />
             )}
+            <input
+              ref={attachmentInputRef}
+              type="file"
+              accept=".pdf,.txt,.md,.csv,.json,image/png,image/jpeg,image/webp"
+              multiple
+              className="hidden"
+              onChange={(event) => {
+                void addAttachments(event.target.files);
+                event.currentTarget.value = "";
+              }}
+            />
             <div
               className="rounded-[26px] bg-[#17101f] px-2.5 py-1.5 shadow-2xl"
               style={{
@@ -3415,6 +3524,7 @@ function Workspace() {
               <div className="flex items-end gap-1.5">
                 <div className="mb-0.5 flex shrink-0 items-center gap-0.5">
                   <button type="button" onClick={() => setToolsOpen((open) => !open)} className={`flex h-8 w-8 items-center justify-center rounded-full transition ${toolsOpen ? "bg-violet-400/15 text-violet-200" : "text-white/45 hover:bg-white/5 hover:text-white"}`} aria-label="Abrir ferramentas"><Plus size={17} strokeWidth={2.2} className={toolsOpen ? "rotate-45 transition-transform" : "transition-transform"} /></button>
+                  <button type="button" onClick={() => attachmentInputRef.current?.click()} className="flex h-8 w-8 items-center justify-center rounded-full text-white/45 transition hover:bg-white/5 hover:text-white" aria-label="Anexar arquivo" title="Anexar arquivo"><Paperclip size={16} /></button>
                 </div>
                 <textarea
                     ref={textareaRef}
@@ -3433,7 +3543,7 @@ function Workspace() {
                 <button
                   type="button"
                   onClick={() => void sendMessage()}
-                  disabled={!input.trim() || isLoading}
+                  disabled={(!input.trim() && attachments.length === 0) || isLoading}
                   className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#8B5CF6] text-white transition hover:bg-[#9B6AF7] disabled:cursor-not-allowed disabled:opacity-30"
                   aria-label="Enviar"
                 >

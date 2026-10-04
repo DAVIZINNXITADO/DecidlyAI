@@ -27,10 +27,10 @@ export function classifyMessage(message: string): OperationKind {
   return "question";
 }
 
-// O projeto não aceita uploads nem leitura de arquivos no chat neste momento.
+// Anexos do chat são processados no contexto da mensagem e não ficam públicos.
 export const defaultLimits = {
-  maxUploadBytes: 0,
-  maxFilesPerTask: 0,
+  maxUploadBytes: 4 * 1024 * 1024,
+  maxFilesPerTask: 3,
   maxPdfPages: 8,
   maxImagesPerTask: 1,
   maxConcurrentTasks: 1,

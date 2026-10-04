@@ -6,6 +6,7 @@ type ChatMessage = { role: "user" | "assistant"; content: string };
 type Options = {
   message: string;
   history: ChatMessage[];
+  attachments?: { name: string; mimeType: string; dataUrl?: string }[];
   onDelta?: (text: string, accumulated: string) => void;
   language?: string;
   signal?: AbortSignal;
@@ -56,6 +57,7 @@ export async function streamAi(functionName: string, options: Options): Promise<
       body: JSON.stringify({
         message: options.message,
         history: options.history,
+        attachments: options.attachments ?? [],
         stream: true,
         language: options.language || window.localStorage.getItem("decidly-language") || "pt-BR",
       }),
