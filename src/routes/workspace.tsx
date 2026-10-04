@@ -336,11 +336,29 @@ function Workspace() {
           const payload = await context.clone().json().catch(() => null) as { error?: string } | null;
           if (payload?.error) message = payload.error;
         }
+        // A Edge Function reserva o crédito antes de chamar o provedor. Se a
+        // resposta cair depois dessa reserva, o cliente tenta liberar a operação
+        // também. O RPC é idempotente: se a função já estornou ou nunca reservou,
+        // nenhuma segunda cobrança é criada.
+        const { error: releaseError } = await supabase.rpc("release_ai_artifact", {
+          p_request_id: action.requestId,
+          p_reason: `generate-ai-image: ${message}`.slice(0, 180),
+        });
+        if (releaseError) {
+          console.error("Não foi possível confirmar o estorno da imagem:", releaseError);
+        }
         await refreshWallet();
         throw new Error(message);
       }
       const result = data as { path?: string; replayed?: boolean } | null;
-      if (!result?.path) throw new Error("O serviço não retornou o arquivo da imagem.");
+      if (!result?.path) {
+        await supabase.rpc("release_ai_artifact", {
+          p_request_id: action.requestId,
+          p_reason: "generate-ai-image: resposta sem arquivo",
+        });
+        await refreshWallet();
+        throw new Error("O serviço não retornou o arquivo da imagem. Os créditos reservados foram devolvidos.");
+      }
       await persistArtifact({ kind: "image", path: result.path, alt: "Imagem gerada por IA" });
       await refreshWallet();
       return;

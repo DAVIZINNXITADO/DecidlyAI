@@ -48,6 +48,7 @@ Deno.serve(async (request) => {
   if (request.method !== "POST") return Response.json({ error: "Método não permitido." }, { status: 405, headers: jsonHeaders });
 
   let authClient: ReturnType<typeof createClient> | null = null;
+  let releaseClient: ReturnType<typeof createClient> | null = null;
   let requestId = "";
   let reservationCreated = false;
   try {
@@ -62,6 +63,7 @@ Deno.serve(async (request) => {
     if (!falKey) throw new ApiError("A geração de imagens ainda não está configurada no servidor.", 503);
 
     authClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authorization } } });
+    releaseClient = createClient(supabaseUrl, serviceKey, { global: { headers: { Authorization: authorization } } });
     const accessToken = authorization.slice("Bearer ".length);
     const { data: userData } = await authClient.auth.getUser(accessToken);
     if (!userData.user) throw new ApiError("Sessão inválida. Entre novamente.", 401);
@@ -168,11 +170,12 @@ Deno.serve(async (request) => {
 
     return Response.json({ success: true, path, mime_type: contentType }, { headers: jsonHeaders });
   } catch (error) {
-    if (reservationCreated && authClient && requestId && UUID_PATTERN.test(requestId)) {
-      await authClient.rpc("release_ai_artifact", {
+    if (reservationCreated && (releaseClient || authClient) && requestId && UUID_PATTERN.test(requestId)) {
+      const { error: releaseError } = await (releaseClient || authClient!).rpc("release_ai_artifact", {
         p_request_id: requestId,
         p_reason: error instanceof Error ? error.message.slice(0, 180) : "generation_failed",
-      }).catch(() => undefined);
+      });
+      if (releaseError) console.error("Falha ao devolver créditos da imagem:", releaseError.message);
     }
     const status = error instanceof ApiError ? error.status : 500;
     const message = error instanceof ApiError
