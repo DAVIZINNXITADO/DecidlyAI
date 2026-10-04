@@ -16,10 +16,10 @@ type ToolSelection = {
 export function inferRequestedTool(value: string): ToolSelection | null {
   const request = normalizeIntentText(value);
   const wantsPdf = /\b(?:pdf|arquivo\s+pdf|documento\s+pdf|exporte?\s+(?:isso|isto|a resposta)\s+(?:em|para)\s+pdf)\b/.test(request);
-  if (wantsPdf) return { id: "create_pdf", label: "Criar PDF" };
+  if (wantsPdf) return { id: "create_pdf", label: "Criar PDF", cost: 1, costLabel: "crédito por arquivo" };
   const wantsImage = /\b(?:gere?|crie?|faca|fazer|produza|renderize|desenhe|mostre)\b.{0,80}\b(?:imagem|ilustracao|ilustração|foto|poster|cartaz|capa|logo|icone|ícone)\b/.test(request)
     || /\b(?:imagem|ilustracao|ilustração|foto|poster|cartaz|capa|logo|icone|ícone)\b.{0,60}\b(?:de|com|mostrando|representando)\b/.test(request);
-  return wantsImage ? { id: "create_image", label: "Imagem por IA" } : null;
+  return wantsImage ? { id: "create_image", label: "Imagem por IA", cost: 2.5, costLabel: "créditos por imagem" } : null;
 }
 
 const ACTION_BLOCK_PATTERN = /\[action\b([^\]]*)\]([\s\S]*?)\[\/action\]/gi;
