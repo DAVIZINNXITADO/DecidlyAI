@@ -11,6 +11,15 @@ type ToolSelection = {
   label: string;
 };
 
+export function inferRequestedTool(value: string): ToolSelection | null {
+  const request = normalizeIntentText(value);
+  const wantsPdf = /\b(?:pdf|arquivo\s+pdf|documento\s+pdf|exporte?\s+(?:isso|isto|a resposta)\s+(?:em|para)\s+pdf)\b/.test(request);
+  if (wantsPdf) return { id: "create_pdf", label: "Criar PDF" };
+  const wantsImage = /\b(?:gere?|crie?|faca|fazer|produza|renderize|desenhe|mostre)\b.{0,80}\b(?:imagem|ilustracao|ilustração|foto|poster|cartaz|capa|logo|icone|ícone)\b/.test(request)
+    || /\b(?:imagem|ilustracao|ilustração|foto|poster|cartaz|capa|logo|icone|ícone)\b.{0,60}\b(?:de|com|mostrando|representando)\b/.test(request);
+  return wantsImage ? { id: "create_image", label: "Imagem por IA" } : null;
+}
+
 const ACTION_BLOCK_PATTERN = /\[action\b([^\]]*)\]([\s\S]*?)\[\/action\]/gi;
 const ACTION_ATTRIBUTE_PATTERN = /(?:^|\s)([\w-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s]+))/gi;
 const CAPABILITY_REFUSAL_PATTERN =

@@ -46,9 +46,9 @@ import { streamAi } from "../lib/ai-stream";
 import { requestTtsAudio } from "../lib/tts";
 import { createPdfBlob } from "../lib/pdf";
 import { createTextImage, MAX_TEXT_IMAGE_CHARS } from "../lib/text-image";
-import { ensureToolActionResponse, resolveSelectedToolForRequest } from "../lib/tool-actions";
+import { ensureToolActionResponse, inferRequestedTool, resolveSelectedToolForRequest } from "../lib/tool-actions";
 import { useLanguageContext } from "../lib/LanguageProvider";
-import { RichResponse, responseProtocolInstructions, type ResponseAction } from "../components/RichResponse";
+import { RichResponse, parseBlocks, responseProtocolInstructions, type ResponseAction } from "../components/RichResponse";
 import { ToolCenter, type SelectedTool, type ToolId } from "../components/ToolCenter";
 import { AdsterraNativeBanner, AdsterraSocialBar } from "../components/AdsterraAds";
 import {
@@ -148,6 +148,9 @@ function Workspace() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [imageConsentEnabled, setImageConsentEnabled] = useState(false);
+  const [imageConsentRequest, setImageConsentRequest] = useState(false);
+  const [limitPopup, setLimitPopup] = useState<{ title: string; message: string } | null>(null);
 
   const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState("");
@@ -189,6 +192,16 @@ function Workspace() {
   useEffect(() => {
     const enterTimer = window.setTimeout(() => setWorkspaceEntered(true), 80);
     return () => window.clearTimeout(enterTimer);
+  }, []);
+
+  useEffect(() => {
+    setImageConsentEnabled(window.localStorage.getItem("decidly-image-generation-enabled") === "true");
+  }, []);
+
+  const enableImageGeneration = useCallback(() => {
+    window.localStorage.setItem("decidly-image-generation-enabled", "true");
+    setImageConsentEnabled(true);
+    setImageConsentRequest(false);
   }, []);
 
   useEffect(() => {
@@ -335,6 +348,9 @@ function Workspace() {
         if (context instanceof Response) {
           const payload = await context.clone().json().catch(() => null) as { error?: string } | null;
           if (payload?.error) message = payload.error;
+        }
+        if (message.includes("limite diário") || message.includes("daily_artifact_limit")) {
+          setLimitPopup({ title: "Limite atingido", message: "Você atingiu o limite de criações por enquanto. Tente novamente quando o limite for renovado." });
         }
         // A Edge Function reserva o crédito antes de chamar o provedor. Se a
         // resposta cair depois dessa reserva, o cliente tenta liberar a operação
@@ -1409,12 +1425,19 @@ function Workspace() {
         return;
       }
 
+      const inferredTool = inferRequestedTool(text);
+      const toolWasExplicitlyActivated = Boolean(selectedTool);
+      if (inferredTool?.id === "create_image" && !imageConsentEnabled && !toolWasExplicitlyActivated) {
+        setImageConsentRequest(true);
+        return;
+      }
+
       setError("");
       setNotice("");
       setInput("");
       setExtraGuidance("");
       setToolsOpen(false);
-      const toolForRequest = resolveSelectedToolForRequest(selectedTool, text);
+      const toolForRequest = resolveSelectedToolForRequest(selectedTool || inferredTool, text);
       setRequestTool(toolForRequest);
       // A ferramenta selecionada vale somente para esta mensagem.
       // Mantê-la ativa fazia a IA interpretar mensagens futuras como novos pedidos de PDF.
@@ -1516,7 +1539,7 @@ function Workspace() {
         });
 
         if (pendingFrame !== null) window.cancelAnimationFrame(pendingFrame);
-        const answer = ensureToolActionResponse(streamedAnswer, selectedTool, text);
+        const answer = ensureToolActionResponse(streamedAnswer, toolForRequest, text);
         latestAccumulated = answer;
         flushAssistant();
 
@@ -1539,6 +1562,13 @@ function Workspace() {
           throw new Error("MESSAGE_SAVE_ERROR");
         }
 
+        if (toolForRequest && (toolForRequest.id === "create_pdf" || toolForRequest.id === "create_image")) {
+          const actionBlock = parseBlocks(answer).find((block) => block.kind === "action" && block.requestId && block.actionType === toolForRequest.id);
+          if (actionBlock?.requestId) {
+            await handleResponseAction({ type: toolForRequest.id, title: actionBlock.title || toolForRequest.label, description: actionBlock.value, requestId: actionBlock.requestId }, assistantId);
+          }
+        }
+
         await supabase
           .from("conversations")
           .update({ updated_at: new Date().toISOString() })
@@ -1557,7 +1587,10 @@ function Workspace() {
             ? Number((caughtError as { status?: number }).status)
             : Number(message.replace("HTTP_", ""));
 
-        if (message === "402" || status === 402) {
+        if (message.includes("daily_artifact_limit") || message.includes("limite diário") || (status === 429 && requestTool)) {
+          setError("");
+          setLimitPopup({ title: "Limite atingido", message: "Você atingiu o limite de criações por enquanto. Tente novamente quando o limite for renovado." });
+        } else if (message === "402" || status === 402) {
           setError(
             "Seus créditos acabaram por agora. Você pode esperar a renovação diária ou abrir a área de créditos para ver as opções disponíveis.",
           );
@@ -1616,6 +1649,8 @@ function Workspace() {
       preferredName,
       extraGuidance,
       selectedTool,
+      imageConsentEnabled,
+      handleResponseAction,
     ],
   );
 
@@ -3254,6 +3289,29 @@ function Workspace() {
           </div>
         </div>
       </main>
+
+      {imageConsentRequest && (
+        <div className="fixed inset-0 z-[170] flex items-center justify-center bg-[#0d0912]/75 p-4 backdrop-blur-sm">
+          <div role="dialog" aria-modal="true" aria-labelledby="image-consent-title" className="w-full max-w-md rounded-[2rem] border border-violet-300/20 bg-[#21152d] p-6 text-white shadow-2xl shadow-black/50 sm:p-7">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3"><div className="rounded-2xl bg-violet-400/15 p-3 text-violet-200"><ImageIcon size={24} /></div><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-300">Criação por IA</p><h2 id="image-consent-title" className="mt-1 text-xl font-bold">Ativar geração de imagens?</h2></div></div>
+              <button type="button" onClick={() => setImageConsentRequest(false)} className="rounded-xl p-2 text-white/45 hover:bg-white/10 hover:text-white" aria-label="Fechar"><X size={18} /></button>
+            </div>
+            <p className="mt-5 text-sm leading-6 text-white/65">Você pediu uma imagem. Ative esse recurso uma vez para permitir que a DecidlyAI crie imagens quando você solicitar.</p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2"><button type="button" onClick={enableImageGeneration} className="rounded-2xl bg-violet-500 px-4 py-3.5 font-semibold text-white hover:bg-violet-400">Ativar imagens</button><button type="button" onClick={() => setImageConsentRequest(false)} className="rounded-2xl border border-white/15 px-4 py-3.5 font-semibold text-white/75 hover:bg-white/10 hover:text-white">Agora não</button></div>
+          </div>
+        </div>
+      )}
+
+      {limitPopup && (
+        <div className="fixed inset-0 z-[175] flex items-center justify-center bg-[#0d0912]/75 p-4 backdrop-blur-sm">
+          <div role="alertdialog" aria-modal="true" aria-labelledby="limit-popup-title" className="w-full max-w-md rounded-[2rem] border border-amber-300/20 bg-[#21152d] p-6 text-white shadow-2xl shadow-black/50 sm:p-7">
+            <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-300">Criação pausada</p><h2 id="limit-popup-title" className="mt-1 text-xl font-bold">{limitPopup.title}</h2></div><button type="button" onClick={() => setLimitPopup(null)} className="rounded-xl p-2 text-white/45 hover:bg-white/10 hover:text-white" aria-label="Fechar"><X size={18} /></button></div>
+            <p className="mt-5 text-sm leading-6 text-white/65">{limitPopup.message}</p>
+            <button type="button" onClick={() => setLimitPopup(null)} className="mt-6 w-full rounded-2xl bg-violet-500 px-4 py-3.5 font-semibold text-white hover:bg-violet-400">Entendi</button>
+          </div>
+        </div>
+      )}
 
       {installOpen && installPrompt && (
         <div className="fixed inset-0 z-[180] flex items-end justify-center bg-[#0d0912]/70 p-4 backdrop-blur-sm sm:items-center">
