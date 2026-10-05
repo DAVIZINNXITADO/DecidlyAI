@@ -22,29 +22,17 @@ function imagesFrom(value: unknown): Image[] {
   }).filter((item): item is Image => Boolean(item)).slice(0, 3);
 }
 
-async function callGemini(apiKey: string, message: string, history: { role: "user" | "model"; content: string }[], images: Image[], language: string) {
-  const models = ["gemini-3.7-flash", "gemini-2.5-pro", "gemini-2.5-flash"];
+async function callGroq(apiKey: string, message: string, history: { role: "user" | "assistant"; content: string }[], images: Image[], language: string) {
+  const current: string | OpenAIPart[] = images.length ? [{ type: "text", text: `Analise visualmente a imagem anexada e responda diretamente ao pedido em ${language}. Não responda apenas com o nome do arquivo.\n\n${message}` }, ...images.map((image) => ({ type: "image_url" as const, image_url: { url: `data:${image.mimeType};base64,${image.data}` } }))] : message;
   let lastError = "";
-  for (const model of models) {
-    const contents = [...history.map((item) => ({ role: item.role, parts: [{ text: item.content }] })), {
-      role: "user",
-      parts: [
-        { text: images.length ? `Analise visualmente a imagem anexada e responda diretamente ao pedido em ${language}. Não responda apenas com o nome do arquivo.\n\n${message}` : message },
-        ...images.map((image) => ({ inline_data: { mime_type: image.mimeType, data: image.data } })),
-      ],
-    }];
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ system_instruction: { parts: [{ text: `Você é o DecidlyAI VIP. Ajude com análise profunda, clareza e honestidade. Responda em ${language}. Quando houver imagem, interprete o conteúdo visual real e não invente detalhes.` }] }, contents, generationConfig: { temperature: 0.7, maxOutputTokens: 4096 } }),
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "qwen/qwen3.8-27b", messages: [{ role: "system", content: `Você é o DecidlyAI VIP. Ajude com análise profunda, clareza e honestidade. Responda em ${language}. Quando houver imagem, interprete o conteúdo visual real e não invente detalhes.` }, ...history, { role: "user", content: current }], temperature: 0.7, max_completion_tokens: 4096 }),
     });
-    if (response.ok) {
-      const data = await response.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-      const answer = clean((data.candidates?.[0]?.content?.parts || []).map((part) => part.text || "").join(""));
-      if (answer) return { answer, provider: `gemini-${model}` };
-    } else lastError = (await response.text()).slice(0, 500);
-  }
-  throw new Error(`Gemini indisponível: ${lastError}`);
+  if (response.ok) { const data = await response.json() as { choices?: { message?: { content?: string } }[] }; const answer = clean(data.choices?.[0]?.message?.content || ""); if (answer) return { answer, provider: "groq-qwen/qwen3.8-27b" }; }
+  else lastError = (await response.text()).slice(0, 500);
+  throw new Error(`Groq VIP indisponível: ${lastError}`);
 }
 
 async function callOpenAI(apiKey: string, message: string, history: { role: "user" | "assistant"; content: string }[], images: Image[], language: string) {
@@ -90,12 +78,12 @@ Deno.serve(async (request) => {
     const history = Array.isArray(body.history) ? body.history.filter((item) => item && typeof item === "object" && typeof (item as { content?: unknown }).content === "string").slice(-20).map((item) => ({ role: String((item as { role?: unknown }).role) === "assistant" ? "assistant" as const : "user" as const, content: String((item as { content?: unknown }).content) })) : [];
     let result: { answer: string; provider: string };
     try {
-      const geminiKey = Deno.env.get("GEMINI_API_KEY");
-      if (!geminiKey) throw new Error("GEMINI_API_KEY não configurada.");
-      result = await callGemini(geminiKey, message, history.map((item) => ({ role: item.role === "assistant" ? "model" as const : "user" as const, content: item.content })), images, language);
-    } catch (geminiError) {
+      const groqKey = Deno.env.get("GROQ_API_KEY");
+      if (!groqKey) throw new Error("GROQ_API_KEY não configurada.");
+      result = await callGroq(groqKey, message, history, images, language);
+    } catch (groqError) {
       const openAiKey = Deno.env.get("OPENAI_API_KEY");
-      if (!openAiKey) throw geminiError;
+      if (!openAiKey) throw groqError;
       result = await callOpenAI(openAiKey, message, history, images, language);
     }
     const inputTokens = Math.max(1, Math.ceil(JSON.stringify(body).length / 4));
