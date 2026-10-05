@@ -1441,58 +1441,12 @@ function Workspace() {
 
   const getAIName = useCallback(
     async () => {
-      if (!userId) {
-        return "decidly-ai-stream";
-      }
-
-      const { data } = await supabase
-        .from("subscription")
-        .select(
-          "plan,status,expires_at",
-        )
-        .eq("user_id", userId)
-        .order("created_at", {
-          ascending: false,
-        })
-        .limit(1)
-        .maybeSingle();
-
-      const subscription =
-        data as Subscription | null;
-
-      if (!subscription) {
-        return "decidly-ai-stream";
-      }
-
-      const active =
-        subscription.status ===
-          "active" ||
-        subscription.status ===
-          "trialing";
-
-      const isVIP =
-        subscription.plan ===
-          "vip" ||
-        subscription.plan ===
-          "VIP";
-
-      const notExpired =
-        !subscription.expires_at ||
-        new Date(
-          subscription.expires_at,
-        ).getTime() > Date.now();
-
-      if (
-        active &&
-        isVIP &&
-        notExpired
-      ) {
-        return "decidly-ai";
-      }
-
+      // Free e VIP usam o mesmo pipeline seguro e atualizado. O plano
+      // continua sendo aplicado pela própria função ao calcular créditos,
+      // limites e permissões; não há um endpoint VIP legado separado.
       return "decidly-ai-stream";
     },
-    [userId],
+    [],
   );
 
   /*
