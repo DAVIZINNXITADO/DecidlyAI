@@ -15,14 +15,9 @@ type Event = {
 type Wallet = CreditWallet;
 
 const packages = [
-  {
-    credits: 10,
-    price: "R$ 1,90",
-    paymentUrl:
-      "https://nubank.com.br/cobrar/40x28t/6ac27077-6b74-4548-9dfe-0f8972c00af9",
-  },
-  { credits: 30, price: "R$ 4,90" },
-  { credits: 100, price: "R$ 12,90" },
+  { credits: 10, price: "R$ 1,90", abacate: true },
+  { credits: 30, price: "R$ 4,90", abacate: false },
+  { credits: 100, price: "R$ 12,90", abacate: false },
 ];
 
 const eventLabel = (event: Event) =>
@@ -177,6 +172,23 @@ export function FreePage() {
 
 export function BuyPage() {
   const [notice, setNotice] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const startCheckout = async () => {
+    setNotice("");
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("abacate-create-checkout", {
+        body: { package: "credits-10" },
+      });
+      if (error || !data?.url) throw new Error(data?.error || error?.message || "Não foi possível iniciar o pagamento.");
+      window.location.assign(data.url);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Não foi possível iniciar o pagamento.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <InnerPage
@@ -191,12 +203,13 @@ export function BuyPage() {
             key={item.credits}
             type="button"
             onClick={() => {
-              if (item.paymentUrl) {
-                window.location.assign(item.paymentUrl);
+              if (item.abacate) {
+                void startCheckout();
                 return;
               }
               setNotice(`O pacote de ${item.credits} créditos ainda não está disponível para pagamento.`);
             }}
+            disabled={loading}
             className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-left hover:border-violet-300/40"
           >
             <ShoppingBag className="text-emerald-300" size={19} />
@@ -204,13 +217,13 @@ export function BuyPage() {
             <p className="text-sm text-white/40">credits</p>
             <p className="mt-5 font-semibold text-violet-200">{item.price}</p>
             <p className="mt-3 text-xs text-white/40">
-              {item.paymentUrl ? "Pagar com Pix" : "Disponível em breve"}
+              {item.abacate ? (loading ? "Abrindo checkout…" : "Pagar com Pix no checkout seguro") : "Disponível em breve"}
             </p>
           </button>
         ))}
       </div>
       <p className="mt-5 rounded-xl border border-amber-300/15 bg-amber-300/[0.06] p-4 text-sm leading-6 text-amber-100/75">
-        Após o pagamento via Pix, a liberação dos créditos ainda depende de confirmação manual.
+        O pagamento é confirmado automaticamente pelo webhook seguro. Os 10 créditos entram na sua carteira somente depois da confirmação da AbacatePay.
       </p>
       {notice && (
         <p className="mt-5 rounded-xl bg-violet-400/[0.08] p-4 text-sm text-violet-100">{notice}</p>
