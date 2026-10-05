@@ -68,12 +68,9 @@ async function toSse(providerResponse: Response, provider: string): Promise<Resp
         status: 502,
         headers: sseHeaders,
       });
-    return new Response(
-      event({ delta: complete, accumulated: complete, provider }) +
-        event({ response: complete, complete: true, provider }, "complete") +
-        event("[DONE]"),
-      { headers: sseHeaders },
-    );
+    return new Response(JSON.stringify({ response: complete, answer: complete, provider }), {
+      headers: jsonHeaders,
+    });
   }
 
   const reader = providerResponse.body.getReader();

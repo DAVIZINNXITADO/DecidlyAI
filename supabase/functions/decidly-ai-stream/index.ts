@@ -61,15 +61,32 @@ Deno.serve(async (request) => {
     const credits = dailyBalance + freeCredits + purchasedCredits;
     if (credits <= 0) return new Response(JSON.stringify({ error: "Você não possui créditos suficientes para usar o DecidlyAI." }), { status: 402, headers: jsonHeaders });
 
-    const language = typeof body.language === "string" ? body.language : "en-US";
+    const language = typeof body.language === "string" ? body.language : "pt-BR";
     const upstream = await fetch(`${supabaseUrl}/functions/v1/free-ai-router`, {
       method: "POST",
-      headers: { Authorization: authorization, apikey: anonKey, "Content-Type": "application/json", Accept: "text/event-stream" },
-      body: JSON.stringify({ message: body.message.trim(), history: Array.isArray(body.history) ? body.history.slice(-20) : [], attachments: Array.isArray(body.attachments) ? body.attachments.slice(0, 3) : [], stream: true, language }),
+      headers: { Authorization: authorization, apikey: anonKey, "Content-Type": "application/json", Accept: "text/event-stream, application/json" },
+      body: JSON.stringify({ message: body.message.trim(), history: Array.isArray(body.history) ? body.history.slice(-20) : [], attachments: Array.isArray(body.attachments) ? body.attachments.slice(0, 3) : [], stream: false, language }),
     });
     if (!upstream.ok || !upstream.body) return new Response(await upstream.text(), { status: upstream.status || 502, headers: jsonHeaders });
 
-    const reader = upstream.body.getReader();
+    const upstreamType = upstream.headers.get("content-type")?.toLowerCase() ?? "";
+    let normalizedUpstream = upstream;
+    if (!upstreamType.includes("text/event-stream")) {
+      const raw = await upstream.text();
+      let parsed: Record<string, unknown> = {};
+      try { parsed = JSON.parse(raw) as Record<string, unknown>; } catch { /* resposta inválida */ }
+      if (typeof parsed.error === "string") return new Response(JSON.stringify(parsed), { status: 502, headers: jsonHeaders });
+      const complete = typeof parsed.response === "string" ? parsed.response : typeof parsed.answer === "string" ? parsed.answer : "";
+      if (!complete.trim()) return new Response(JSON.stringify({ error: "O provedor Free não retornou conteúdo." }), { status: 502, headers: jsonHeaders });
+      normalizedUpstream = new Response(
+        event({ delta: complete, accumulated: complete, provider: parsed.provider ?? "groq-free" }) +
+          event({ response: complete, complete: true, provider: parsed.provider ?? "groq-free" }, "complete") +
+          event("[DONE]"),
+        { headers: sseHeaders },
+      );
+    }
+
+    const reader = normalizedUpstream.body!.getReader();
     const decoder = new TextDecoder();
     const encoder = new TextEncoder();
     let buffer = "";
