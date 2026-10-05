@@ -201,7 +201,7 @@ Deno.serve(async (request) => {
       .filter((attachment) => attachment?.mimeType?.startsWith("image/") && typeof attachment.dataUrl === "string")
       .slice(0, 3);
     const model = imageAttachments.length
-      ? Deno.env.get("GROQ_VISION_MODEL") || "meta-llama/llama-4-scout-17b-16e-instruct"
+      ? "qwen/qwen3.8-27b"
       : Deno.env.get("GROQ_MODEL") || "llama-3.1-8b-instant";
     const wantsStream = body.stream !== false;
     const history = cleanHistory(body.history);
