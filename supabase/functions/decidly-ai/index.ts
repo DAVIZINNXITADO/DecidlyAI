@@ -10,6 +10,16 @@ type Body = { message?: unknown; history?: unknown; language?: unknown; attachme
 type Image = { mimeType: string; data: string };
 type OpenAIPart = { type: "text" | "image_url"; text?: string; image_url?: { url: string } };
 
+function contentText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (!Array.isArray(value)) return "";
+  return value.map((part) => {
+    if (typeof part === "string") return part;
+    if (part && typeof part === "object" && typeof (part as { text?: unknown }).text === "string") return (part as { text: string }).text;
+    return "";
+  }).join("");
+}
+
 function imagesFrom(value: unknown): Image[] {
   if (!Array.isArray(value)) return [];
   return value.map((item) => {
@@ -30,7 +40,7 @@ async function callGroq(apiKey: string, message: string, history: { role: "user"
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({ model: "qwen/qwen3.8-27b", messages: [{ role: "system", content: `Você é o DecidlyAI VIP. Ajude com análise profunda, clareza e honestidade. Responda em ${language}. Quando houver imagem, interprete o conteúdo visual real e não invente detalhes.` }, ...history, { role: "user", content: current }], temperature: 0.7, max_completion_tokens: 4096 }),
     });
-  if (response.ok) { const data = await response.json() as { choices?: { message?: { content?: string } }[] }; const answer = clean(data.choices?.[0]?.message?.content || ""); if (answer) return { answer, provider: "groq-qwen/qwen3.8-27b" }; }
+  if (response.ok) { const data = await response.json() as { choices?: { text?: unknown; message?: { content?: unknown; reasoning_content?: unknown } }[] }; const choice = data.choices?.[0]; const answer = clean(contentText(choice?.message?.content) || contentText(choice?.message?.reasoning_content) || contentText(choice?.text)); if (answer) return { answer, provider: "groq-qwen/qwen3.8-27b" }; }
   else lastError = (await response.text()).slice(0, 500);
   throw new Error(`Groq VIP indisponível: ${lastError}`);
 }
