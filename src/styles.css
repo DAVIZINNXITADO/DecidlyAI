@@ -824,3 +824,35 @@ html[data-theme="light"] .workspace-shell [class*="border-white/"] {
     transform-origin: center center;
   }
 }
+
+
+/* Preferências acessíveis do workspace: nenhuma opção remove conteúdo ou controles essenciais. */
+html[data-theme="high_contrast"] body,
+html[data-theme="high_contrast"] .workspace-shell {
+  color: #fff;
+}
+html[data-theme="high_contrast"] .workspace-shell :is(button, a, input, textarea, select) {
+  outline-color: #ddd6fe;
+}
+html[data-theme="high_contrast"] .workspace-shell :is([class*="text-white/"], [class*="text-violet-"]) {
+  color: #f5f3ff !important;
+}
+html[data-theme="high_contrast"] .workspace-shell :is(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid #ddd6fe;
+  outline-offset: 3px;
+}
+.workspace-shell[data-chat-density="compact"] .max-w-3xl > :is(article, section),
+html[data-theme="compact"] .workspace-shell .max-w-3xl > :is(article, section),
+.workspace-shell[data-chat-density="compact"] .max-w-3xl .message-bubble,
+html[data-theme="compact"] .workspace-shell .max-w-3xl .message-bubble {
+  margin-block: 0.5rem;
+  padding-block: 0.65rem;
+}
+@media (max-width: 639px) {
+  .workspace-shell[data-chat-density="compact"] main > div.overflow-y-auto {
+    padding-inline: 0.75rem;
+  }
+  html[data-theme="compact"] .workspace-shell main > div.overflow-y-auto {
+    padding-inline: 0.75rem;
+  }
+}

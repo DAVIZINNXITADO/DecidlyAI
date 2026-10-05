@@ -6,7 +6,7 @@ type ChatMessage = { role: "user" | "assistant"; content: string };
 type Options = {
   message: string;
   history: ChatMessage[];
-  attachments?: { name: string; mimeType: string; dataUrl?: string }[];
+  attachments?: { name: string; mimeType: string; size?: number; dataUrl?: string }[];
   mode?: "free" | "vip";
   onDelta?: (text: string, accumulated: string) => void;
   language?: string;

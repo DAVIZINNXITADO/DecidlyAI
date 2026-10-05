@@ -59,6 +59,7 @@ import {
   normalizeCreditWallet,
   type CreditWallet,
 } from "../lib/credits";
+import { DEFAULT_USER_PREFERENCES, normalizeUserPreferences, type UserPreferences } from "../lib/user-preferences";
 
 export const Route = createFileRoute("/workspace")({
   component: Workspace,
@@ -217,6 +218,7 @@ function Workspace() {
     daily_credits_reset_at: null,
   });
   const [creditsLoading, setCreditsLoading] = useState(false);
+  const [workspacePreferences, setWorkspacePreferences] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES);
   const [thinkingLabel, setThinkingLabel] = useState("Organizando sua decisão...");
   const [toolsOpen, setToolsOpen] = useState(false);
   const [extraGuidance, setExtraGuidance] = useState("");
@@ -670,8 +672,8 @@ function Workspace() {
         }
 
         setUserId(user.id);
-        const { data: profile } = await supabase.from("profiles").select("developer_mode").eq("id", user.id).maybeSingle();
-        setDeveloperMode(profile?.developer_mode === true);
+        const { data: profile } = await supabase.from("profiles").select("plan,developer_mode").eq("id", user.id).maybeSingle();
+        setDeveloperMode(profile?.developer_mode === true || String(profile?.plan || "").toLowerCase() === "dev");
         setUserEmail(user?.email ?? "");
         const savedPreferredName = safePublicName(window.localStorage.getItem("decidly-preferred-name"));
         setUserName("Conta");
@@ -702,8 +704,8 @@ function Workspace() {
             setUserId(
               session.user.id,
             );
-            void supabase.from("profiles").select("developer_mode").eq("id", session.user.id).maybeSingle().then(({ data: profile }) => {
-              if (mounted) setDeveloperMode(profile?.developer_mode === true);
+            void supabase.from("profiles").select("plan,developer_mode").eq("id", session.user.id).maybeSingle().then(({ data: profile }) => {
+              if (mounted) setDeveloperMode(profile?.developer_mode === true || String(profile?.plan || "").toLowerCase() === "dev");
             });
             setUserEmail(session.user.email ?? "");
             const savedPreferredName = safePublicName(window.localStorage.getItem("decidly-preferred-name"));
@@ -718,6 +720,25 @@ function Workspace() {
       subscription.unsubscribe();
     };
   }, [navigate]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!userId) {
+      setWorkspacePreferences(DEFAULT_USER_PREFERENCES);
+      return;
+    }
+    void supabase.from("user_preferences")
+      .select("idioma_preferido,tema,densidade_do_chat,tom_da_ia,modelo_preferido,notificacoes_de_credito,rolagem_apos_resposta,mostrar_indicadores_credito")
+      .eq("user_id", userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const preferences = normalizeUserPreferences(data);
+        setWorkspacePreferences(preferences);
+        autoScrollRef.current = preferences.rolagem_apos_resposta !== "never";
+      });
+    return () => { cancelled = true; };
+  }, [userId]);
 
   /*
    * ============================================================
@@ -1397,7 +1418,11 @@ function Workspace() {
 
   const addAttachments = useCallback(async (fileList: FileList | null) => {
     if (!fileList) return;
-    const files = Array.from(fileList).slice(0, MAX_ATTACHMENTS - attachments.length);
+    const files = Array.from(fileList);
+    if (attachments.length + files.length > MAX_ATTACHMENTS) {
+      setError(`Você pode anexar no máximo ${MAX_ATTACHMENTS} arquivos por mensagem. Remova um anexo antes de adicionar outros.`);
+      return;
+    }
     if (!files.length) {
       setError(`Você pode anexar no máximo ${MAX_ATTACHMENTS} arquivos por mensagem.`);
       return;
@@ -1623,14 +1648,16 @@ function Workspace() {
         const streamedAnswer = await streamAi(functionName, {
           message: [developerCommand?.provider ? `Modo DEV: use exclusivamente o roteador ${developerCommand.provider.toUpperCase()}.` : "", privateContext, guidanceContext, toolContext, responseProtocolInstructions(), "Mensagem do usuário:\n" + promptText].filter(Boolean).join("\n\n"),
           history,
-          attachments: selectedAttachments.filter((attachment) => attachment.dataUrl).map((attachment) => ({ name: attachment.name, mimeType: attachment.mimeType, dataUrl: attachment.dataUrl })),
+          attachments: selectedAttachments.map((attachment) => ({ name: attachment.name, mimeType: attachment.mimeType, size: attachment.size, ...(attachment.dataUrl ? { dataUrl: attachment.dataUrl } : {}) })),
+          language,
           ...(developerCommand?.provider ? { mode: developerCommand.provider } : {}),
           signal: abortController.signal,
           onDelta: (_delta, accumulated) => {
             latestAccumulated = accumulated;
             if (chatRef.current) {
               const distanceFromBottom = chatRef.current.scrollHeight - chatRef.current.scrollTop - chatRef.current.clientHeight;
-              autoScrollRef.current = distanceFromBottom < 120;
+              autoScrollRef.current = workspacePreferences.rolagem_apos_resposta === "always"
+                || (workspacePreferences.rolagem_apos_resposta === "near_bottom" && distanceFromBottom < 120);
             }
             if (pendingFrame === null) pendingFrame = window.requestAnimationFrame(flushAssistant);
           },
@@ -1886,6 +1913,10 @@ function Workspace() {
   };
 
   const handleTextareaFocus = () => {
+    if (workspacePreferences.rolagem_apos_resposta === "never") {
+      autoScrollRef.current = false;
+      return;
+    }
     autoScrollRef.current = true;
     requestAnimationFrame(() => {
       if (chatRef.current) {
@@ -2309,7 +2340,21 @@ function Workspace() {
       setError("Não foi possível registrar sua avaliação. Verifique sua conexão e tente novamente.");
       return;
     }
-    const { error: insertError } = await supabase.from("message_feedback").insert({ user_id: userId, message_id: id, feedback, comment: comment.trim() || null });
+    const messageIndex = messages.findIndex((message) => message.id === id);
+    const aiMessage = messages[messageIndex];
+    const conversationContext = messages
+      .slice(Math.max(0, messageIndex - 6), Math.max(0, messageIndex))
+      .map((message) => `${message.role === "user" ? "Usuário" : "DecidlyAI"}: ${message.content}`)
+      .join("\n\n")
+      .slice(0, 6000);
+    const { error: insertError } = await supabase.from("message_feedback").insert({
+      user_id: userId,
+      message_id: id,
+      conversation_id: activeConversationId,
+      conversation_context: conversationContext || null,
+      feedback,
+      comment: comment.trim() || null,
+    });
     if (insertError) {
       setFeedbackSaving(false);
       setError("Não foi possível registrar sua avaliação. Verifique sua conexão e tente novamente.");
@@ -2317,10 +2362,15 @@ function Workspace() {
     }
 
     const feedbackForm = new URLSearchParams();
-    feedbackForm.set("ai_message", messages.find((message) => message.id === id)?.content ?? "");
+    feedbackForm.set("application", "DecidlyAI");
+    feedbackForm.set("user_id", userId);
+    feedbackForm.set("user_email", userEmail);
+    feedbackForm.set("conversation_id", activeConversationId ?? "");
+    feedbackForm.set("conversation_context", conversationContext);
+    feedbackForm.set("ai_message", aiMessage?.content ?? "");
     feedbackForm.set("feedback", feedback);
     feedbackForm.set("comment", comment.trim());
-    feedbackForm.set("_subject", "Feedback de resposta da IA — DecidlyAI");
+    feedbackForm.set("_subject", "DecidlyAI — feedback de resposta da IA");
     feedbackForm.set("_template", "table");
     feedbackForm.set("_honey", "");
 
@@ -2354,7 +2404,7 @@ function Workspace() {
     if (forwardingError) {
       setError("Sua avaliação foi salva, mas não foi possível encaminhá-la agora. Tente novamente mais tarde.");
     }
-  }, [messages, userId]);
+  }, [activeConversationId, messages, userEmail, userId]);
   const openFeedback = useCallback((message: ChatMessage, feedback: "like" | "dislike") => {
     setFeedbackMessage(message);
     setFeedbackChoice(feedback);
@@ -2414,7 +2464,7 @@ function Workspace() {
           chatRef.current.scrollHeight;
       }
     });
-  }, [messages, isLoading]);
+  }, [messages, isLoading, workspacePreferences.rolagem_apos_resposta]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -2484,6 +2534,7 @@ function Workspace() {
 
   return (
     <div
+      data-chat-density={workspacePreferences.densidade_do_chat}
       className={`workspace-shell relative min-h-[100dvh] overflow-hidden text-white ${workspaceEntered ? "workspace-entered" : ""}`}
       onPointerDown={() => {
         if (chatMenuId) {
@@ -2536,7 +2587,7 @@ function Workspace() {
             aria-label="Abrir créditos"
           >
             <Coins size={17} className="text-violet-300" />
-            <span>{usableCredits.toFixed(2)}</span>
+            {workspacePreferences.mostrar_indicadores_credito && <span>{usableCredits.toFixed(2)}</span>}
           </button>
           {messages.length > 0 && (
             <button
@@ -3184,7 +3235,8 @@ function Workspace() {
           onScroll={() => {
             if (!chatRef.current) return;
             const distanceFromBottom = chatRef.current.scrollHeight - chatRef.current.scrollTop - chatRef.current.clientHeight;
-            autoScrollRef.current = distanceFromBottom < 120;
+            autoScrollRef.current = workspacePreferences.rolagem_apos_resposta === "always"
+              || (workspacePreferences.rolagem_apos_resposta === "near_bottom" && distanceFromBottom < 120);
           }}
           className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-4 sm:px-6"
         >

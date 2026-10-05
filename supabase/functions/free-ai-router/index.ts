@@ -23,6 +23,11 @@ const event = (data: unknown, name?: string) =>
   `${name ? `event: ${name}\n` : ""}data: ${JSON.stringify(data)}\n\n`;
 
 const cleanDoneMarker = (text: string) => text.replace(/\s*\[DONE\]\s*$/gi, "").trimEnd();
+const base64ByteLength = (encoded: string): number | null => {
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(encoded) || encoded.length % 4 !== 0) return null;
+  const padding = encoded.endsWith("==") ? 2 : encoded.endsWith("=") ? 1 : 0;
+  return (encoded.length / 4) * 3 - padding;
+};
 
 function cleanAttachments(value: unknown): Attachment[] {
   if (!Array.isArray(value)) return [];
@@ -169,6 +174,11 @@ Deno.serve(async (request) => {
       });
     }
 
+    const { data: preferences } = await authClient.from("user_preferences")
+      .select("idioma_preferido,tom_da_ia")
+      .eq("user_id", userData.user.id)
+      .maybeSingle();
+
     const body = (await request.json()) as Body;
     if (typeof body.message !== "string" || !body.message.trim())
       return new Response(JSON.stringify({ error: "Envie uma mensagem válida." }), {
@@ -176,7 +186,19 @@ Deno.serve(async (request) => {
         headers: jsonHeaders,
       });
 
-    const language = typeof body.language === "string" ? body.language : "en-US";
+    const suppliedAttachments = Array.isArray(body.attachments) ? body.attachments : [];
+    if (suppliedAttachments.length > 3)
+      return new Response(JSON.stringify({ error: "Anexe no máximo 3 arquivos por mensagem." }), { status: 413, headers: jsonHeaders });
+    if (suppliedAttachments.some((item) => item && typeof item === "object" && Number((item as { size?: unknown }).size || 0) > 4 * 1024 * 1024))
+      return new Response(JSON.stringify({ error: "Cada anexo deve ter até 4 MB." }), { status: 413, headers: jsonHeaders });
+    if (suppliedAttachments.some((item) => item && typeof item === "object" && typeof (item as { dataUrl?: unknown }).dataUrl === "string" && (() => {
+      const match = String((item as { dataUrl: string }).dataUrl).match(/^data:[^;,]+;base64,([A-Za-z0-9+/]*={0,2})$/);
+      return !match || base64ByteLength(match[1]) === null || base64ByteLength(match[1])! > 4 * 1024 * 1024;
+    })()))
+      return new Response(JSON.stringify({ error: "Cada anexo deve ter até 4 MB e conteúdo válido." }), { status: 413, headers: jsonHeaders });
+
+    const language = preferences?.idioma_preferido === "en-US" ? "en-US" : "pt-BR";
+    const tone = preferences?.tom_da_ia === "direct" ? "direct" : preferences?.tom_da_ia === "detailed" ? "detailed" : "balanced";
     const attachments = cleanAttachments(body.attachments);
     const payload = JSON.stringify({
       message: body.message.trim(),
@@ -186,6 +208,7 @@ Deno.serve(async (request) => {
       // do provedor em EMPTY_RESPONSE no frontend.
       stream: false,
       language,
+      tone,
     });
     const providers = attachments.length ? ["groq-free", "groq-free"] : ["groq-free", "groq-free", "cloudflare-free"];
     let lastError = "";

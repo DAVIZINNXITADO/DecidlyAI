@@ -39,6 +39,7 @@ import { Route as PtBrWorkspaceRouteImport } from './routes/pt-br.workspace'
 import { Route as SettingsAccountRouteImport } from './routes/settings/account'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings/appearance'
 import { Route as SettingsLanguageRouteImport } from './routes/settings/language'
+import { Route as SettingsPreferencesRouteImport } from './routes/settings.preferences'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -192,6 +193,11 @@ const SettingsLanguageRoute = SettingsLanguageRouteImport.update({
   path: '/language',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsPreferencesRoute = SettingsPreferencesRouteImport.update({
+  id: '/preferences',
+  path: '/preferences',
+  getParentRoute: () => SettingsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -224,6 +230,7 @@ export interface FileRoutesByFullPath {
   '/settings/account': typeof SettingsAccountRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/language': typeof SettingsLanguageRoute
+  '/settings/preferences': typeof SettingsPreferencesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -256,6 +263,7 @@ export interface FileRoutesByTo {
   '/settings/account': typeof SettingsAccountRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/language': typeof SettingsLanguageRoute
+  '/settings/preferences': typeof SettingsPreferencesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -289,6 +297,7 @@ export interface FileRoutesById {
   '/settings/account': typeof SettingsAccountRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/language': typeof SettingsLanguageRoute
+  '/settings/preferences': typeof SettingsPreferencesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -323,6 +332,7 @@ export interface FileRouteTypes {
     | '/settings/account'
     | '/settings/appearance'
     | '/settings/language'
+    | '/settings/preferences'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -355,6 +365,7 @@ export interface FileRouteTypes {
     | '/settings/account'
     | '/settings/appearance'
     | '/settings/language'
+    | '/settings/preferences'
   id:
     | '__root__'
     | '/'
@@ -387,6 +398,7 @@ export interface FileRouteTypes {
     | '/settings/account'
     | '/settings/appearance'
     | '/settings/language'
+    | '/settings/preferences'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -628,6 +640,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsLanguageRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/preferences': {
+      id: '/settings/preferences'
+      path: '/preferences'
+      fullPath: '/settings/preferences'
+      preLoaderRoute: typeof SettingsPreferencesRouteImport
+      parentRoute: typeof SettingsRoute
+    }
   }
 }
 
@@ -650,12 +669,14 @@ interface SettingsRouteChildren {
   SettingsAccountRoute: typeof SettingsAccountRoute
   SettingsAppearanceRoute: typeof SettingsAppearanceRoute
   SettingsLanguageRoute: typeof SettingsLanguageRoute
+  SettingsPreferencesRoute: typeof SettingsPreferencesRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsAccountRoute: SettingsAccountRoute,
   SettingsAppearanceRoute: SettingsAppearanceRoute,
   SettingsLanguageRoute: SettingsLanguageRoute,
+  SettingsPreferencesRoute: SettingsPreferencesRoute,
 }
 
 const SettingsRouteWithChildren = SettingsRoute._addFileChildren(

@@ -91,12 +91,13 @@ export function CreditNav({ active }: { active: string }) {
   ] as const;
 
   return (
-    <nav className="mb-5 flex gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.035] p-2">
+    <nav aria-label={language === "pt-BR" ? "Navegação de créditos" : "Credit navigation"} className="mb-5 flex gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.035] p-2">
       {items.map(([key, to]) => (
         <Link
           key={to}
           to={to}
-          className={`whitespace-nowrap rounded-xl px-3 py-2 text-sm ${
+          aria-current={active === key ? "page" : undefined}
+          className={`whitespace-nowrap rounded-xl px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-200 ${
             active === key
               ? "bg-violet-500 text-white"
               : "text-white/55 hover:bg-white/[0.06] hover:text-white"

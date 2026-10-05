@@ -18,6 +18,7 @@ type RequestBody = {
   attachments?: { name?: string; mimeType?: string; dataUrl?: string }[];
   stream?: boolean;
   language?: string;
+  tone?: string;
 };
 
 const json = (body: unknown, status = 200) =>
@@ -32,6 +33,11 @@ const sseHeaders = {
   "Cache-Control": "no-cache, no-transform",
   Connection: "keep-alive",
 };
+const base64ByteLength = (encoded: string): number | null => {
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(encoded) || encoded.length % 4 !== 0) return null;
+  const padding = encoded.endsWith("==") ? 2 : encoded.endsWith("=") ? 1 : 0;
+  return (encoded.length / 4) * 3 - padding;
+};
 
 function cleanHistory(history: unknown): ChatMessage[] {
   if (!Array.isArray(history)) return [];
@@ -41,7 +47,7 @@ function cleanHistory(history: unknown): ChatMessage[] {
       (item): item is ChatMessage =>
         Boolean(item) &&
         typeof item === "object" &&
-        ["user", "assistant", "system"].includes(String((item as ChatMessage).role)) &&
+        ["user", "assistant"].includes(String((item as ChatMessage).role)) &&
         typeof (item as ChatMessage).content === "string",
     )
     .slice(-20)
@@ -192,21 +198,41 @@ Deno.serve(async (request) => {
       return json({ error: "A mensagem é obrigatória." }, 400);
     }
 
+    const suppliedAttachments = Array.isArray(body.attachments) ? body.attachments : [];
+    if (suppliedAttachments.length > 3) {
+      return json({ error: "Anexe no máximo 3 arquivos por mensagem." }, 413);
+    }
+    const hasInvalidOrOversizedAttachment = suppliedAttachments.some((attachment) => {
+      if (!attachment || typeof attachment !== "object") return false;
+      const candidate = attachment as { size?: unknown; dataUrl?: unknown };
+      if (Number(candidate.size || 0) > 4 * 1024 * 1024) return true;
+      if (typeof candidate.dataUrl !== "string") return false;
+      const match = candidate.dataUrl.match(/^data:[^;,]+;base64,([A-Za-z0-9+/]*={0,2})$/);
+      return !match || base64ByteLength(match[1]) === null || base64ByteLength(match[1])! > 4 * 1024 * 1024;
+    });
+    if (hasInvalidOrOversizedAttachment) {
+      return json({ error: "Cada anexo deve ter até 4 MB." }, 413);
+    }
+
     const apiKey = Deno.env.get("GROQ_API_KEY");
     if (!apiKey) {
       return json({ error: "GROQ_API_KEY não configurada." }, 500);
     }
 
-    const imageAttachments = (Array.isArray(body.attachments) ? body.attachments : [])
-      .filter((attachment) => attachment?.mimeType?.startsWith("image/") && typeof attachment.dataUrl === "string")
+    const imageAttachments = suppliedAttachments
+      .filter((attachment) => typeof attachment?.mimeType === "string" && attachment.mimeType.startsWith("image/") && typeof attachment.dataUrl === "string" && /^data:image\/(?:png|jpe?g|webp);base64,/i.test(attachment.dataUrl))
       .slice(0, 3);
     const model = imageAttachments.length
       ? "qwen/qwen3.8-27b"
       : Deno.env.get("GROQ_MODEL") || "llama-3.1-8b-instant";
     const wantsStream = body.stream !== false;
     const history = cleanHistory(body.history);
-    const languageNames: Record<string, string> = { "pt-BR": "Português do Brasil", "en-US": "English", "es-ES": "Español", "fr-FR": "Français", "de-DE": "Deutsch", "it-IT": "Italiano", "ja-JP": "日本語", "ko-KR": "한국어", "zh-CN": "简体中文", "hi-IN": "हिन्दी", "ar-SA": "العربية", "ru-RU": "Русский" };
-    const responseLanguage = languageNames[body.language || "en-US"] || "English";
+    const responseLanguage = body.language === "en-US" ? "English (US)" : "Português do Brasil";
+    const toneInstruction = body.tone === "direct"
+      ? "Prefira respostas diretas e concisas, preservando o contexto essencial."
+      : body.tone === "detailed"
+        ? "Ofereça explicações detalhadas e organizadas, sem inventar dados nem ser redundante."
+        : "Mantenha equilíbrio entre concisão e contexto útil.";
 
     const userContent: ChatMessage["content"] = imageAttachments.length
       ? [
@@ -220,7 +246,7 @@ Deno.serve(async (request) => {
     const messages: ChatMessage[] = [
       {
         role: "system",
-        content: `Você é o assistente do DecidlyAI, uma plataforma brasileira para organizar decisões, comparar possibilidades e transformar contexto confuso em próximos passos claros. O usuário continua responsável pela decisão. Responda sempre em ${responseLanguage}, salvo se o usuário pedir outro idioma. Seja útil, direto, honesto e não invente informações.
+        content: `Você é o assistente do DecidlyAI, uma plataforma brasileira para organizar decisões, comparar possibilidades e transformar contexto confuso em próximos passos claros. O usuário continua responsável pela decisão. Responda sempre em ${responseLanguage}, salvo se o usuário pedir outro idioma. Seja útil, honesto e não invente informações. ${toneInstruction}
 
 Se a pessoa pedir uma obra textual completa (por exemplo, fábula, conto, redação ou carta), escreva a obra — com começo, desenvolvimento e conclusão — em vez de apenas repetir, rotular ou resumir o pedido; em uma fábula, inclua personagens, conflito, desfecho e moral. Seja breve em perguntas simples, mas respeite a extensão explícita solicitada.
 

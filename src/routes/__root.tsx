@@ -378,12 +378,13 @@ function RootComponent() {
       : window.setTimeout(injectAhrefs, 2500);
 
     const applyDocumentPreferences = (theme: string, language: string) => {
-      window.localStorage.setItem("decidly-theme", theme);
+      const safeTheme = theme === "high_contrast" || theme === "compact" ? theme : "violet";
+      window.localStorage.setItem("decidly-theme", safeTheme);
       window.localStorage.setItem("decidly-language", language === "en-US" ? "en" : language);
-      document.documentElement.dataset["theme"] = theme;
-      document.documentElement.classList.toggle("dark", theme === "dark");
+      document.documentElement.dataset["theme"] = safeTheme;
+      document.documentElement.classList.add("dark");
       document.documentElement.lang = language === "en" ? "en-US" : language;
-      document.body.dataset["theme"] = theme;
+      document.body.dataset["theme"] = safeTheme;
     };
 
     const localTheme = window.localStorage.getItem("decidly-theme") || "dark";
@@ -395,9 +396,15 @@ function RootComponent() {
 
       const { supabase } = await import("../lib/supabase");
       const { data } = await supabase.auth.getUser();
-      const metadata = data.user?.user_metadata as
-        { theme?: string; language?: string } | undefined;
-      applyDocumentPreferences(metadata?.theme || localTheme, metadata?.language || localLanguage);
+      const user = data.user;
+      if (!user) return;
+      const [{ data: preferences }, { data: profile }] = await Promise.all([
+        supabase.from("user_preferences").select("tema,idioma_preferido").eq("user_id", user.id).maybeSingle(),
+        Promise.resolve({ data: user.user_metadata as { theme?: string; language?: string } | undefined }),
+      ]);
+      const savedTheme = preferences?.tema === "high_contrast" || preferences?.tema === "compact" ? preferences.tema : "violet";
+      const savedLanguage = preferences?.idioma_preferido === "en-US" ? "en-US" : preferences?.idioma_preferido === "pt-BR" ? "pt-BR" : profile?.language === "en-US" ? "en-US" : "pt-BR";
+      applyDocumentPreferences(savedTheme || profile?.theme || localTheme, savedLanguage || localLanguage);
     };
 
     void syncAccountPreferences().catch(() => undefined);

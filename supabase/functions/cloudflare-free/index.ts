@@ -42,6 +42,8 @@ type ChatMessage = {
 type RequestBody = {
   message?: unknown;
   history?: unknown;
+  language?: unknown;
+  tone?: unknown;
 };
 
 const json = (body: unknown, status = 200) =>
@@ -93,8 +95,14 @@ Deno.serve(async (request: Request) => {
           }))
       : [];
 
+    const language = body.language === "en-US" ? "English (US)" : "Português do Brasil";
+    const toneInstruction = body.tone === "direct"
+      ? "Prefira respostas diretas e concisas, preservando o contexto essencial."
+      : body.tone === "detailed"
+        ? "Ofereça explicações detalhadas e organizadas, sem inventar dados nem ser redundante."
+        : "Mantenha equilíbrio entre concisão e contexto útil.";
     const messages = [
-      { role: "system", content: DECIDLYAI_CORE },
+      { role: "system", content: `${DECIDLYAI_CORE}\nResponda em ${language}, salvo se o usuário pedir outro idioma. ${toneInstruction}` },
       ...history,
       { role: "user", content: body.message.trim() },
     ];

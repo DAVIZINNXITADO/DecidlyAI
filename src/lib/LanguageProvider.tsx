@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { Language, useLanguage, setLanguage as setLanguageLib } from "./i18n";
+import { supabase } from "./supabase";
+import { applyThemePreference, normalizeUserPreferences } from "./user-preferences";
 
 interface LanguageContextType {
   language: Language;
@@ -43,6 +45,31 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setLanguageState(detectedLang);
   }, [detectedLang]);
+
+  useEffect(() => {
+    let active = true;
+    const syncPreferences = async (userId: string | undefined) => {
+      if (!userId) return;
+      const { data } = await supabase
+        .from("user_preferences")
+        .select("idioma_preferido,tema")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (!active || !data) return;
+      const preferences = normalizeUserPreferences(data);
+      setLanguageState(preferences.idioma_preferido);
+      setLanguageLib(preferences.idioma_preferido);
+      applyThemePreference(preferences.tema);
+    };
+    void supabase.auth.getUser().then(({ data }) => syncPreferences(data.user?.id));
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      void syncPreferences(session?.user.id);
+    });
+    return () => {
+      active = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   const handleSetLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);

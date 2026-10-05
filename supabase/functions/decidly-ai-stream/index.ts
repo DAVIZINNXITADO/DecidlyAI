@@ -10,6 +10,12 @@ const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
 const event = (data: unknown, name?: string) => `${name ? `event: ${name}\n` : ""}data: ${JSON.stringify(data)}\n\n`;
 const estimateTokens = (text: string) => Math.max(1, Math.ceil(text.length / 4));
 const cleanDoneMarker = (text: string) => text.replace(/\s*\[DONE\]\s*$/gi, "").trimEnd();
+const base64ByteLength = (value: string): number | null => {
+  const encoded = value.match(/^data:[^;,]+;base64,([A-Za-z0-9+/]*={0,2})$/);
+  if (!encoded || encoded[1].length % 4 !== 0) return null;
+  const padding = encoded[1].endsWith("==") ? 2 : encoded[1].endsWith("=") ? 1 : 0;
+  return (encoded[1].length / 4) * 3 - padding;
+};
 const todayInSaoPaulo = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 const dailyBalanceForToday = (resetAt: unknown, storedBalance: unknown, limit: number, today: string) => {
   if (!resetAt) return Math.min(limit, 5);
@@ -38,12 +44,21 @@ Deno.serve(async (request) => {
     const admin = createClient(supabaseUrl, serviceKey);
     const body = await request.json() as { message?: unknown; history?: unknown; language?: unknown; attachments?: unknown; mode?: unknown };
     if (typeof body.message !== "string" || !body.message.trim()) return new Response(JSON.stringify({ error: "Envie uma mensagem válida." }), { status: 400, headers: jsonHeaders });
+    if (body.mode !== undefined && body.mode !== "free" && body.mode !== "vip") return new Response(JSON.stringify({ error: "Comando DEV inválido." }), { status: 400, headers: jsonHeaders });
+    const suppliedAttachments = Array.isArray(body.attachments) ? body.attachments : [];
+    if (suppliedAttachments.length > 3) return new Response(JSON.stringify({ error: "Anexe no máximo 3 arquivos por mensagem." }), { status: 413, headers: jsonHeaders });
+    if (suppliedAttachments.some((item) => item && typeof item === "object" && Number((item as { size?: unknown }).size || 0) > 4 * 1024 * 1024)) return new Response(JSON.stringify({ error: "Cada anexo deve ter até 4 MB." }), { status: 413, headers: jsonHeaders });
+    if (suppliedAttachments.some((item) => item && typeof item === "object" && typeof (item as { dataUrl?: unknown }).dataUrl === "string" && (base64ByteLength(String((item as { dataUrl: string }).dataUrl)) ?? Infinity) > 4 * 1024 * 1024)) return new Response(JSON.stringify({ error: "Cada anexo deve ter até 4 MB e conteúdo válido." }), { status: 413, headers: jsonHeaders });
 
     const { data: creditRow, error: creditError } = await admin.from("ai_credits").select("free_credits,purchased_credits,total_credits,daily_credits_used,daily_credits_limit,daily_credits_reset_at,total_tokens_used,total_input_tokens,total_output_tokens,total_cost_usd").eq("user_id", userData.user.id).maybeSingle();
     if (creditError) throw new Error("Não foi possível verificar seus créditos.");
     const profile = (await admin.from("profiles").select("plan,developer_mode").eq("id", userData.user.id).maybeSingle()).data as { plan?: string; developer_mode?: boolean } | null;
     const plan = String(profile?.plan ?? "free").toLowerCase();
-    const devFreeMode = profile?.developer_mode === true && body.mode === "free";
+    const developerMode = plan === "dev" || profile?.developer_mode === true;
+    if (body.mode === "free" && !developerMode) return new Response(JSON.stringify({ error: "O comando /free é reservado ao modo DEV." }), { status: 403, headers: jsonHeaders });
+    if (body.mode === "vip" && plan !== "vip" && plan !== "premium" && plan !== "dev") return new Response(JSON.stringify({ error: "O modo VIP requer um plano compatível." }), { status: 403, headers: jsonHeaders });
+    if (plan === "dev" && body.mode !== "free" && body.mode !== "vip") return new Response(JSON.stringify({ error: "No plano DEV, use /free, /vip ou /anexar." }), { status: 400, headers: jsonHeaders });
+    const devFreeMode = developerMode && body.mode === "free";
     const planLimit = plan === "premium" ? 999999999 : plan === "vip" || plan === "dev" ? 100 : 5;
     if ((plan === "vip" || plan === "premium" || plan === "dev") && !devFreeMode) {
       const vipResponse = await fetch(`${supabaseUrl}/functions/v1/decidly-ai`, {
