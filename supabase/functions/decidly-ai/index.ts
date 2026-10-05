@@ -55,8 +55,18 @@ Deno.serve(async (request) => {
     const lang = typeof body.language === "string" ? body.language : "pt-BR";
     const history = Array.isArray(body.history) ? body.history.filter((item) => item && typeof item === "object" && (item as { role?: unknown }).role !== "system" && typeof (item as { content?: unknown }).content === "string").slice(-20).map((item) => ({ role: String((item as { role?: unknown }).role) === "assistant" ? "assistant" : "user", content: String((item as { content?: unknown }).content) })) : [];
     const currentContent: string | Part[] = imageParts.length ? [{ type: "text", text: `Analise visualmente a imagem anexada e responda diretamente ao pedido do usuário em ${lang}. Não diga que recebeu apenas o nome do arquivo.\n\n${message}` }, ...imageParts] : message;
-    const response = await fetch("https://api.openai.com/v1/chat/completions", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: "gpt-4o", messages: [{ role: "system", content: `Você é o DecidlyAI VIP. Ajude o usuário a tomar decisões com análise profunda, clareza e honestidade. Responda em ${lang}. Quando houver imagem, descreva e interprete o conteúdo visual real. Não invente o que não estiver visível.` }, ...history, { role: "user", content: currentContent }], temperature: 0.7, max_tokens: 4096 }) });
-    if (!response.ok) return json({ error: `GPT-4 retornou HTTP ${response.status}.`, details: (await response.text()).slice(0, 1000) }, response.status);
+    const messages = [{ role: "system" as const, content: `Você é o DecidlyAI VIP. Ajude o usuário a tomar decisões com análise profunda, clareza e honestidade. Responda em ${lang}. Quando houver imagem, descreva e interprete o conteúdo visual real. Não invente o que não estiver visível.` }, ...history, { role: "user" as const, content: currentContent }];
+    const models = ["gpt-4.1", "gpt-4o", "gpt-4o-mini"];
+    let response: Response | null = null;
+    let lastDetails = "";
+    let selectedModel = models[0];
+    for (const model of models) {
+      const candidate = await fetch("https://api.openai.com/v1/chat/completions", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages, temperature: 0.7, max_tokens: 4096 }) });
+      if (candidate.ok) { response = candidate; selectedModel = model; break; }
+      lastDetails = (await candidate.text()).slice(0, 1000);
+      if (candidate.status === 401 || candidate.status === 403) { response = candidate; selectedModel = model; break; }
+    }
+    if (!response?.ok) return json({ error: "Os modelos GPT estão temporariamente ocupados.", details: lastDetails }, response?.status || 503);
     const data = await response.json() as { choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } };
     const answer = clean(data.choices?.[0]?.message?.content || "");
     if (!answer) return json({ error: "GPT-4 retornou uma resposta vazia." }, 502);
@@ -68,8 +78,8 @@ Deno.serve(async (request) => {
     const nextFree = Math.max(0, free - Math.min(free, used));
     const nextPurchased = Math.max(0, purchased - Math.max(0, used - free));
     await admin.from("ai_credits").update({ free_credits: nextFree, purchased_credits: nextPurchased, total_credits: nextFree + nextPurchased, total_tokens_used: Number(creditRow?.total_tokens_used || 0) + inputTokens + outputTokens, total_input_tokens: Number(creditRow?.total_input_tokens || 0) + inputTokens, total_output_tokens: Number(creditRow?.total_output_tokens || 0) + outputTokens }).eq("user_id", userData.user.id);
-    if (body.stream === false) return json({ response: answer, provider: "openai-gpt-4o" });
-    return new Response(event({ delta: answer, accumulated: answer, provider: "openai-gpt-4o" }) + event({ response: answer, complete: true, provider: "openai-gpt-4o" }, "complete") + event("[DONE]"), { headers: sseHeaders });
+    if (body.stream === false) return json({ response: answer, provider: `openai-${selectedModel}` });
+    return new Response(event({ delta: answer, accumulated: answer, provider: `openai-${selectedModel}` }) + event({ response: answer, complete: true, provider: `openai-${selectedModel}` }, "complete") + event("[DONE]"), { headers: sseHeaders });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Erro inesperado." }, 500);
   }
