@@ -104,8 +104,9 @@ Deno.serve(async (request) => {
     const nextFree = Math.max(0, free - Math.min(free, used));
     const nextPurchased = Math.max(0, purchased - Math.max(0, used - free));
     await admin.from("ai_credits").update({ free_credits: nextFree, purchased_credits: nextPurchased, total_credits: nextFree + nextPurchased, total_tokens_used: Number(creditRow?.total_tokens_used || 0) + inputTokens + outputTokens, total_input_tokens: Number(creditRow?.total_input_tokens || 0) + inputTokens, total_output_tokens: Number(creditRow?.total_output_tokens || 0) + outputTokens }).eq("user_id", userData.user.id);
-    if (body.stream === false) return json({ response: result.answer, provider: result.provider });
-    return new Response(event({ delta: result.answer, accumulated: result.answer, provider: result.provider }) + event({ response: result.answer, complete: true, provider: result.provider }, "complete") + event("[DONE]"), { headers: sseHeaders });
+    // O frontend legado do workspace já trata respostas JSON e o envelope
+    // evita que um proxy SSE antigo transforme uma resposta válida em EMPTY_RESPONSE.
+    return json({ response: result.answer, provider: result.provider });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Erro inesperado." }, 503);
   }
