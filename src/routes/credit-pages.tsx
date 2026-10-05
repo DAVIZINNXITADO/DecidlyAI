@@ -175,17 +175,34 @@ export function BuyPage() {
   const [loading, setLoading] = useState(false);
 
   const startCheckout = async () => {
-    setNotice("");
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("abacate-create-checkout", {
-        body: { package: "credits-10" },
+      setNotice("");
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("abacate-create-checkout", {
+        body: {
+          items: [
+            {
+              id: "prod_Sy00DekE56ayMWQcQSJFL632",
+              quantity: 1,
+              price: 190,
+              name: "10 Creditos",
+            },
+          ],
+          methods: ["PIX"],
+          customer: {
+            name: "Comprador de Teste",
+            email: "teste@exemplo.com",
+            taxId: "00000000000",
+            cellphone: "11999999999",
+          },
+        },
       });
-      if (error || !data?.url) {
+      const checkoutUrl = data?.checkoutUrl || data?.url;
+      if (error || !checkoutUrl || data?.success === false) {
         const context = typeof data?.details === "string" ? ` ${data.details}` : "";
         throw new Error(data?.error ? `${data.error}${context}` : error?.message || "Não foi possível iniciar o pagamento.");
       }
-      window.location.assign(data.url);
+      window.location.assign(checkoutUrl);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Não foi possível iniciar o pagamento.");
     } finally {
