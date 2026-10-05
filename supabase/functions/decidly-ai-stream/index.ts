@@ -43,6 +43,14 @@ Deno.serve(async (request) => {
     if (creditError) throw new Error("Não foi possível verificar seus créditos.");
     const plan = String((await admin.from("profiles").select("plan").eq("id", userData.user.id).maybeSingle()).data?.plan ?? "free").toLowerCase();
     const planLimit = plan === "premium" ? 999999999 : plan === "vip" ? 100 : 5;
+    if (plan === "vip" || plan === "premium") {
+      const vipResponse = await fetch(`${supabaseUrl}/functions/v1/decidly-ai`, {
+        method: "POST",
+        headers: { Authorization: authorization, apikey: anonKey, "Content-Type": "application/json", Accept: "text/event-stream, application/json" },
+        body: JSON.stringify(body),
+      });
+      return new Response(vipResponse.body ? vipResponse.body : await vipResponse.text(), { status: vipResponse.status, headers: vipResponse.headers });
+    }
     const today = todayInSaoPaulo();
     const dailyLimit = planLimit;
     const dailyBalance = dailyBalanceForToday(creditRow?.daily_credits_reset_at, creditRow?.daily_credits_used, dailyLimit, today);
