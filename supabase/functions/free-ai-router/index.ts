@@ -44,6 +44,8 @@ function responseText(data: unknown): string {
   if (typeof value.response === "string") return value.response;
   if (typeof value.answer === "string") return value.answer;
   if (typeof value.content === "string") return value.content;
+  if (typeof value.delta === "string") return value.delta;
+  if (typeof value.accumulated === "string") return value.accumulated;
   const choices = Array.isArray(value.choices) ? value.choices : [];
   const choice = choices[0] as Record<string, unknown> | undefined;
   const message = choice?.message as Record<string, unknown> | undefined;
