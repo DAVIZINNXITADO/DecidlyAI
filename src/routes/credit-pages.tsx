@@ -181,7 +181,10 @@ export function BuyPage() {
       const { data, error } = await supabase.functions.invoke("abacate-create-checkout", {
         body: { package: "credits-10" },
       });
-      if (error || !data?.url) throw new Error(data?.error || error?.message || "Não foi possível iniciar o pagamento.");
+      if (error || !data?.url) {
+        const context = typeof data?.details === "string" ? ` ${data.details}` : "";
+        throw new Error(data?.error ? `${data.error}${context}` : error?.message || "Não foi possível iniciar o pagamento.");
+      }
       window.location.assign(data.url);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Não foi possível iniciar o pagamento.");

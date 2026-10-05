@@ -28,8 +28,23 @@ Deno.serve(async (request) => {
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ items: [{ id: productId, quantity: 1 }], methods: ["PIX"], externalId, metadata: { userId: auth.user.id, credits: "10", package: "credits-10" }, returnUrl: `${origin}/credits/buy`, completionUrl: `${origin}/credits/buy?payment=completed` }),
     });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || result?.success === false || !result?.data?.url) return json({ error: "Não foi possível criar o checkout AbacatePay.", details: result?.error || result?.message || `HTTP ${response.status}` }, 502);
+    const rawResult = await response.text();
+    const result = (() => {
+      try {
+        return JSON.parse(rawResult) as Record<string, unknown>;
+      } catch {
+        return {};
+      }
+    })();
+    if (!response.ok || result?.success === false || !result?.data?.url) {
+      console.error("AbacatePay checkout rejected", {
+        status: response.status,
+        response: rawResult.slice(0, 1000),
+        productConfigured: Boolean(productId),
+        apiKeyConfigured: Boolean(apiKey),
+      });
+      return json({ error: "Não foi possível criar o checkout AbacatePay.", details: result?.error || result?.message || rawResult.slice(0, 500) || `HTTP ${response.status}` }, 502);
+    }
     return json({ url: result.data.url, externalId });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Erro inesperado." }, 500);
