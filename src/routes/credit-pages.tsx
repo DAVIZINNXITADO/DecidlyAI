@@ -184,17 +184,9 @@ export function BuyPage() {
             {
               id: "prod_Sy00DekE56ayMWQcQSJFL632",
               quantity: 1,
-              price: 190,
-              name: "10 Creditos",
             },
           ],
           methods: ["PIX"],
-          customer: {
-            name: "Comprador de Teste",
-            email: "teste@exemplo.com",
-            taxId: "00000000000",
-            cellphone: "11999999999",
-          },
         },
       });
       const checkoutUrl = data?.checkoutUrl || data?.url;
