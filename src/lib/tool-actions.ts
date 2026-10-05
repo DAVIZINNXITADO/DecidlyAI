@@ -13,6 +13,25 @@ type ToolSelection = {
   costLabel: string;
 };
 
+export type DeveloperCommand = {
+  provider?: "free" | "vip";
+  tool?: ToolSelection;
+  attach?: boolean;
+  text: string;
+};
+
+export function parseDeveloperCommand(value: string): DeveloperCommand | null {
+  const match = value.trim().match(/^\/(free|vip|criar-imagem|imagem|image|pdf|criar-imagem-texto|texto-imagem|textoimagem|anexar)\b\s*(.*)$/i);
+  if (!match) return null;
+  const command = match[1].toLowerCase();
+  const text = match[2].trim();
+  if (command === "free" || command === "vip") return { provider: command, text: text || "Olá" };
+  if (command === "anexar") return { attach: true, text: "" };
+  if (command === "pdf") return { tool: { id: "create_pdf", label: "Criar PDF", cost: 1, costLabel: "crédito por arquivo" }, text: text || "Crie um PDF com base nesta conversa." };
+  if (command === "criar-imagem-texto" || command === "texto-imagem" || command === "textoimagem") return { tool: { id: "create_text_image", label: "Imagem de texto", cost: 0.5, costLabel: "0,5 crédito por imagem" }, text: text || "Crie uma imagem de texto com base nesta conversa." };
+  return { tool: { id: "create_image", label: "Imagem por IA", cost: 2.5, costLabel: "créditos por imagem" }, text: text || "Crie uma imagem com base nesta conversa." };
+}
+
 export function inferRequestedTool(value: string): ToolSelection | null {
   const request = normalizeIntentText(value);
   const wantsPdf = /\b(?:pdf|arquivo\s+pdf|documento\s+pdf|exporte?\s+(?:isso|isto|a resposta)\s+(?:em|para)\s+pdf)\b/.test(request);

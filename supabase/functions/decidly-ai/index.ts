@@ -38,7 +38,7 @@ async function callGroq(apiKey: string, message: string, history: { role: "user"
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "qwen/qwen3.8-27b", messages: [{ role: "system", content: `Você é o DecidlyAI VIP. Ajude com análise profunda, clareza e honestidade. Responda em ${language}. Quando houver imagem, interprete o conteúdo visual real e não invente detalhes.` }, ...history, { role: "user", content: current }], temperature: 0.7, max_completion_tokens: 4096 }),
+      body: JSON.stringify({ model: "qwen/qwen3.8-27b", messages: [{ role: "system", content: `Você é o DecidlyAI VIP. Ajude com análise profunda, clareza e honestidade. Responda sempre em português do Brasil, salvo se o usuário pedir explicitamente outro idioma. Quando houver imagem, interprete o conteúdo visual real e não invente detalhes.` }, ...history, { role: "user", content: current }], temperature: 0.7, max_completion_tokens: 4096 }),
     });
   if (response.ok) { const data = await response.json() as { choices?: { text?: unknown; message?: { content?: unknown; reasoning_content?: unknown } }[] }; const choice = data.choices?.[0]; const answer = clean(contentText(choice?.message?.content) || contentText(choice?.message?.reasoning_content) || contentText(choice?.text)); if (answer) return { answer, provider: "groq-qwen/qwen3.8-27b" }; }
   else lastError = (await response.text()).slice(0, 500);
@@ -50,7 +50,7 @@ async function callOpenAI(apiKey: string, message: string, history: { role: "use
   const current: string | OpenAIPart[] = images.length ? [{ type: "text", text: `Analise visualmente a imagem anexada e responda diretamente ao pedido em ${language}.\n\n${message}` }, ...images.map((image) => ({ type: "image_url" as const, image_url: { url: `data:${image.mimeType};base64,${image.data}` } }))] : message;
   let lastError = "";
   for (const model of models) {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages: [{ role: "system", content: `Você é o DecidlyAI VIP. Responda em ${language}. Analise imagens visualmente quando existirem.` }, ...history, { role: "user", content: current }], temperature: 0.7, max_tokens: 4096 }) });
+    const response = await fetch("https://api.openai.com/v1/chat/completions", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages: [{ role: "system", content: "Você é o DecidlyAI VIP. Responda sempre em português do Brasil, salvo se o usuário pedir explicitamente outro idioma. Analise imagens visualmente quando existirem." }, ...history, { role: "user", content: current }], temperature: 0.7, max_tokens: 4096 }) });
     if (response.ok) {
       const data = await response.json() as { choices?: { message?: { content?: string } }[] };
       const answer = clean(data.choices?.[0]?.message?.content || "");
@@ -73,9 +73,9 @@ Deno.serve(async (request) => {
     const { data: userData } = await auth.auth.getUser(authorization.slice(7));
     if (!userData.user) return json({ error: "Sessão inválida. Faça login novamente." }, 401);
     const admin = createClient(supabaseUrl, serviceKey);
-    const { data: profile } = await admin.from("profiles").select("plan").eq("id", userData.user.id).maybeSingle();
+    const { data: profile } = await admin.from("profiles").select("plan,developer_mode").eq("id", userData.user.id).maybeSingle();
     const plan = String(profile?.plan || "").toLowerCase();
-    if (plan !== "vip" && plan !== "premium") return json({ error: "Este endpoint é exclusivo para usuários VIP." }, 403);
+    if (plan !== "vip" && plan !== "premium" && plan !== "dev") return json({ error: "Este endpoint é exclusivo para usuários VIP." }, 403);
     const body = await request.json() as Body;
     const message = typeof body.message === "string" ? body.message.trim() : "";
     if (!message) return json({ error: "Envie uma mensagem válida." }, 400);

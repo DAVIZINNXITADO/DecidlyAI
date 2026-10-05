@@ -48,7 +48,7 @@ import { streamAi } from "../lib/ai-stream";
 import { requestTtsAudio } from "../lib/tts";
 import { createPdfBlob } from "../lib/pdf";
 import { createTextImage, MAX_TEXT_IMAGE_CHARS } from "../lib/text-image";
-import { ensureToolActionResponse, inferRequestedTool, resolveSelectedToolForRequest } from "../lib/tool-actions";
+import { ensureToolActionResponse, inferRequestedTool, parseDeveloperCommand, resolveSelectedToolForRequest } from "../lib/tool-actions";
 import { useLanguageContext } from "../lib/LanguageProvider";
 import { RichResponse, parseBlocks, responseProtocolInstructions, type ResponseAction } from "../components/RichResponse";
 import { ToolCenter, type SelectedTool, type ToolId } from "../components/ToolCenter";
@@ -192,6 +192,7 @@ function Workspace() {
   const [limitPopup, setLimitPopup] = useState<{ title: string; message: string } | null>(null);
 
   const [userId, setUserId] = useState<string | null>(null);
+  const [developerMode, setDeveloperMode] = useState(false);
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [preferredName, setPreferredName] = useState("");
@@ -657,6 +658,7 @@ function Workspace() {
       if (mounted) {
         if (!user) {
           setUserId(null);
+          setDeveloperMode(false);
           setUserEmail("");
           setUserName("");
           setPreferredName("");
@@ -668,6 +670,8 @@ function Workspace() {
         }
 
         setUserId(user.id);
+        const { data: profile } = await supabase.from("profiles").select("developer_mode").eq("id", user.id).maybeSingle();
+        setDeveloperMode(profile?.developer_mode === true);
         setUserEmail(user?.email ?? "");
         const savedPreferredName = safePublicName(window.localStorage.getItem("decidly-preferred-name"));
         setUserName("Conta");
@@ -684,6 +688,7 @@ function Workspace() {
           if (mounted) {
             if (!session?.user) {
               setUserId(null);
+              setDeveloperMode(false);
               setUserEmail("");
               setUserName("");
               setPreferredName("");
@@ -697,6 +702,9 @@ function Workspace() {
             setUserId(
               session.user.id,
             );
+            void supabase.from("profiles").select("developer_mode").eq("id", session.user.id).maybeSingle().then(({ data: profile }) => {
+              if (mounted) setDeveloperMode(profile?.developer_mode === true);
+            });
             setUserEmail(session.user.email ?? "");
             const savedPreferredName = safePublicName(window.localStorage.getItem("decidly-preferred-name"));
             setUserName("Conta");
@@ -1467,7 +1475,9 @@ function Workspace() {
 
   const sendMessage = useCallback(
     async (textOverride?: string, historyOverride?: ChatMessage[]) => {
-      const text = (textOverride ?? input).trim();
+      const rawText = (textOverride ?? input).trim();
+      const developerCommand = developerMode ? parseDeveloperCommand(rawText) : null;
+      const text = developerCommand?.text || rawText;
       const guidance = extraGuidance.trim();
       const selectedAttachments = attachments;
       const attachmentLabels = selectedAttachments.map((attachment) => `📎 ${attachment.name}`).join("\n");
@@ -1491,9 +1501,16 @@ function Workspace() {
         return;
       }
 
-      const inferredTool = inferRequestedTool(text);
-      const requestsDisabledImage = selectedTool?.id === "create_image"
-        || (!selectedTool && inferredTool?.id === "create_image");
+      if (developerCommand?.attach) {
+        attachmentInputRef.current?.click();
+        setInput("");
+        return;
+      }
+
+      const inferredTool = developerCommand?.tool || inferRequestedTool(text);
+      const requestsDisabledImage = !developerCommand?.tool && (
+        selectedTool?.id === "create_image" || (!selectedTool && inferredTool?.id === "create_image")
+      );
       if (requestsDisabledImage) {
         setSelectedTool(null);
         setToolsOpen(false);
@@ -1560,8 +1577,11 @@ function Workspace() {
           throw new Error("MESSAGE_SAVE_ERROR");
         }
 
-        const functionName =
-          await getAIName();
+        const functionName = developerCommand?.provider === "vip"
+          ? "decidly-ai"
+          : developerCommand?.provider === "free"
+            ? "decidly-ai-stream"
+            : await getAIName();
 
         const history = [
           ...(historyOverride ?? messages),
@@ -1601,9 +1621,10 @@ function Workspace() {
         };
         setRequestPhase("thinking");
         const streamedAnswer = await streamAi(functionName, {
-          message: [privateContext, guidanceContext, toolContext, responseProtocolInstructions(), "Mensagem do usuário:\n" + promptText].filter(Boolean).join("\n\n"),
+          message: [developerCommand?.provider ? `Modo DEV: use exclusivamente o roteador ${developerCommand.provider.toUpperCase()}.` : "", privateContext, guidanceContext, toolContext, responseProtocolInstructions(), "Mensagem do usuário:\n" + promptText].filter(Boolean).join("\n\n"),
           history,
           attachments: selectedAttachments.filter((attachment) => attachment.dataUrl).map((attachment) => ({ name: attachment.name, mimeType: attachment.mimeType, dataUrl: attachment.dataUrl })),
+          ...(developerCommand?.provider ? { mode: developerCommand.provider } : {}),
           signal: abortController.signal,
           onDelta: (_delta, accumulated) => {
             latestAccumulated = accumulated;
@@ -1716,6 +1737,7 @@ function Workspace() {
     },
     [
       input,
+      developerMode,
       isLoading,
       userId,
       getAIName,

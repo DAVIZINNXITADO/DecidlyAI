@@ -7,6 +7,7 @@ type Options = {
   message: string;
   history: ChatMessage[];
   attachments?: { name: string; mimeType: string; dataUrl?: string }[];
+  mode?: "free" | "vip";
   onDelta?: (text: string, accumulated: string) => void;
   language?: string;
   signal?: AbortSignal;
@@ -58,6 +59,7 @@ export async function streamAi(functionName: string, options: Options): Promise<
         message: options.message,
         history: options.history,
         attachments: options.attachments ?? [],
+        ...(options.mode ? { mode: options.mode } : {}),
         stream: true,
         language: options.language || window.localStorage.getItem("decidly-language") || "pt-BR",
       }),

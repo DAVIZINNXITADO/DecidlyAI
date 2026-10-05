@@ -36,14 +36,16 @@ Deno.serve(async (request) => {
     if (!userData.user) return new Response(JSON.stringify({ error: "Sessão inválida. Faça login novamente." }), { status: 401, headers: jsonHeaders });
 
     const admin = createClient(supabaseUrl, serviceKey);
-    const body = await request.json() as { message?: unknown; history?: unknown; language?: unknown; attachments?: unknown };
+    const body = await request.json() as { message?: unknown; history?: unknown; language?: unknown; attachments?: unknown; mode?: unknown };
     if (typeof body.message !== "string" || !body.message.trim()) return new Response(JSON.stringify({ error: "Envie uma mensagem válida." }), { status: 400, headers: jsonHeaders });
 
     const { data: creditRow, error: creditError } = await admin.from("ai_credits").select("free_credits,purchased_credits,total_credits,daily_credits_used,daily_credits_limit,daily_credits_reset_at,total_tokens_used,total_input_tokens,total_output_tokens,total_cost_usd").eq("user_id", userData.user.id).maybeSingle();
     if (creditError) throw new Error("Não foi possível verificar seus créditos.");
-    const plan = String((await admin.from("profiles").select("plan").eq("id", userData.user.id).maybeSingle()).data?.plan ?? "free").toLowerCase();
-    const planLimit = plan === "premium" ? 999999999 : plan === "vip" ? 100 : 5;
-    if (plan === "vip" || plan === "premium") {
+    const profile = (await admin.from("profiles").select("plan,developer_mode").eq("id", userData.user.id).maybeSingle()).data as { plan?: string; developer_mode?: boolean } | null;
+    const plan = String(profile?.plan ?? "free").toLowerCase();
+    const devFreeMode = profile?.developer_mode === true && body.mode === "free";
+    const planLimit = plan === "premium" ? 999999999 : plan === "vip" || plan === "dev" ? 100 : 5;
+    if ((plan === "vip" || plan === "premium" || plan === "dev") && !devFreeMode) {
       const vipResponse = await fetch(`${supabaseUrl}/functions/v1/decidly-ai`, {
         method: "POST",
         headers: { Authorization: authorization, apikey: anonKey, "Content-Type": "application/json", Accept: "text/event-stream, application/json" },
