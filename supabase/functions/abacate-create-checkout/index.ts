@@ -23,10 +23,19 @@ Deno.serve(async (request) => {
     if (!auth.user) return json({ error: "Faça login para comprar créditos." }, 401);
     const origin = request.headers.get("origin") || "https://decidlyai.com";
     const externalId = `decidly-${auth.user.id}-${crypto.randomUUID()}`;
-    const response = await fetch("https://api.abacatepay.com/v2/checkouts/create", {
+    const response = await fetch("https://api.abacatepay.com/v1/billing/create", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ items: [{ id: productId, quantity: 1 }], methods: ["PIX"], externalId, metadata: { userId: auth.user.id, credits: "10", package: "credits-10" }, returnUrl: `${origin}/credits/buy`, completionUrl: `${origin}/credits/buy?payment=completed` }),
+      body: JSON.stringify({
+        frequency: "ONE_TIME",
+        methods: ["PIX"],
+        products: [{ externalId: productId, name: "10 Creditos", quantity: 1, price: 190 }],
+        customer: { name: "Comprador de Teste", email: "teste@exemplo.com", taxId: "00000000000", cellphone: "11999999999" },
+        externalId,
+        metadata: { userId: auth.user.id, credits: "10", package: "credits-10" },
+        returnUrl: `${origin}/credits/buy`,
+        completionUrl: `${origin}/credits/buy?payment=completed`,
+      }),
     });
     const rawResult = await response.text();
     const result = (() => {
