@@ -32,7 +32,7 @@ function cleanAttachments(value: unknown): Attachment[] {
     .map((item) => ({
       name: String(item.name || "arquivo").slice(0, 120),
       mimeType: String(item.mimeType || (String(item.name || "").toLowerCase().endsWith(".png") ? "image/png" : String(item.name || "").toLowerCase().match(/\.jpe?g$/) ? "image/jpeg" : String(item.name || "").toLowerCase().endsWith(".webp") ? "image/webp" : "")).slice(0, 80),
-      ...(typeof item.dataUrl === "string" && item.dataUrl.length <= 6_000_000 ? { dataUrl: item.dataUrl } : {}),
+      ...(typeof item.dataUrl === "string" && item.dataUrl.length <= 5_600_000 ? { dataUrl: item.dataUrl } : {}),
     }))
     .filter((item) => item.mimeType.startsWith("image/") && Boolean(item.dataUrl));
 }
@@ -183,10 +183,12 @@ Deno.serve(async (request) => {
       message: body.message.trim(),
       history: Array.isArray(body.history) ? body.history.slice(-20) : [],
       attachments,
-      stream: body.stream !== false,
+      // Resposta completa evita que o parser SSE transforme falhas transitórias
+      // do provedor em EMPTY_RESPONSE no frontend.
+      stream: false,
       language,
     });
-    const providers = attachments.length ? ["groq-free"] : ["groq-free", "cloudflare-free"];
+    const providers = attachments.length ? ["groq-free", "groq-free"] : ["groq-free", "groq-free", "cloudflare-free"];
     let lastError = "";
 
     for (const provider of providers) {
