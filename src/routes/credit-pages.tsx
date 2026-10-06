@@ -175,7 +175,7 @@ export function BuyPage() {
   const { wallet, reload } = useCreditData();
   const [notice, setNotice] = useState("");
   const [paymentNotice, setPaymentNotice] = useState("");
-  const [paymentKind, setPaymentKind] = useState<"success" | "pending" | "cancelled" | "confirmed" | "error" | "">("");
+  const [paymentKind, setPaymentKind] = useState<"pending" | "cancelled" | "confirmed" | "error" | "">("");
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -203,8 +203,8 @@ export function BuyPage() {
     let cancelled = false;
     let inFlight = false;
     const deadline = Date.now() + 60_000;
-    setPaymentKind("success");
-    setPaymentNotice("Pagamento confirmado. Seus créditos estão sendo atualizados.");
+    setPaymentKind("pending");
+    setPaymentNotice("Retorno do checkout recebido. Estamos aguardando a confirmação segura do servidor; seus 10 créditos só serão confirmados depois da atualização da carteira.");
 
     const verify = async () => {
       if (cancelled || inFlight) return false;
@@ -221,7 +221,7 @@ export function BuyPage() {
           .eq("credits", 10)
           .maybeSingle();
         if (paymentError || !paymentRow) return false;
-        setPaymentNotice("Pagamento confirmado. Seus créditos estão sendo atualizados.");
+        setPaymentNotice("Pagamento registrado pelo servidor. Estamos conferindo a atualização dos seus créditos.");
         const { data: creditEvent, error: eventError } = await supabase
           .from("credit_events")
           .select("id,amount")
