@@ -12,13 +12,13 @@ A geração de imagem visual por IA está **temporariamente desativada por segur
 
 | Área | Estado | Observação |
 |---|---|---|
-| Workspace, autenticação e chat | Implementado | A evolução de preferências e workspace está no commit `6624785` da branch `main`; a publicação no host Lovable ainda depende de acesso autenticado ao painel. |
+| Workspace, autenticação e chat | Publicado | A evolução de preferências e workspace está no commit `6624785` da branch `main`; o usuário confirmou que o frontend está funcionando no host Lovable em 6 de outubro de 2026. |
 | Imagem por IA | Suspensa | Item visível, mas desativado no “+”; ação antiga também é bloqueada. Não reativar até escolher e validar uma rota com moderação apropriada. |
 | Edge Function `generate-ai-image` | Suspensa no backend | Versão **5**, `verify_jwt=true`; retorna 503 após autenticar, sem RPC de reserva, chamada a modelo ou upload. |
 | PDF | Ativo | PDF A4 simples, até 12.000 caracteres/8 páginas; 1 crédito pelo arquivo + uso normal da resposta; limite 1/dia Free e 3/dia VIP. |
 | Imagem de texto | Ativa | PNG 1024×1024, até 220 caracteres; 0,5 crédito; limite 5/dia Free e 15/dia VIP. |
 | Storage | Ativo | Bucket privado, caminhos por usuário, URLs assinadas temporárias e limite de 10 MiB. |
-| Compra de créditos | Backend conectado; teste de ponta a ponta pendente | Checkout Pix AbacatePay e webhook estão ativos no Supabase; confirmação com credenciais/teste de pagamento da AbacatePay não foi executada nesta sessão. |
+| Compra de créditos | Bloqueado por configuração do webhook | O usuário confirmou pagamento em Sandbox; entrega `checkout.completed` respondeu `401 Unauthorized`. `abacate-webhook` v9 está publicada, mas é necessário alinhar `ABACATEPAY_WEBHOOK_SECRET` com o campo Secret do webhook e reenviar o evento. |
 
 ## Motivo da suspensão
 
@@ -30,10 +30,10 @@ Fontes consultadas: [catálogo legado](https://image.pollinations.ai/models), [d
 
 - `pnpm build`, `git diff --check` e parse/transpile das sete Edge Functions alteradas passaram.
 - A migration `20261005174123_personal_preferences_and_abacatepay_hardening` consta no banco de produção; RLS está ativo em preferências, pagamentos e feedback.
-- Edge Functions de checkout, webhook, roteamento Free, provedor Groq, fallback Cloudflare, stream principal e VIP foram implantadas com JWT conforme esperado (webhook sem JWT e autenticado pelo segredo/assinatura).
-- Smoke tests sem pagamento: webhook rejeitou segredo incorreto (401), recusou método GET (405) e checkout rejeitou JWT inválido (401). Nenhum checkout real foi criado.
+- Edge Functions de checkout, roteamento Free, provedor Groq, fallback Cloudflare, stream principal e VIP foram implantadas com JWT conforme esperado; `abacate-webhook` está na versão 9, sem JWT e autenticada pelo segredo/assinatura.
+- Smoke tests anteriores à v9 sem pagamento confirmaram 401 para segredo incorreto, 405 para GET e 401 para checkout sem JWT. O payload real fornecido em Sandbox omitia `id` na raiz; a v9 usa o ID estável do checkout como fallback e preserva idempotência por `externalId`.
 - `pnpm lint` continua falhando: 2.177 problemas ESLint/Prettier no conjunto do repositório; build e análise sintática passaram.
-- O commit `6624785` está em `main`, mas `decidlyai.lovable.app` ainda serve a versão anterior. Não há workflow de GitHub Actions nem credencial Cloudflare disponível para deploy por CLI; o painel Lovable solicita login.
+- O commit `6624785` está em `main`; o usuário confirmou que o frontend está funcionando no domínio Lovable. A publicação foi relatada pelo usuário e não foi revalidada independentemente nesta rodada.
 - Artefatos anteriores não foram apagados; continuam privados no Storage e no histórico até pedido explícito de remoção.
 
 ## Secrets
@@ -42,6 +42,7 @@ Nenhuma chave de geração de imagem é exigida no frontend. O endpoint suspenso
 
 ## Configuração necessária da AbacatePay
 
-- Segredos de runtime necessários no Supabase: `ABACATEPAY_API_KEY` e `ABACATEPAY_WEBHOOK_SECRET`; `ABACATEPAY_PUBLIC_KEY` é usada para conferir a assinatura quando fornecida pela AbacatePay.
-- Registrar o callback HTTPS para `checkout.completed` apontando para `https://bwnnfcgwwuvfikquqelq.supabase.co/functions/v1/abacate-webhook?webhookSecret=<segredo-configurado>`; não publicar o valor do segredo em documentação ou frontend.
+- Segredos de runtime necessários no Supabase: `ABACATEPAY_API_KEY`, `ABACATEPAY_WEBHOOK_SECRET` e `ABACATEPAY_PUBLIC_KEY` (HMAC).
+- No webhook de Sandbox da AbacatePay, cadastrar o endpoint base `https://bwnnfcgwwuvfikquqelq.supabase.co/functions/v1/abacate-webhook`, selecionar `checkout.completed` e preencher o campo `Secret` com o mesmo valor de `ABACATEPAY_WEBHOOK_SECRET`; a AbacatePay envia esse valor na query `webhookSecret`. Não publicar o segredo em documentação ou frontend.
 - A função aplica crédito apenas após pagamento confirmado, preço de R$ 1,90, usuário/metadata validado e evento idempotente. O fluxo positivo Pix ainda precisa ser exercitado com credenciais de teste válidas.
+- Uma entrega com resposta `401 Unauthorized` indica secret ausente/divergente. Depois de alinhar os secrets no Supabase e no painel AbacatePay, reenviar manualmente o evento pago; não pedir novo pagamento.

@@ -103,9 +103,11 @@ Deno.serve(async (request) => {
       ? metadata.user_id
       : "";
   const userId = metadataUserId;
-  const eventId = typeof payload.id === "string" ? payload.id : "";
+  const providerPaymentId = String(payment.id ?? payment.checkoutId ?? payment.billingId ?? "");
+  // Some AbacatePay v2 deliveries omit a root event id; the checkout ID is stable across retries.
+  const eventId = typeof payload.id === "string" ? payload.id : providerPaymentId || externalId;
   const userIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (!eventId || eventId.length > 200 || !userId || !userIdPattern.test(userId)) {
+  if (eventId.length < 3 || eventId.length > 200 || !userId || !userIdPattern.test(userId)) {
     return json({ error: "Identidade do evento ou do usuário ausente/inválida." }, 400);
   }
 
@@ -127,7 +129,6 @@ Deno.serve(async (request) => {
     return json({ error: "Produto de créditos ausente ou inválido." }, 400);
   }
 
-  const providerPaymentId = String(payment.id ?? payment.checkoutId ?? payment.billingId ?? "");
   const idempotencyId = externalId || (providerPaymentId ? `abacate-${providerPaymentId}` : "");
   if (idempotencyId.length < 5 || idempotencyId.length > 200) {
     return json({ error: "Identificador do pagamento ausente ou inválido." }, 400);
