@@ -209,6 +209,7 @@ function Workspace() {
   const [creditRewardNotice, setCreditRewardNotice] = useState<number | null>(null);
   const [creditRewardFlight, setCreditRewardFlight] = useState(false);
   const [creditsOpen, setCreditsOpen] = useState(false);
+  const [quickPanelOpen, setQuickPanelOpen] = useState(false);
   const [creditWallet, setCreditWallet] = useState<CreditWallet>({
     free_credits: 0,
     purchased_credits: 0,
@@ -278,6 +279,9 @@ function Workspace() {
     useState(-1);
 
   const chatRef = useRef<HTMLDivElement | null>(null);
+  const quickActionsRef = useRef<HTMLDivElement | null>(null);
+  const quickTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const textareaRef =
     useRef<HTMLTextAreaElement | null>(null);
@@ -2536,9 +2540,12 @@ function Workspace() {
     <div
       data-chat-density={workspacePreferences.densidade_do_chat}
       className={`workspace-shell relative min-h-[100dvh] overflow-hidden text-white ${workspaceEntered ? "workspace-entered" : ""}`}
-      onPointerDown={() => {
+      onPointerDown={(event) => {
         if (chatMenuId) {
           setChatMenuId(null);
+        }
+        if (quickPanelOpen && !quickActionsRef.current?.contains(event.target as Node)) {
+          setQuickPanelOpen(false);
         }
       }}
     >
@@ -2560,46 +2567,111 @@ function Workspace() {
           MENU FIXO
           ====================================================== */}
 
-    {!sidebarOpen && (
-  <button
-    type="button"
-    onClick={(event) => {
-      event.stopPropagation();
-      openSidebar();
-    }}
-    className="fixed left-4 top-4 z-[130] flex h-11 w-11 items-center justify-center rounded-full bg-[#17101f]/95 text-white/75 shadow-lg backdrop-blur-xl transition hover:bg-[#21152d] hover:text-white"
-    aria-label="Abrir menu"
-  >
-    <Menu size={21} />
-  </button>
-)}
-
       {!sidebarOpen && (
-        <div className="fixed right-4 top-4 z-[130] flex items-center gap-2">
+        <div className="fixed left-4 top-4 z-[130] flex items-start gap-2">
           <button
             type="button"
             onClick={(event) => {
               event.stopPropagation();
-              setCreditsOpen(true);
-              void loadCreditWallet();
+              setQuickPanelOpen(false);
+              openSidebar();
             }}
-            className="flex items-center gap-2 rounded-full bg-[#17101f]/95 px-3.5 py-2.5 text-sm font-semibold text-white/85 shadow-lg backdrop-blur-xl transition hover:bg-[#21152d] hover:text-white"
-            aria-label="Abrir créditos"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-[#17101f]/95 text-white/75 shadow-lg backdrop-blur-xl transition hover:bg-[#21152d] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-200"
+            aria-label="Abrir menu de conversas"
           >
-            <Coins size={17} className="text-violet-300" />
-            {workspacePreferences.mostrar_indicadores_credito && <span>{usableCredits.toFixed(2)}</span>}
+            <Menu size={21} />
           </button>
-          {messages.length > 0 && (
+          <div
+            ref={quickActionsRef}
+            className="relative"
+            onPointerDown={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                setQuickPanelOpen(false);
+                quickTriggerRef.current?.focus();
+              }
+            }}
+          >
             <button
+              ref={quickTriggerRef}
               type="button"
-              onClick={() => void exportConversation()}
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-[#17101f]/95 text-white/75 shadow-lg backdrop-blur-xl transition hover:bg-[#21152d] hover:text-white"
-              aria-label="Exportar conversa"
-              title="Exportar conversa"
+              onClick={(event) => {
+                event.stopPropagation();
+                setQuickPanelOpen((current) => !current);
+                if (!quickPanelOpen) void loadCreditWallet();
+              }}
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-[#17101f]/95 text-white/75 shadow-lg backdrop-blur-xl transition hover:bg-[#21152d] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-200"
+              aria-label="Abrir atalhos do workspace"
+              aria-expanded={quickPanelOpen}
+              aria-controls="workspace-quick-actions"
+              title="Atalhos"
             >
-              <Download size={18} />
+              <MoreHorizontal size={21} />
             </button>
-          )}
+            {quickPanelOpen && (
+              <section
+                id="workspace-quick-actions"
+                aria-label="Atalhos do workspace"
+                className="absolute left-0 top-[calc(100%+0.5rem)] w-72 max-w-[calc(100vw-5.25rem)] overflow-hidden rounded-2xl border border-white/10 bg-[#18101f]/[0.98] shadow-2xl shadow-black/40 backdrop-blur-xl"
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuickPanelOpen(false);
+                    setCreditsOpen(true);
+                    void loadCreditWallet();
+                  }}
+                  className="flex w-full items-center justify-between gap-3 border-b border-white/[0.08] px-4 py-3 text-left transition hover:bg-white/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-violet-200"
+                  aria-label="Ver saldo e detalhes dos créditos"
+                >
+                  <span className="flex min-w-0 items-center gap-3">
+                    <Coins size={19} className="shrink-0 text-violet-300" aria-hidden="true" />
+                    <span className="min-w-0">
+                      <span className="block text-xs text-white/50">Créditos disponíveis</span>
+                      <span className="mt-0.5 block text-lg font-semibold text-white">
+                        {creditsLoading
+                          ? "Atualizando…"
+                          : workspacePreferences.mostrar_indicadores_credito
+                            ? usableCredits.toFixed(2)
+                            : "Ocultos"}
+                      </span>
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs font-medium text-violet-200">Ver carteira</span>
+                </button>
+                <div className="grid gap-1 p-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuickPanelOpen(false);
+                      void exportConversation();
+                    }}
+                    className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm text-white/80 transition hover:bg-white/[0.06] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-violet-200"
+                    aria-label="Baixar conversa como arquivo de texto"
+                  >
+                    <Download size={17} className="text-white/55" aria-hidden="true" />
+                    Baixar conversa
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuickPanelOpen(false);
+                      openSidebar();
+                      window.setTimeout(() => searchInputRef.current?.focus(), 220);
+                    }}
+                    className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm text-white/80 transition hover:bg-white/[0.06] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-violet-200"
+                    aria-label="Pesquisar conversas"
+                  >
+                    <Search size={17} className="text-white/55" aria-hidden="true" />
+                    Pesquisar conversas
+                  </button>
+                </div>
+                <p className="border-t border-white/[0.08] px-4 py-2.5 text-[11px] text-white/35">
+                  Mais atalhos em breve
+                </p>
+              </section>
+            )}
+          </div>
         </div>
       )}
 
@@ -2700,6 +2772,7 @@ function Workspace() {
               />
 
               <input
+                ref={searchInputRef}
                 value={search}
                 onChange={(event) => {
                   setSearch(
