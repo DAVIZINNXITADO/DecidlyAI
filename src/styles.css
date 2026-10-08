@@ -736,3 +736,26 @@ html[data-theme="compact"] .workspace-shell .max-w-3xl .message-bubble {
     padding-inline: 0.75rem;
   }
 }
+
+
+/* Approved loading screen: dark/violet shell, white rounded video tile. */
+.decidly-loading-screen {
+  background:
+    radial-gradient(ellipse at 50% 44%, rgba(109, 40, 217, 0.16), transparent 43%),
+    #070711;
+}
+
+.decidly-loading-logo-frame {
+  width: min(80vw, 320px, 43vh);
+}
+
+@media (max-width: 640px) {
+  .decidly-loading-logo-frame {
+    width: min(80vw, 288px, 43vh);
+  }
+}
+
+html[data-theme="light"] main.decidly-loading-screen {
+  background: #f6f3fb !important;
+  color: #211a2d !important;
+}
