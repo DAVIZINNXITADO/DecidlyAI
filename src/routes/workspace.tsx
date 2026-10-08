@@ -2568,7 +2568,7 @@ function Workspace() {
           ====================================================== */}
 
       {!sidebarOpen && (
-        <div className="fixed left-4 top-4 z-[130] flex items-start gap-2">
+        <div className="fixed left-4 top-4 z-[130]">
           <button
             type="button"
             onClick={(event) => {
@@ -2581,6 +2581,11 @@ function Workspace() {
           >
             <Menu size={21} />
           </button>
+        </div>
+      )}
+
+      {!sidebarOpen && (
+        <div className="fixed right-4 top-4 z-[130]">
           <div
             ref={quickActionsRef}
             className="relative"
@@ -2612,7 +2617,7 @@ function Workspace() {
               <section
                 id="workspace-quick-actions"
                 aria-label="Atalhos do workspace"
-                className="absolute left-0 top-[calc(100%+0.5rem)] w-72 max-w-[calc(100vw-5.25rem)] overflow-hidden rounded-2xl border border-white/10 bg-[#18101f]/[0.98] shadow-2xl shadow-black/40 backdrop-blur-xl"
+                className="absolute right-0 top-[calc(100%+0.5rem)] w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-white/10 bg-[#18101f]/[0.98] shadow-2xl shadow-black/40 backdrop-blur-xl"
               >
                 <button
                   type="button"
