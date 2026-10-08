@@ -2,6 +2,7 @@ import { AlertCircle, Check, CheckCircle2, Copy, Gift, History, Loader2, Refresh
 import { Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { AdsterraNativeBanner } from "../components/AdsterraAds";
+import { AdsterraReferralBanner } from "../components/AdsterraReferralBanner";
 import { CreditNav, InnerPage } from "../components/InnerPage";
 import { dailyCreditsBalance, normalizeCreditWallet, type CreditWallet } from "../lib/credits";
 import { supabase } from "../lib/supabase";
@@ -165,7 +166,7 @@ export function FreePage() {
             ou inativas podem se qualificar.
           </p>
         </div>
-        <AdsterraNativeBanner placement="native-300x250" />
+        <AdsterraReferralBanner />
       </div>
     </InnerPage>
   );
