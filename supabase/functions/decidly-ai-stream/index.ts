@@ -77,10 +77,11 @@ Deno.serve(async (request) => {
     if (credits <= 0) return new Response(JSON.stringify({ error: "Você não possui créditos suficientes para usar o DecidlyAI." }), { status: 402, headers: jsonHeaders });
 
     const language = typeof body.language === "string" ? body.language : "pt-BR";
+    const history = Array.isArray(body.history) ? body.history.slice(-20) : [];
     const upstream = await fetch(`${supabaseUrl}/functions/v1/free-ai-router`, {
       method: "POST",
       headers: { Authorization: authorization, apikey: anonKey, "Content-Type": "application/json", Accept: "text/event-stream, application/json" },
-      body: JSON.stringify({ message: body.message.trim(), history: Array.isArray(body.history) ? body.history.slice(-20) : [], attachments: Array.isArray(body.attachments) ? body.attachments.slice(0, 3) : [], stream: false, language }),
+      body: JSON.stringify({ message: body.message.trim(), history, attachments: Array.isArray(body.attachments) ? body.attachments.slice(0, 3) : [], stream: false, language }),
     });
     if (!upstream.ok || !upstream.body) return new Response(await upstream.text(), { status: upstream.status || 502, headers: jsonHeaders });
 
@@ -136,7 +137,7 @@ Deno.serve(async (request) => {
           buffer += decoder.decode(); if (buffer.trim()) consume(buffer);
           if (streamError) { send({ error: streamError, provider }, "error"); controller.close(); return; }
           if (!fullText.trim()) { send({ error: `${provider} não retornou conteúdo.` }, "error"); controller.close(); return; }
-          const inputTokens = estimateTokens(`${JSON.stringify(body.history ?? [])}\n${body.message}`);
+          const inputTokens = estimateTokens(`${JSON.stringify(history)}\n${body.message.trim()}`);
           const outputTokens = estimateTokens(fullText);
           const totalTokens = inputTokens + outputTokens;
           const used = totalTokens / 3000;

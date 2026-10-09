@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AiTestRouteImport } from './routes/ai-test'
 import { Route as AjudaParaEscolherFaculdadeRouteImport } from './routes/ajuda-para-escolher-faculdade'
+import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as BlogRouteImport } from './routes/blog'
 import { Route as ComoFuncionaRouteImport } from './routes/como-funciona'
 import { Route as ComoTomarDecisoesDificeisRouteImport } from './routes/como-tomar-decisoes-dificeis'
@@ -57,6 +58,11 @@ const AjudaParaEscolherFaculdadeRoute =
     path: '/ajuda-para-escolher-faculdade',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AnalyticsRoute = AnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BlogRoute = BlogRouteImport.update({
   id: '/blog',
   path: '/blog',
@@ -203,6 +209,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai-test': typeof AiTestRoute
   '/ajuda-para-escolher-faculdade': typeof AjudaParaEscolherFaculdadeRoute
+  '/analytics': typeof AnalyticsRoute
   '/blog': typeof BlogRoute
   '/como-funciona': typeof ComoFuncionaRoute
   '/como-tomar-decisoes-dificeis': typeof ComoTomarDecisoesDificeisRoute
@@ -236,6 +243,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai-test': typeof AiTestRoute
   '/ajuda-para-escolher-faculdade': typeof AjudaParaEscolherFaculdadeRoute
+  '/analytics': typeof AnalyticsRoute
   '/blog': typeof BlogRoute
   '/como-funciona': typeof ComoFuncionaRoute
   '/como-tomar-decisoes-dificeis': typeof ComoTomarDecisoesDificeisRoute
@@ -270,6 +278,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/ai-test': typeof AiTestRoute
   '/ajuda-para-escolher-faculdade': typeof AjudaParaEscolherFaculdadeRoute
+  '/analytics': typeof AnalyticsRoute
   '/blog': typeof BlogRoute
   '/como-funciona': typeof ComoFuncionaRoute
   '/como-tomar-decisoes-dificeis': typeof ComoTomarDecisoesDificeisRoute
@@ -305,6 +314,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ai-test'
     | '/ajuda-para-escolher-faculdade'
+    | '/analytics'
     | '/blog'
     | '/como-funciona'
     | '/como-tomar-decisoes-dificeis'
@@ -338,6 +348,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ai-test'
     | '/ajuda-para-escolher-faculdade'
+    | '/analytics'
     | '/blog'
     | '/como-funciona'
     | '/como-tomar-decisoes-dificeis'
@@ -371,6 +382,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ai-test'
     | '/ajuda-para-escolher-faculdade'
+    | '/analytics'
     | '/blog'
     | '/como-funciona'
     | '/como-tomar-decisoes-dificeis'
@@ -405,6 +417,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiTestRoute: typeof AiTestRoute
   AjudaParaEscolherFaculdadeRoute: typeof AjudaParaEscolherFaculdadeRoute
+  AnalyticsRoute: typeof AnalyticsRoute
   BlogRoute: typeof BlogRoute
   ComoFuncionaRoute: typeof ComoFuncionaRoute
   ComoTomarDecisoesDificeisRoute: typeof ComoTomarDecisoesDificeisRoute
@@ -449,6 +462,13 @@ declare module '@tanstack/react-router' {
       path: '/ajuda-para-escolher-faculdade'
       fullPath: '/ajuda-para-escolher-faculdade'
       preLoaderRoute: typeof AjudaParaEscolherFaculdadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analytics': {
+      id: '/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AnalyticsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/blog': {
@@ -687,6 +707,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AiTestRoute: AiTestRoute,
   AjudaParaEscolherFaculdadeRoute: AjudaParaEscolherFaculdadeRoute,
+  AnalyticsRoute: AnalyticsRoute,
   BlogRoute: BlogRoute,
   ComoFuncionaRoute: ComoFuncionaRoute,
   ComoTomarDecisoesDificeisRoute: ComoTomarDecisoesDificeisRoute,

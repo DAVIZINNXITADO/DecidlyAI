@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { CheckCircle2, Loader2, MailCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { trackAuthSuccess } from "../lib/analytics";
 import decidlyaiMarkUrl from "../assets/decidlyai-mark-160.png";
 
 export const Route = createFileRoute("/auth/confirm")({
@@ -40,6 +41,8 @@ function AuthConfirmPage() {
         }
         return;
       }
+
+      if (params.get("type") !== "recovery") trackAuthSuccess();
 
       const storedChoice = window.localStorage.getItem("decidly-marketing-email-consent");
       if (storedChoice === "accepted" || storedChoice === "declined") {

@@ -343,7 +343,7 @@ Deno.serve(async (request) => {
       }
     }
 
-    const inputTokens = Math.max(1, Math.ceil(JSON.stringify(body).length / 4));
+    const inputTokens = Math.max(1, Math.ceil(JSON.stringify({ ...body, history }).length / 4));
     const outputTokens = Math.max(1, Math.ceil(result.answer.length / 4));
     const used = (inputTokens + outputTokens) / 3000;
     const free = Number(creditRow?.free_credits || 0);

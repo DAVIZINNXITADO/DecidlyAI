@@ -48,7 +48,7 @@ function Privacy() {
             <p>
               Última alteração:{" "}
               <span className="font-medium text-slate-400">
-                01/10/2026
+                09/10/2026
               </span>
             </p>
           </div>
@@ -288,38 +288,78 @@ function Privacy() {
             </p>
 
             <p>
-              Atualmente, esses serviços incluem o Google para autenticação, o
-              Supabase para autenticação e infraestrutura de suporte à plataforma
-              e o Ahrefs Web Analytics para métricas agregadas de uso.
+              Atualmente, esses serviços incluem Google e Supabase para
+              autenticação e infraestrutura, métricas internas agregadas,
+              Unsplash para imagens contextuais, Adsterra para publicidade de
+              terceiros e FormSubmit para encaminhar uma avaliação quando a
+              pessoa escolhe enviar feedback.
             </p>
 
             <p>
-              Segundo a documentação da Ahrefs, o Web Analytics não utiliza
-              cookies nem identificadores persistentes por padrão. O serviço
-              processa URLs visitadas, referenciadores, agente do navegador,
-              idioma e localização aproximada (país/cidade) derivada do endereço
-              IP; a Ahrefs informa que descarta o IP bruto e também pode registrar
-              visualizações, cliques e envios de formulários. Consulte a{" "}
-              <a
-                href="https://help.ahrefs.com/en/articles/10247870-about-ahrefs-web-analytics"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-violet-400 underline underline-offset-4 hover:text-violet-300"
-              >
-                documentação oficial do Ahrefs Web Analytics
-              </a>
-              .
+              O envio de feedback é iniciado pela própria pessoa. Para o
+              FormSubmit são encaminhados somente o tipo de avaliação e o
+              comentário digitado; não enviamos e-mail, identificadores de
+              conta/conversa, transcrição nem resposta da IA. O fornecedor pode
+              processar metadados técnicos da requisição segundo suas próprias
+              práticas; por isso, não inclua dados pessoais no comentário.
             </p>
 
             <p>
-              Serviços de terceiros podem possuir suas próprias políticas e
-              práticas de privacidade. Recomendamos que os usuários consultem
-              essas políticas quando apropriado.
+              Métricas internas, imagens contextuais do Unsplash e publicidade
+              da Adsterra só são ativadas após o aceite de cookies não
+              essenciais. A escolha pode ser alterada a qualquer momento no
+              controle de cookies; a revogação atualiza a página para encerrar
+              scripts externos já carregados. Serviços de terceiros podem ter
+              suas próprias políticas e práticas de privacidade.
             </p>
           </PrivacySection>
 
           <PrivacySection
             number="12"
+            title="Métricas agregadas e imagens contextuais"
+            icon={<Database className="h-5 w-5" />}
+          >
+            <p>
+              Quando você aceita cookies não essenciais, o DecidlyAI pode contar
+              visualizações de páginas, logins concluídos e categorias amplas de
+              assuntos. Os registros são agregados por dia e não incluem nome,
+              e-mail, identificador de conta ou sessão, endereço IP, domínio
+              externo individual, texto de conversa, prompt ou contagem de pessoas únicas.
+            </p>
+            <p>
+              A categoria do assunto é escolhida localmente entre opções
+              genéricas, como trabalho e estudos ou negócios e tecnologia. Para
+              a origem, guardamos somente uma categoria de plataforma (por
+              exemplo, Google ou acesso direto), nunca o domínio individual. O
+              texto da conversa não é enviado ao endpoint de analytics.
+            </p>
+            <p>
+              Para uma imagem contextual, a busca do Unsplash usa uma categoria
+              aprovada pelo app e não recebe a mensagem nem o histórico da
+              conversa. A foto continua hospedada no Unsplash e identifica o
+              fotógrafo com link para seu perfil. Ao carregar a imagem, seu
+              navegador se conecta ao Unsplash, sujeito à política própria da
+              plataforma.
+            </p>
+            <p>
+              Uma recomendação contextual sobre o Adsterra é um cartão de
+              indicação, não um anúncio pago. O cartão informa que o link é de
+              indicação e pode abrir um site externo sujeito à política própria
+              da plataforma.
+            </p>
+            <p>
+              Para evitar repetir a busca de imagem, o sistema registra de forma
+              restrita um marcador associado ao ID da conversa que já recebeu
+              esse complemento. Esse marcador não é usado no painel de
+              analytics e é removido quando a conversa é excluída. O endpoint de
+              analytics pode processar temporariamente IP ou ID autenticado em
+              memória para limitar abuso; esses identificadores não são
+              persistidos na tabela agregada.
+            </p>
+          </PrivacySection>
+
+          <PrivacySection
+            number="13"
             title="Alterações nesta Política de Privacidade"
           >
             <p>
@@ -335,7 +375,7 @@ function Privacy() {
           </PrivacySection>
 
           <PrivacySection
-            number="13"
+            number="14"
             title="Contato"
             icon={<Mail className="h-5 w-5" />}
           >

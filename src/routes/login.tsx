@@ -21,6 +21,7 @@ import {
   type SetStateAction,
 } from "react";
 import { supabase } from "../lib/supabase";
+import { trackAuthSuccess } from "../lib/analytics";
 import decidlyaiMarkUrl from "../assets/decidlyai-mark-160.png";
 import { DecidlyLoadingScreen } from "../components/DecidlyLoadingScreen";
 
@@ -528,6 +529,7 @@ function LoginPage() {
           return;
         }
 
+        trackAuthSuccess();
         const pendingReferralCode = referralBlocked
           ? ""
           : referralCode || window.sessionStorage.getItem("decidly-pending-referral-code") || "";
@@ -757,6 +759,7 @@ function LoginPage() {
         return;
       }
 
+      trackAuthSuccess();
       await syncStoredMarketingConsent();
 
       navigate({

@@ -4,12 +4,13 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AlertTriangle, Check, Copy, Download, ExternalLink, FileText, Image as ImageIcon, Info, Lightbulb, Loader2, Maximize2, MessageCircle, ShieldAlert, Sparkles, TriangleAlert, Type, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { COOKIE_CONSENT_CHANGED_EVENT, hasAdsConsent } from "../lib/ad-consent";
 import { normalizeActionProtocolMarkup, toPlainArtifactText } from "../lib/rich-markup";
 import { countTextImageChars, MAX_TEXT_IMAGE_CHARS, parseTextImagePayload } from "../lib/text-image";
 
 export type Variant = "info" | "success" | "warning" | "danger" | "tip" | "important" | "advantage" | "disadvantage" | "observation" | "recommendation" | "decision" | "neutral";
 type Block = {
-  kind: "markdown" | "callout" | "highlight" | "copy" | "link" | "action" | "question" | "color" | "file" | "image";
+  kind: "markdown" | "callout" | "highlight" | "copy" | "link" | "action" | "question" | "color" | "file" | "image" | "unsplash" | "context_card";
   value: string;
   variant?: Variant;
   color?: string;
@@ -22,6 +23,10 @@ type Block = {
   fileName?: string;
   alt?: string;
   imageDesign?: string;
+  src?: string;
+  photographer?: string;
+  profile?: string;
+  cta?: string;
 };
 export type ResponseAction = { type: string; title: string; description: string; requestId: string; imageDesign?: string };
 type ArtifactResult = { kind: "file" | "image"; path: string; fileName?: string; alt?: string };
@@ -78,10 +83,15 @@ function attributes(raw: string | undefined) {
   return Object.fromEntries(Array.from(raw?.matchAll(/([\w-]+)=(?:"([^"]*)"|'([^']*)'|([^\s]+))/gi) ?? []).map((item) => [item[1]?.toLowerCase(), item[2] ?? item[3] ?? item[4] ?? ""]));
 }
 
+function decodeAttribute(value: string | undefined): string {
+  if (!value) return "";
+  try { return decodeURIComponent(value); } catch { return value; }
+}
+
 export function parseBlocks(content: string): Block[] {
   content = normalizeLegacyMarkup(hideIncompleteActionTail(keepOnlyRequestedAction(content)));
   const blocks: Block[] = [];
-  const pattern = /\[(callout|highlight|copy_block|link|action|question|color|generated_file|generated_image)(?:\s+([^\]]+))?\]([\s\S]*?)\[\/(callout|highlight|copy_block|link|action|question|color|generated_file|generated_image)\]/gi;
+  const pattern = /\[(callout|highlight|copy_block|link|action|question|color|generated_file|generated_image|unsplash_photo|context_card)(?:\s+([^\]]+))?\]([\s\S]*?)\[\/(callout|highlight|copy_block|link|action|question|color|generated_file|generated_image|unsplash_photo|context_card)\]/gi;
   let cursor = 0;
   for (const match of content.matchAll(pattern)) {
     const start = match.index ?? 0;
@@ -105,17 +115,22 @@ export function parseBlocks(content: string): Block[] {
       }
     }
     const variant = attr.variant as Variant | undefined;
-    const kind: Block["kind"] = rawKind === "copy_block" ? "copy" : rawKind === "generated_file" ? "file" : rawKind === "generated_image" ? "image" : rawKind as Block["kind"];
+    const kind: Block["kind"] = rawKind === "copy_block" ? "copy" : rawKind === "generated_file" ? "file" : rawKind === "generated_image" ? "image" : rawKind === "unsplash_photo" ? "unsplash" : rawKind as Block["kind"];
     const parsedImagePayload = rawKind === "action" && attr.type === "create_text_image" ? parseTextImagePayload(value) : null;
     const block: Block = { kind, value: parsedImagePayload ? toPlainArtifactText(parsedImagePayload.text) : value, variant: variant && variant in variants ? variant : "info", color: attr.color?.toLowerCase(), ...(parsedImagePayload?.design ? { imageDesign: parsedImagePayload.design } : {}) };
     if (attr.title) block.title = attr.title;
     if (attr.language) block.language = attr.language;
-    if (attr.href) block.href = attr.href;
+    if (attr.href) block.href = rawKind === "context_card" ? decodeAttribute(attr.href) : attr.href;
     if (attr.type) block.actionType = attr.type;
     if (attr.request_id || attr.id) block.requestId = attr.request_id || attr.id;
     if (attr.path) block.path = attr.path;
     if (attr.name || attr.file_name) block.fileName = attr.name || attr.file_name;
-    if (attr.alt) block.alt = attr.alt;
+    if (attr.alt) block.alt = rawKind === "unsplash_photo" ? decodeAttribute(attr.alt) : attr.alt;
+    if (attr.src) block.src = decodeAttribute(attr.src);
+    if (attr.photographer) block.photographer = decodeAttribute(attr.photographer);
+    if (attr.profile) block.profile = decodeAttribute(attr.profile);
+    if (attr.cta) block.cta = decodeAttribute(attr.cta);
+    if (rawKind === "context_card") block.kind = "context_card";
     if (rawKind === "link") block.title = attr.label || value;
     if (rawKind === "action") block.title = attr.title || "Ação da IA";
     blocks.push(block);
@@ -151,7 +166,125 @@ function LinkBlock({ block }: { block: Block }) {
   return <a href={block.href || "#"} target="_blank" rel="noreferrer" className="my-3 flex items-center gap-3 rounded-2xl border border-sky-300/15 bg-sky-400/[0.06] px-4 py-3 transition hover:border-sky-300/35 hover:bg-sky-400/[0.12]"><ExternalLink size={17} className="shrink-0 text-sky-300" /><span className="min-w-0 flex-1"><strong className="block truncate text-sm text-sky-100">{block.title || "Abrir link"}</strong><span className="mt-0.5 block truncate text-xs text-white/40">{block.href}</span></span><span className="text-[10px] text-amber-200/75">Atenção: site externo</span></a>;
 }
 
-const actionCosts: Record<string, number> = { create_pdf: 1, create_image: 2.5, create_text_image: 0.5 };
+function useNonEssentialContentAllowed() {
+  const [allowed, setAllowed] = useState(false);
+
+  useEffect(() => {
+    const sync = () => setAllowed(hasAdsConsent());
+    sync();
+    window.addEventListener(COOKIE_CONSENT_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(COOKIE_CONSENT_CHANGED_EVENT, sync);
+  }, []);
+
+  return allowed;
+}
+
+function UnsplashPhotoBlock({ block }: { block: Block }) {
+  const allowed = useNonEssentialContentAllowed();
+  if (!allowed) return null;
+  let imageUrl = "";
+  let profileUrl = "";
+  try {
+    const image = new URL(block.src || "");
+    const profile = new URL(block.profile || "");
+    if (image.protocol === "https:" && image.hostname === "images.unsplash.com")
+      imageUrl = image.toString();
+    if (
+      profile.protocol === "https:" &&
+      ["unsplash.com", "www.unsplash.com"].includes(profile.hostname)
+    ) {
+      profile.searchParams.set("utm_source", "decidlyai");
+      profile.searchParams.set("utm_medium", "referral");
+      profileUrl = profile.toString();
+    }
+  } catch {
+    /* conteúdo visual inválido não é exibido */
+  }
+  if (!imageUrl || !profileUrl) return null;
+  return (
+    <figure className="my-4 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035]">
+      <img
+        src={imageUrl}
+        alt={block.alt || "Imagem contextual"}
+        loading="lazy"
+        decoding="async"
+        referrerPolicy="strict-origin-when-cross-origin"
+        className="max-h-[420px] w-full bg-black/20 object-cover"
+      />
+      <figcaption className="px-3 py-2 text-xs text-white/50">
+        Foto de{" "}
+        <a
+          href={profileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-violet-200 underline underline-offset-2"
+        >
+          {block.photographer || "Fotógrafo"}
+        </a>{" "}
+        no{" "}
+        <a
+          href="https://unsplash.com/?utm_source=decidlyai&utm_medium=referral"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-violet-200 underline underline-offset-2"
+        >
+          Unsplash
+        </a>
+        .
+      </figcaption>
+    </figure>
+  );
+}
+
+function ContextRecommendationBlock({ block }: { block: Block }) {
+  const allowed = useNonEssentialContentAllowed();
+  if (!allowed) return null;
+  let href = "";
+  try {
+    const candidate = new URL(block.href || "");
+    if (
+      candidate.protocol === "https:" &&
+      candidate.hostname === "beta.publishers.adsterra.com" &&
+      candidate.pathname.startsWith("/referral/")
+    )
+      href = candidate.toString();
+  } catch {
+    /* links não aprovados ficam sem destino clicável */
+  }
+  return (
+    <aside
+      className="my-4 rounded-2xl border border-violet-300/20 bg-gradient-to-br from-violet-500/[0.12] to-fuchsia-500/[0.06] p-4"
+      aria-label="Sugestão contextual"
+    >
+      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-200/75">
+        Sugestão contextual · link de indicação
+      </p>
+      <h3 className="mt-2 text-sm font-semibold text-white">
+        {block.title || "Recurso relacionado"}
+      </h3>
+      <div className="mt-1 text-sm leading-6 text-white/65">
+        <Markdown>{block.value}</Markdown>
+      </div>
+      {href && (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer sponsored nofollow"
+          className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-xl bg-violet-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-violet-400"
+        >
+          <ExternalLink size={14} aria-hidden="true" />
+          {block.cta || "Abrir recurso"}
+        </a>
+      )}
+    </aside>
+  );
+}
+
+const actionCosts: Record<string, number> = {
+  create_pdf: 1,
+  create_image: 2.5,
+  create_text_image: 0.5,
+};
 const actionCostLabels: Record<string, string> = { create_pdf: "1 crédito por arquivo + custo normal do conteúdo da IA", create_image: "2,5 créditos", create_text_image: "0,5 crédito" };
 const actionButtonCostLabels: Record<string, string> = { create_pdf: "1 crédito/PDF", create_image: "2,5 créditos", create_text_image: "0,5 crédito" };
 const actionNames: Record<string, string> = { create_pdf: "Criar PDF", create_image: "Gerar imagem por IA", create_text_image: "Criar imagem de texto" };
@@ -509,6 +642,8 @@ export const RichResponse = memo(function RichResponse({ content, messageId, onA
     if (block.kind === "markdown") return <Markdown key={index}>{block.value}</Markdown>;
     if (block.kind === "copy") return <CopyBlock key={index} block={block} />;
     if (block.kind === "link") return <LinkBlock key={index} block={block} />;
+    if (block.kind === "unsplash") return <UnsplashPhotoBlock key={index} block={block} />;
+    if (block.kind === "context_card") return <ContextRecommendationBlock key={index} block={block} />;
     if (block.kind === "action") return <ActionBlock key={index} block={block} messageId={messageId} onActionRequest={onActionRequest} />;
     if (block.kind === "file" || block.kind === "image") return <ArtifactBlock key={index} block={block} kind={block.kind} onImageEditRequest={onImageEditRequest} />;
     if (block.kind === "question") return null;

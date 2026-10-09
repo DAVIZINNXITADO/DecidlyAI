@@ -6,6 +6,7 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  useLocation,
   type ErrorRouteComponent,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
@@ -17,6 +18,8 @@ import { hasStoredSupabaseSession } from "../lib/supabase-session";
 import { LanguageProvider } from "../lib/LanguageProvider";
 import { CookieConsent } from "../components/CookieConsent";
 import { resolveRouteSeo, SITE_URL } from "../lib/seo";
+import { COOKIE_CONSENT_CHANGED_EVENT, hasAdsConsent } from "../lib/ad-consent";
+import { trackPageView } from "../lib/analytics";
 
 const organizationSchema = {
   "@type": "Organization",
@@ -356,27 +359,9 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useLocation().pathname;
 
   useEffect(() => {
-    const injectAhrefs = () => {
-      if (document.getElementById("decidly-ahrefs-analytics")) return;
-      const script = document.createElement("script");
-      script.id = "decidly-ahrefs-analytics";
-      script.src = "https://analytics.ahrefs.com/analytics.js";
-      script.dataset["key"] = "HeI8uYMvnd18q5sJLYvuww";
-      script.async = true;
-      document.head.appendChild(script);
-    };
-    const idleWindow = window as Window & {
-      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
-      cancelIdleCallback?: (handle: number) => void;
-    };
-    const requestIdleCallback = idleWindow.requestIdleCallback;
-    const cancelIdleCallback = idleWindow.cancelIdleCallback;
-    const idleHandle = requestIdleCallback
-      ? requestIdleCallback(injectAhrefs, { timeout: 2500 })
-      : window.setTimeout(injectAhrefs, 2500);
-
     const applyDocumentPreferences = (theme: string, language: string) => {
       const safeTheme = theme === "high_contrast" || theme === "compact" ? theme : "violet";
       window.localStorage.setItem("decidly-theme", safeTheme);
@@ -408,14 +393,16 @@ function RootComponent() {
     };
 
     void syncAccountPreferences().catch(() => undefined);
-    return () => {
-      if (cancelIdleCallback) {
-        cancelIdleCallback(idleHandle as number);
-      } else {
-        window.clearTimeout(idleHandle as number);
-      }
-    };
   }, []);
+
+  useEffect(() => {
+    const recordCurrentPage = () => {
+      if (hasAdsConsent()) trackPageView(pathname);
+    };
+    recordCurrentPage();
+    window.addEventListener(COOKIE_CONSENT_CHANGED_EVENT, recordCurrentPage);
+    return () => window.removeEventListener(COOKIE_CONSENT_CHANGED_EVENT, recordCurrentPage);
+  }, [pathname]);
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -60,6 +60,17 @@ import {
   type CreditWallet,
 } from "../lib/credits";
 import { DEFAULT_USER_PREFERENCES, normalizeUserPreferences, type UserPreferences } from "../lib/user-preferences";
+import { getAIReferenceContext } from "../lib/ai-context";
+import {
+  classifyChatTopic,
+  getPhotoTopic,
+  makeAdsterraRecommendationMarkup,
+  makeUnsplashMarkup,
+  shouldRecommendAdsterra,
+  stripUntrustedAddonMarkup,
+} from "../lib/chat-enrichment";
+import { trackChatTopic } from "../lib/analytics";
+import { hasAdsConsent } from "../lib/ad-consent";
 
 export const Route = createFileRoute("/workspace")({
   component: Workspace,
@@ -293,6 +304,7 @@ function Workspace() {
 
   const streamAbortRef = useRef<AbortController | null>(null);
   const autoScrollRef = useRef(true);
+  const enrichmentConversationsRef = useRef(new Set<string>());
 
   const lastTranscriptRef = useRef("");
 
@@ -1606,6 +1618,8 @@ function Workspace() {
           throw new Error("MESSAGE_SAVE_ERROR");
         }
 
+        trackChatTopic(classifyChatTopic(text) ?? "other");
+
         const functionName = developerCommand?.provider === "vip"
           ? "decidly-ai"
           : developerCommand?.provider === "free"
@@ -1615,7 +1629,7 @@ function Workspace() {
         const history = [
           ...(historyOverride ?? messages),
           userMessage,
-        ].map((message) => ({
+        ].slice(-20).map((message) => ({
           role: message.role,
           content: message.content,
         }));
@@ -1635,7 +1649,7 @@ function Workspace() {
         let latestAccumulated = "";
         const flushAssistant = () => {
           pendingFrame = null;
-          const content = latestAccumulated;
+          const content = stripUntrustedAddonMarkup(latestAccumulated);
           if (!content) return;
           setMessages((current) => {
             const exists = current.some((item) => item.id === assistantId);
@@ -1650,7 +1664,7 @@ function Workspace() {
         };
         setRequestPhase("thinking");
         const streamedAnswer = await streamAi(functionName, {
-          message: [developerCommand?.provider ? `Modo DEV: use exclusivamente o roteador ${developerCommand.provider.toUpperCase()}.` : "", privateContext, guidanceContext, toolContext, responseProtocolInstructions(), "Mensagem do usuário:\n" + promptText].filter(Boolean).join("\n\n"),
+          message: [developerCommand?.provider ? `Modo DEV: use exclusivamente o roteador ${developerCommand.provider.toUpperCase()}.` : "", privateContext, guidanceContext, toolContext, getAIReferenceContext(), responseProtocolInstructions(), "Mensagem do usuário:\n" + promptText].filter(Boolean).join("\n\n"),
           history,
           attachments: selectedAttachments.map((attachment) => ({ name: attachment.name, mimeType: attachment.mimeType, size: attachment.size, ...(attachment.dataUrl ? { dataUrl: attachment.dataUrl } : {}) })),
           language,
@@ -1668,7 +1682,9 @@ function Workspace() {
         });
 
         if (pendingFrame !== null) window.cancelAnimationFrame(pendingFrame);
-        const answer = ensureToolActionResponse(streamedAnswer, toolForRequest, text);
+        const answer = stripUntrustedAddonMarkup(
+          ensureToolActionResponse(streamedAnswer, toolForRequest, text),
+        );
         latestAccumulated = answer;
         flushAssistant();
 
@@ -1689,6 +1705,61 @@ function Workspace() {
 
         if (assistantMessageError) {
           throw new Error("MESSAGE_SAVE_ERROR");
+        }
+
+        const priorEnrichment = messages.some(
+          (item) =>
+            item.role === "assistant" && /\[(?:unsplash_photo|context_card)\b/i.test(item.content),
+        );
+        const photoTopic = getPhotoTopic(text);
+        const addRecommendation = shouldRecommendAdsterra(text);
+        if (
+          !toolForRequest &&
+          !priorEnrichment &&
+          (photoTopic || addRecommendation) &&
+          hasAdsConsent() &&
+          !enrichmentConversationsRef.current.has(conversationId)
+        ) {
+          enrichmentConversationsRef.current.add(conversationId);
+          void (async () => {
+            const addOns: string[] = [];
+            if (photoTopic && hasAdsConsent()) {
+              const { data, error } = await supabase.functions.invoke("contextual-chat-media", {
+                body: { topic: photoTopic, conversation_id: conversationId },
+              });
+              if (!error && data?.photo && typeof data.photo === "object") {
+                const photo = data.photo as Record<string, unknown>;
+                const photoMarkup = makeUnsplashMarkup({
+                  url: typeof photo["url"] === "string" ? photo["url"] : "",
+                  alt: typeof photo["alt"] === "string" ? photo["alt"] : "Imagem contextual",
+                  photographer:
+                    typeof photo["photographer"] === "string"
+                      ? photo["photographer"]
+                      : "Fotógrafo do Unsplash",
+                  photographerProfile:
+                    typeof photo["photographerProfile"] === "string"
+                      ? photo["photographerProfile"]
+                      : "",
+                });
+                if (photoMarkup && hasAdsConsent()) addOns.push(photoMarkup);
+              }
+            }
+            if (addRecommendation && hasAdsConsent()) addOns.push(makeAdsterraRecommendationMarkup());
+            if (!addOns.length) return;
+
+            const enrichedAnswer = `${answer.trim()}\n\n${addOns.join("\n\n")}`;
+            setMessages((current) =>
+              current.map((item) =>
+                item.id === assistantId ? { ...item, content: enrichedAnswer } : item,
+              ),
+            );
+            await supabase
+              .from("messages")
+              .update({ content: enrichedAnswer })
+              .eq("id", assistantId)
+              .eq("conversation_id", conversationId)
+              .eq("user_id", userId);
+          })().catch(() => undefined);
         }
 
         if (toolForRequest && (toolForRequest.id === "create_pdf" || toolForRequest.id === "create_image")) {
@@ -2345,7 +2416,6 @@ function Workspace() {
       return;
     }
     const messageIndex = messages.findIndex((message) => message.id === id);
-    const aiMessage = messages[messageIndex];
     const conversationContext = messages
       .slice(Math.max(0, messageIndex - 6), Math.max(0, messageIndex))
       .map((message) => `${message.role === "user" ? "Usuário" : "DecidlyAI"}: ${message.content}`)
@@ -2367,11 +2437,6 @@ function Workspace() {
 
     const feedbackForm = new URLSearchParams();
     feedbackForm.set("application", "DecidlyAI");
-    feedbackForm.set("user_id", userId);
-    feedbackForm.set("user_email", userEmail);
-    feedbackForm.set("conversation_id", activeConversationId ?? "");
-    feedbackForm.set("conversation_context", conversationContext);
-    feedbackForm.set("ai_message", aiMessage?.content ?? "");
     feedbackForm.set("feedback", feedback);
     feedbackForm.set("comment", comment.trim());
     feedbackForm.set("_subject", "DecidlyAI — feedback de resposta da IA");
@@ -2408,7 +2473,7 @@ function Workspace() {
     if (forwardingError) {
       setError("Sua avaliação foi salva, mas não foi possível encaminhá-la agora. Tente novamente mais tarde.");
     }
-  }, [activeConversationId, messages, userEmail, userId]);
+  }, [activeConversationId, messages, userId]);
   const openFeedback = useCallback((message: ChatMessage, feedback: "like" | "dislike") => {
     setFeedbackMessage(message);
     setFeedbackChoice(feedback);
@@ -3222,7 +3287,8 @@ function Workspace() {
           <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#18101f] p-6 shadow-2xl" onPointerDown={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Sua opinião</p><h2 className="mt-2 text-2xl font-semibold">O que achou da resposta?</h2></div><button type="button" onClick={() => setFeedbackMessage(null)} className="flex h-9 w-9 items-center justify-center rounded-xl text-white/45 hover:bg-white/[0.06] hover:text-white" aria-label="Fechar feedback"><X size={18} /></button></div>
             <div className="mt-4 flex items-center gap-2 rounded-2xl bg-black/20 p-3 text-sm text-white/55"><MessageSquareText size={17} className="text-violet-300" /><span>{feedbackChoice === "like" ? "O que foi útil para você?" : "O que podemos melhorar?"}</span></div>
-            <textarea value={feedbackComment} onChange={(event) => setFeedbackComment(event.target.value.slice(0, 500))} placeholder="Escreva um comentário (opcional)" className="mt-4 min-h-28 w-full resize-none rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-white outline-none placeholder:text-white/25 focus:border-violet-300/50" />
+            <textarea aria-describedby="feedback-privacy-note" value={feedbackComment} onChange={(event) => setFeedbackComment(event.target.value.slice(0, 500))} placeholder="Escreva um comentário (opcional)" className="mt-4 min-h-28 w-full resize-none rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-white outline-none placeholder:text-white/25 focus:border-violet-300/50" />
+            <p id="feedback-privacy-note" className="mt-2 text-xs leading-5 text-white/45">Ao enviar, somente sua avaliação e o comentário digitado são encaminhados ao DecidlyAI por FormSubmit. E-mail, IDs e conteúdo da conversa não são enviados. Não inclua dados pessoais. <Link to="/privacy" className="text-violet-300 underline underline-offset-2">Política de Privacidade</Link>.</p>
             <button type="button" disabled={feedbackSaving} onClick={() => void saveFeedback(feedbackMessage.id, feedbackChoice, feedbackComment)} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-3 font-semibold text-white disabled:opacity-50">{feedbackSaving ? <Loader2 size={17} className="animate-spin" /> : null}{feedbackSaving ? "Salvando…" : "Enviar feedback"}</button>
           </div>
         </div>
@@ -3295,6 +3361,7 @@ function Workspace() {
               <button type="button" onClick={() => { const safeName = safePublicName(preferredName); setPreferredName(safeName); window.localStorage.setItem("decidly-preferred-name", safeName); setAccountOpen(false); }} className="rounded-xl bg-violet-500 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-400">Salvar preferência</button>
             </div>
             <Link to="/settings" onClick={() => setAccountOpen(false)} className="mt-3 flex w-full items-center justify-center rounded-xl bg-white/[0.06] px-4 py-3 text-sm font-semibold text-white/80 hover:bg-white/[0.1] hover:text-white">Account &amp; Settings</Link>
+            {developerMode && <Link to="/analytics" onClick={() => setAccountOpen(false)} className="mt-2 flex w-full items-center justify-center rounded-xl border border-violet-300/15 bg-violet-400/[0.06] px-4 py-3 text-sm font-semibold text-violet-200 hover:bg-violet-400/[0.12]">Analytics</Link>}
             <button type="button" onClick={() => { void supabase.auth.signOut(); navigate({ to: "/login" }); }} className="mt-5 w-full rounded-xl border border-red-400/20 px-4 py-3 text-sm text-red-300 hover:bg-red-400/[0.08]">Sair da conta</button>
           </div>
         </div>

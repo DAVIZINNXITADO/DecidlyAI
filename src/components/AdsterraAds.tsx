@@ -196,6 +196,7 @@ export function AdsterraSocialBar() {
     if (!adsConsent || hasSocialBarBeenAttempted()) return;
 
     let timerId: number | undefined;
+    let injectedScript: HTMLScriptElement | null = null;
     let waitingForFocusOut = false;
 
     const schedule = () => {
@@ -228,6 +229,7 @@ export function AdsterraSocialBar() {
         script.async = true;
         script.setAttribute("data-cfasync", "false");
         script.dataset["decidlyAdsterra"] = "social-bar";
+        injectedScript = script;
         script.addEventListener(
           "error",
           () => {
@@ -267,6 +269,7 @@ export function AdsterraSocialBar() {
       if (timerId !== undefined) window.clearTimeout(timerId);
       if (waitingForFocusOut) document.removeEventListener("focusout", onFocusOut);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      injectedScript?.remove();
     };
   }, [adsConsent]);
 

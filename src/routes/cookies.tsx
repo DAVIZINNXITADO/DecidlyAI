@@ -39,7 +39,7 @@ function Cookies() {
 
           <div className="mt-5 space-y-1 text-sm text-slate-500">
             <p>Data de criação: 06/09/2026</p>
-            <p>Última alteração: 01/10/2026</p>
+            <p>Última alteração: 09/10/2026</p>
           </div>
         </div>
 
@@ -137,20 +137,19 @@ function Cookies() {
             </p>
 
             <p>
-              Atualmente, isso pode incluir o Google para autenticação, o
-              Supabase para autenticação e infraestrutura de suporte à plataforma,
-              o Ahrefs Web Analytics para métricas agregadas de uso e a Adsterra
-              para exibir publicidade de terceiros quando você der consentimento.
+              Atualmente, isso pode incluir Google e Supabase para autenticação
+              e infraestrutura, métricas internas agregadas, Unsplash para
+              imagens contextuais, Adsterra para publicidade de terceiros e
+              FormSubmit para encaminhar uma avaliação quando você envia
+              feedback.
             </p>
 
             <p>
-              Esses serviços podem utilizar suas próprias tecnologias, cookies
-              ou mecanismos semelhantes conforme necessário. Os scripts
-              publicitários da Adsterra só são carregados após o aceite de cookies
-              não essenciais. Segundo a
-              documentação da Ahrefs, o Web Analytics não utiliza cookies nem
-              identificadores persistentes por padrão; os dados processados por
-              essa ferramenta estão descritos na Política de Privacidade.
+              Os serviços de métricas, imagem contextual e publicidade só são
+              ativados após o aceite de cookies não essenciais. O FormSubmit é
+              usado somente após o envio intencional de feedback; apenas a
+              avaliação e o comentário digitado são encaminhados, sem IDs ou
+              transcrição da conversa.
             </p>
 
             <p>
@@ -163,13 +162,15 @@ function Cookies() {
           <CookieSection number="06" title="Consentimento">
             <p>
               O DecidlyAI solicita sua escolha em relação ao uso de cookies não
-              essenciais antes de carregar os scripts publicitários da Adsterra.
+              essenciais antes de ativar métricas internas, imagens contextuais
+              ou scripts publicitários da Adsterra.
             </p>
 
             <p>
-              Você pode aceitar ou recusar cookies não essenciais por meio do
-              aviso de cookies disponibilizado na plataforma. Ao recusar, os
-              anúncios da Adsterra não são carregados.
+              Você pode aceitar ou recusar cookies não essenciais pelo aviso
+              inicial e reabrir as preferências pelo controle “Cookies” na
+              plataforma. Ao revogar uma escolha anterior, a página é atualizada
+              para encerrar scripts externos já carregados.
             </p>
 
             <p>
