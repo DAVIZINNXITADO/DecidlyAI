@@ -44,33 +44,56 @@ export async function streamAi(functionName: string, options: Options): Promise<
   const anonKey = SUPABASE_ANON_KEY;
   if (!token || !baseUrl || !anonKey) throw new Error("AUTH");
 
-  let response: Response;
-  try {
-    response = await fetch(`${baseUrl}/functions/v1/${functionName}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        apikey: anonKey,
-        "Content-Type": "application/json",
-        Accept: "text/event-stream, application/json",
-      },
-      signal: options.signal ?? null,
-      body: JSON.stringify({
-        message: options.message,
-        history: options.history,
-        attachments: options.attachments ?? [],
-        ...(options.mode ? { mode: options.mode } : {}),
-        stream: true,
-        language: options.language || window.localStorage.getItem("decidly-language") || "pt-BR",
-      }),
-    });
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") throw error;
-    throw new Error("NETWORK");
+  const requestBody = JSON.stringify({
+    message: options.message,
+    history: options.history,
+    attachments: options.attachments ?? [],
+    ...(options.mode ? { mode: options.mode } : {}),
+    stream: true,
+    language: options.language || window.localStorage.getItem("decidly-language") || "pt-BR",
+  });
+  let response: Response | null = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      response = await fetch(`${baseUrl}/functions/v1/${functionName}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          apikey: anonKey,
+          "Content-Type": "application/json",
+          Accept: "text/event-stream, application/json",
+        },
+        signal: options.signal ?? null,
+        body: requestBody,
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") throw error;
+      throw new Error("NETWORK");
+    }
+
+    // Um 503 é devolvido antes do início do stream; repetir uma vez pode
+    // recuperar uma indisponibilidade transitória sem duplicar uma resposta concluída.
+    if (response.status !== 503 || attempt === 1) break;
+    if (response.body) await response.body.cancel().catch(() => undefined);
+    await new Promise((resolve) => window.setTimeout(resolve, 500));
+    if (options.signal?.aborted) throw new DOMException("Stream aborted", "AbortError");
   }
 
+  if (!response) throw new Error("NETWORK");
   if (!response.ok) {
-    const error = new Error(`HTTP_${response.status}`);
+    const payload = await response
+      .clone()
+      .json()
+      .catch(() => null);
+    const serverError =
+      payload &&
+      typeof payload === "object" &&
+      typeof (payload as Record<string, unknown>).error === "string"
+        ? String((payload as Record<string, unknown>).error)
+        : "";
+    const error = new Error(
+      response.status >= 500 ? `HTTP_${response.status}` : serverError || `HTTP_${response.status}`,
+    );
     Object.assign(error, { status: response.status });
     throw error;
   }
@@ -94,15 +117,27 @@ export async function streamAi(functionName: string, options: Options): Promise<
 
   const consume = (block: string) => {
     const normalized = block.replaceAll("\r\n", "\n");
-    const raw = normalized.split("\n").filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).join("\n");
+    const raw = normalized
+      .split("\n")
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).trim())
+      .join("\n");
     if (!raw) return;
-    if (raw === "[DONE]") { doneReceived = true; return; }
+    if (raw === "[DONE]") {
+      doneReceived = true;
+      return;
+    }
     let parsed: unknown;
-    try { parsed = JSON.parse(raw); } catch { return; }
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return;
+    }
     const value = parsed as Record<string, unknown>;
     if (typeof value["error"] === "string") throw new Error(errorFrom(value) || value["error"]);
     if (value["complete"] === true) {
-      const completeText = typeof value["response"] === "string" ? value["response"] : textFrom(parsed);
+      const completeText =
+        typeof value["response"] === "string" ? value["response"] : textFrom(parsed);
       if (completeText && !accumulated) {
         accumulated = cleanDoneMarker(completeText);
         options.onDelta?.(completeText, accumulated);
@@ -112,12 +147,12 @@ export async function streamAi(functionName: string, options: Options): Promise<
     }
     const next = textFrom(parsed);
     if (!next) return;
-      const delta =
-        typeof value["accumulated"] === "string" && value["accumulated"].startsWith(accumulated)
-          ? value["accumulated"].slice(accumulated.length)
-          : next;
-      accumulated = cleanDoneMarker(
-        typeof value["accumulated"] === "string" ? value["accumulated"] : accumulated + delta,
+    const delta =
+      typeof value["accumulated"] === "string" && value["accumulated"].startsWith(accumulated)
+        ? value["accumulated"].slice(accumulated.length)
+        : next;
+    accumulated = cleanDoneMarker(
+      typeof value["accumulated"] === "string" ? value["accumulated"] : accumulated + delta,
     );
     if (delta) options.onDelta?.(delta, accumulated);
   };

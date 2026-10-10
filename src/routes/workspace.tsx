@@ -1798,6 +1798,10 @@ function Workspace() {
           setError(
             "A IA está recebendo muitas solicitações. Aguarde alguns segundos e tente novamente — sua conversa continua salva.",
           );
+        } else if (status === 503) {
+          setError(
+            "A IA ficou temporariamente indisponível. Sua mensagem foi salva na conversa; tente reenviá-la em alguns instantes.",
+          );
         } else if (message === "AUTH" || status === 401 || status === 403) {
           setError(
             "Sua sessão não pôde ser validada. Entre novamente.",
